@@ -251,27 +251,27 @@ export default function Dashboard() {
           title="Current Balance" 
           value={formatCurrency(stats?.currentBalance || 0)} 
           subtitle={`Initial: ${formatCurrency(stats?.initialBalance || 0)}`}
-          icon={DollarSign}
+          icon={Wallet}
           color="text-sky-400"
         />
         <MetricCard 
           title="Total PnL" 
           value={formatCurrency(stats?.totalPnl || 0)} 
-          icon={TrendingUp}
+          icon={BarChart3}
           trend={stats?.totalPnl >= 0 ? 'up' : 'down'}
-          color={stats?.totalPnl >= 0 ? 'text-sky-400' : 'text-neutral-200'}
+          color={stats?.totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}
         />
         <MetricCard 
           title="Win Rate" 
           value={formatPercent(stats?.winRate || 0)} 
-          icon={Target}
-          color="text-sky-400"
+          icon={Zap}
+          color="text-amber-400"
         />
         <MetricCard 
           title="Profit Factor" 
           value={(stats?.profitFactor || 0).toFixed(2)} 
-          icon={Activity}
-          color="text-sky-400"
+          icon={ShieldCheck}
+          color="text-indigo-400"
         />
       </div>
 
@@ -431,10 +431,23 @@ export default function Dashboard() {
 }
 
 function MetricCard({ title, value, subtitle, icon: Icon, trend, color }: any) {
+  // Map colors to background classes for the icon container
+  const bgColors: Record<string, string> = {
+    'text-sky-400': 'bg-sky-500/10',
+    'text-emerald-400': 'bg-emerald-500/10',
+    'text-rose-400': 'bg-rose-500/10',
+    'text-amber-400': 'bg-amber-500/10',
+    'text-indigo-400': 'bg-indigo-500/10',
+    'text-neutral-200': 'bg-neutral-500/10'
+  };
+
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8 transition-all duration-300 hover:border-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/5 group">
       <div className="flex items-center justify-between mb-6">
-        <div className={cn("w-12 h-12 rounded-2xl bg-opacity-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110", color.replace('text', 'bg'))}>
+        <div className={cn(
+          "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110", 
+          bgColors[color] || 'bg-sky-500/10'
+        )}>
           <Icon className={cn("w-6 h-6", color)} />
         </div>
         {trend && (

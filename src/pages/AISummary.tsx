@@ -83,7 +83,7 @@ export default function AISummary() {
       const model = "gemini-3-flash-preview";
       
       const tradeData = trades.map(t => ({
-        symbol: t.symbol,
+        asset: t.asset,
         type: t.type,
         pnl: t.pnl,
         pnl_percent: t.pnl_percent,

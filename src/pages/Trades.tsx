@@ -12,10 +12,13 @@ import {
   Trash2,
   Edit2,
   X,
-  Check
+  Check,
+  Calendar
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function Trades() {
   const { user } = useAuth();
@@ -26,10 +29,10 @@ export default function Trades() {
 
   // Form State
   const [newTrade, setNewTrade] = useState({
-    symbol: '',
+    asset: '' as any,
     type: 'LONG' as 'LONG' | 'SHORT',
     entry_price: '',
-    quantity: '',
+    contract_size: '',
     entry_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     notes: ''
   });
@@ -58,10 +61,10 @@ export default function Trades() {
 
     const { error } = await supabase.from('trades').insert([{
       user_id: user.id,
-      symbol: newTrade.symbol.toUpperCase(),
+      asset: newTrade.asset,
       type: newTrade.type,
       entry_price: parseFloat(newTrade.entry_price),
-      quantity: parseFloat(newTrade.quantity),
+      contract_size: parseFloat(newTrade.contract_size),
       entry_date: new Date(newTrade.entry_date).toISOString(),
       status: 'OPEN',
       notes: newTrade.notes
@@ -70,10 +73,10 @@ export default function Trades() {
     if (!error) {
       setIsModalOpen(false);
       setNewTrade({
-        symbol: '',
+        asset: '' as any,
         type: 'LONG',
         entry_price: '',
-        quantity: '',
+        contract_size: '',
         entry_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         notes: ''
       });
@@ -87,8 +90,8 @@ export default function Trades() {
 
     const price = parseFloat(exitPrice);
     const pnl = trade.type === 'LONG' 
-      ? (price - trade.entry_price) * trade.quantity
-      : (trade.entry_price - price) * trade.quantity;
+      ? (price - trade.entry_price) * trade.contract_size
+      : (trade.entry_price - price) * trade.contract_size;
     
     const pnlPercent = trade.type === 'LONG'
       ? ((price - trade.entry_price) / trade.entry_price) * 100
@@ -117,7 +120,7 @@ export default function Trades() {
   };
 
   const filteredTrades = trades.filter(t => 
-    t.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+    t.asset.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -174,7 +177,7 @@ export default function Trades() {
                 <tr key={trade.id} className="hover:bg-[#1a1a1a] transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-white">{trade.symbol}</span>
+                      <span className="font-bold text-white">{trade.asset}</span>
                       <span className="text-xs text-neutral-500">{format(new Date(trade.entry_date), 'MMM dd, yyyy')}</span>
                     </div>
                   </td>
@@ -189,7 +192,7 @@ export default function Trades() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{formatCurrency(trade.entry_price)}</span>
-                      <span className="text-xs text-neutral-500">{trade.quantity} units</span>
+                      <span className="text-xs text-neutral-500">{trade.contract_size} units</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -272,15 +275,21 @@ export default function Trades() {
             <form onSubmit={handleAddTrade} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Symbol</label>
-                  <input 
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Asset</label>
+                  <select 
                     required
-                    type="text" 
-                    value={newTrade.symbol}
-                    onChange={(e) => setNewTrade({...newTrade, symbol: e.target.value})}
-                    placeholder="e.g. BTCUSDT"
+                    value={newTrade.asset}
+                    onChange={(e) => setNewTrade({...newTrade, asset: e.target.value as any})}
                     className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
-                  />
+                  >
+                    <option value="">Select Asset</option>
+                    <option value="MNQ">MNQ</option>
+                    <option value="NQ">NQ</option>
+                    <option value="MES">MES</option>
+                    <option value="ES">ES</option>
+                    <option value="MGC">MGC</option>
+                    <option value="GC">GC</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Type</label>
@@ -305,25 +314,31 @@ export default function Trades() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Quantity</label>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Contract Size</label>
                   <input 
                     required
                     type="number" 
                     step="0.00000001"
-                    value={newTrade.quantity}
-                    onChange={(e) => setNewTrade({...newTrade, quantity: e.target.value})}
+                    value={newTrade.contract_size}
+                    onChange={(e) => setNewTrade({...newTrade, contract_size: e.target.value})}
                     className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Date & Time</label>
-                  <input 
-                    required
-                    type="datetime-local" 
-                    value={newTrade.entry_date}
-                    onChange={(e) => setNewTrade({...newTrade, entry_date: e.target.value})}
-                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
-                  />
+                  <div className="relative">
+                    <DatePicker
+                      selected={newTrade.entry_date ? parseISO(newTrade.entry_date) : new Date()}
+                      onChange={(date) => setNewTrade({...newTrade, entry_date: date ? date.toISOString() : ''})}
+                      showTimeSelect
+                      dateFormat="Pp"
+                      className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none font-bold"
+                      calendarClassName="bg-[#1f1f1f] border-[#262626] text-white rounded-xl shadow-2xl"
+                      popperClassName="z-[150]"
+                      wrapperClassName="w-full"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Notes</label>
