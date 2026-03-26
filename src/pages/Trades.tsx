@@ -1,0 +1,350 @@
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
+import { Trade } from '../types';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  MoreVertical,
+  Trash2,
+  Edit2,
+  X,
+  Check
+} from 'lucide-react';
+import { formatCurrency, formatPercent, cn } from '../lib/utils';
+import { format } from 'date-fns';
+
+export default function Trades() {
+  const { user } = useAuth();
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Form State
+  const [newTrade, setNewTrade] = useState({
+    symbol: '',
+    type: 'LONG' as 'LONG' | 'SHORT',
+    entry_price: '',
+    quantity: '',
+    entry_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    notes: ''
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    fetchTrades();
+  }, [user]);
+
+  const fetchTrades = async () => {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('entry_date', { ascending: false });
+
+    if (!error && data) {
+      setTrades(data);
+    }
+    setLoading(false);
+  };
+
+  const handleAddTrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const { error } = await supabase.from('trades').insert([{
+      user_id: user.id,
+      symbol: newTrade.symbol.toUpperCase(),
+      type: newTrade.type,
+      entry_price: parseFloat(newTrade.entry_price),
+      quantity: parseFloat(newTrade.quantity),
+      entry_date: new Date(newTrade.entry_date).toISOString(),
+      status: 'OPEN',
+      notes: newTrade.notes
+    }]);
+
+    if (!error) {
+      setIsModalOpen(false);
+      setNewTrade({
+        symbol: '',
+        type: 'LONG',
+        entry_price: '',
+        quantity: '',
+        entry_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        notes: ''
+      });
+      fetchTrades();
+    }
+  };
+
+  const handleCloseTrade = async (trade: Trade) => {
+    const exitPrice = prompt('Enter exit price:');
+    if (!exitPrice) return;
+
+    const price = parseFloat(exitPrice);
+    const pnl = trade.type === 'LONG' 
+      ? (price - trade.entry_price) * trade.quantity
+      : (trade.entry_price - price) * trade.quantity;
+    
+    const pnlPercent = trade.type === 'LONG'
+      ? ((price - trade.entry_price) / trade.entry_price) * 100
+      : ((trade.entry_price - price) / trade.entry_price) * 100;
+
+    const { error } = await supabase
+      .from('trades')
+      .update({
+        exit_price: price,
+        exit_date: new Date().toISOString(),
+        status: 'CLOSED',
+        pnl,
+        pnl_percent: pnlPercent
+      })
+      .eq('id', trade.id);
+
+    if (!error) {
+      fetchTrades();
+    }
+  };
+
+  const handleDeleteTrade = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this trade?')) return;
+    const { error } = await supabase.from('trades').delete().eq('id', id);
+    if (!error) fetchTrades();
+  };
+
+  const filteredTrades = trades.filter(t => 
+    t.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Trade History</h1>
+          <p className="text-neutral-400 mt-1">Manage and track your active and past trades.</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-black font-bold rounded-xl hover:bg-orange-400 transition-all shadow-lg shadow-orange-500/20"
+        >
+          <Plus className="w-5 h-5" />
+          Add New Trade
+        </button>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
+          <input 
+            type="text" 
+            placeholder="Search by symbol (e.g. BTC, AAPL)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-[#141414] border border-[#262626] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+          />
+        </div>
+        <button className="inline-flex items-center gap-2 px-4 py-3 bg-[#141414] border border-[#262626] rounded-xl text-neutral-400 hover:text-white transition-all">
+          <Filter className="w-5 h-5" />
+          Filters
+        </button>
+      </div>
+
+      {/* Trades Table */}
+      <div className="bg-[#141414] border border-[#262626] rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#1f1f1f] text-xs font-bold text-neutral-500 uppercase tracking-widest">
+                <th className="px-6 py-4">Symbol</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Entry</th>
+                <th className="px-6 py-4">Exit</th>
+                <th className="px-6 py-4">PnL</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#262626]">
+              {filteredTrades.map((trade) => (
+                <tr key={trade.id} className="hover:bg-[#1a1a1a] transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-white">{trade.symbol}</span>
+                      <span className="text-xs text-neutral-500">{format(new Date(trade.entry_date), 'MMM dd, yyyy')}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={cn(
+                      "px-2 py-1 rounded text-[10px] font-bold uppercase",
+                      trade.type === 'LONG' ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"
+                    )}>
+                      {trade.type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{formatCurrency(trade.entry_price)}</span>
+                      <span className="text-xs text-neutral-500">{trade.quantity} units</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm font-medium">
+                      {trade.exit_price ? formatCurrency(trade.exit_price) : '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {trade.status === 'CLOSED' ? (
+                      <div className="flex flex-col">
+                        <span className={cn(
+                          "text-sm font-bold",
+                          (trade.pnl || 0) >= 0 ? "text-green-500" : "text-red-500"
+                        )}>
+                          {formatCurrency(trade.pnl || 0)}
+                        </span>
+                        <span className={cn(
+                          "text-xs",
+                          (trade.pnl_percent || 0) >= 0 ? "text-green-500/70" : "text-red-500/70"
+                        )}>
+                          {formatPercent(trade.pnl_percent || 0)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-neutral-500 italic">Running...</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={cn(
+                      "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                      trade.status === 'OPEN' ? "bg-blue-500/10 text-blue-500" : "bg-neutral-500/10 text-neutral-500"
+                    )}>
+                      {trade.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {trade.status === 'OPEN' && (
+                        <button 
+                          onClick={() => handleCloseTrade(trade)}
+                          className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                          title="Close Trade"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => handleDeleteTrade(trade.id)}
+                        className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="Delete Trade"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredTrades.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-neutral-500 italic">
+                    No trades found matching your criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Trade Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#141414] border border-[#262626] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-[#262626] flex items-center justify-between">
+              <h2 className="text-xl font-bold">Add New Trade</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-neutral-500 hover:text-white">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleAddTrade} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Symbol</label>
+                  <input 
+                    required
+                    type="text" 
+                    value={newTrade.symbol}
+                    onChange={(e) => setNewTrade({...newTrade, symbol: e.target.value})}
+                    placeholder="e.g. BTCUSDT"
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Type</label>
+                  <select 
+                    value={newTrade.type}
+                    onChange={(e) => setNewTrade({...newTrade, type: e.target.value as any})}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  >
+                    <option value="LONG">LONG</option>
+                    <option value="SHORT">SHORT</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Entry Price</label>
+                  <input 
+                    required
+                    type="number" 
+                    step="0.00000001"
+                    value={newTrade.entry_price}
+                    onChange={(e) => setNewTrade({...newTrade, entry_price: e.target.value})}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Quantity</label>
+                  <input 
+                    required
+                    type="number" 
+                    step="0.00000001"
+                    value={newTrade.quantity}
+                    onChange={(e) => setNewTrade({...newTrade, quantity: e.target.value})}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Date & Time</label>
+                  <input 
+                    required
+                    type="datetime-local" 
+                    value={newTrade.entry_date}
+                    onChange={(e) => setNewTrade({...newTrade, entry_date: e.target.value})}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Notes</label>
+                  <textarea 
+                    value={newTrade.notes}
+                    onChange={(e) => setNewTrade({...newTrade, notes: e.target.value})}
+                    rows={3}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none resize-none"
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit"
+                className="w-full py-3 bg-orange-500 text-black font-bold rounded-xl hover:bg-orange-400 transition-all mt-4"
+              >
+                Save Trade
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
