@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { Trade } from '../types';
+import { Trade, TradingAccount } from '../types';
 import { 
   Plus, 
   Search, 
@@ -13,7 +13,8 @@ import {
   Edit2,
   X,
   Check,
-  Calendar
+  Calendar,
+  Wallet
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -23,12 +24,14 @@ import "react-datepicker/dist/react-datepicker.css";
 export default function Trades() {
   const { user } = useAuth();
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Form State
   const [newTrade, setNewTrade] = useState({
+    account_id: '',
     asset: '' as any,
     type: 'LONG' as 'LONG' | 'SHORT',
     entry_price: '',
@@ -40,7 +43,22 @@ export default function Trades() {
   useEffect(() => {
     if (!user) return;
     fetchTrades();
+    fetchAccounts();
   }, [user]);
+
+  const fetchAccounts = async () => {
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', user?.id);
+    
+    if (!error && data) {
+      setAccounts(data);
+      if (data.length > 0) {
+        setNewTrade(prev => ({ ...prev, account_id: data[0].id }));
+      }
+    }
+  };
 
   const fetchTrades = async () => {
     const { data, error } = await supabase
@@ -61,9 +79,11 @@ export default function Trades() {
 
     const { error } = await supabase.from('trades').insert([{
       user_id: user.id,
+      account_id: newTrade.account_id,
       asset: newTrade.asset,
       type: newTrade.type,
       entry_price: parseFloat(newTrade.entry_price),
+      exit_price: 0, // Providing default to satisfy NOT NULL constraint
       contract_size: parseFloat(newTrade.contract_size),
       entry_date: new Date(newTrade.entry_date).toISOString(),
       status: 'OPEN',
@@ -73,6 +93,7 @@ export default function Trades() {
     if (!error) {
       setIsModalOpen(false);
       setNewTrade({
+        account_id: accounts[0]?.id || '',
         asset: '' as any,
         type: 'LONG',
         entry_price: '',
@@ -275,6 +296,20 @@ export default function Trades() {
             <form onSubmit={handleAddTrade} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Account</label>
+                  <select 
+                    required
+                    value={newTrade.account_id}
+                    onChange={(e) => setNewTrade({...newTrade, account_id: e.target.value})}
+                    className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none"
+                  >
+                    <option value="">Select Account</option>
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name} ({acc.account_size})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Asset</label>
                   <select 
                     required
@@ -325,13 +360,12 @@ export default function Trades() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Date & Time</label>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">Date</label>
                   <div className="relative">
                     <DatePicker
                       selected={newTrade.entry_date ? parseISO(newTrade.entry_date) : new Date()}
                       onChange={(date) => setNewTrade({...newTrade, entry_date: date ? date.toISOString() : ''})}
-                      showTimeSelect
-                      dateFormat="Pp"
+                      dateFormat="yyyy-MM-dd"
                       className="w-full px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-white focus:ring-2 focus:ring-orange-500/50 outline-none font-bold"
                       calendarClassName="bg-[#1f1f1f] border-[#262626] text-white rounded-xl shadow-2xl"
                       popperClassName="z-[150]"

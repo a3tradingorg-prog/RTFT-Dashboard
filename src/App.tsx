@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Accounts from './pages/Accounts';
 import Journal from './pages/Journal';
+import Strategy from './pages/Strategy';
 import AISummary from './pages/AISummary';
 import Learning from './pages/Learning';
 import Fundamental from './pages/Fundamental';
@@ -77,6 +78,12 @@ export default function App() {
           <Route path="/journal" element={
             <ProtectedRoute>
               <Journal />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/strategy" element={
+            <ProtectedRoute>
+              <Strategy />
             </ProtectedRoute>
           } />
           

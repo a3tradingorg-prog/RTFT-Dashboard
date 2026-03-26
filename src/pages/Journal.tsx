@@ -64,10 +64,10 @@ export default function Journal() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [activeTab, setActiveTab] = useState<'info' | 'strategy'>('info');
   
   // Form Fields
   const [asset, setAsset] = useState<Trade['asset']>('MNQ');
+  const [type, setType] = useState<'LONG' | 'SHORT'>('LONG');
   const [entryDate, setEntryDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [contractSize, setContractSize] = useState('1');
   const [entryPrice, setEntryPrice] = useState('');
@@ -88,6 +88,21 @@ export default function Journal() {
   const [marketRegime, setMarketRegime] = useState('');
   const [psychologyStatus, setPsychologyStatus] = useState('');
   const [fundamentalContext, setFundamentalContext] = useState('');
+
+  // Automatic LONG/SHORT detection
+  useEffect(() => {
+    const entry = parseFloat(entryPrice);
+    const tp = parseFloat(takeProfit);
+    const sl = parseFloat(stop_loss);
+
+    if (!isNaN(entry) && !isNaN(tp) && !isNaN(sl)) {
+      if (tp > entry && sl < entry) {
+        setType('LONG');
+      } else if (tp < entry && sl > entry) {
+        setType('SHORT');
+      }
+    }
+  }, [entryPrice, takeProfit, stop_loss]);
 
   // Dropdown States
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
@@ -166,14 +181,17 @@ export default function Journal() {
     // Calculate PnL from exits
     let totalNetPnl = 0;
     let totalClosedQty = 0;
+    let weightedExitPriceSum = 0;
+
     const processedExits = exits.map(exit => {
       const exitP = parseFloat(exit.exit_price);
       const exitQty = parseFloat(exit.closed_contract);
       totalClosedQty += exitQty;
+      weightedExitPriceSum += (exitP * exitQty);
       
-      // We assume LONG for simplicity in this version, or we could add a type field
-      // But based on the prompt, we'll assume standard calculation
-      const exitPnl = (exitP - entry) * exitQty * multiplier;
+      const exitPnl = type === 'LONG' 
+        ? (exitP - entry) * exitQty * multiplier
+        : (entry - exitP) * exitQty * multiplier;
       const commission = (selectedAccount?.commission || 0) * exitQty;
       
       totalNetPnl += (exitPnl - commission);
@@ -186,13 +204,17 @@ export default function Journal() {
       };
     });
 
+    const avgExitPrice = totalClosedQty > 0 ? weightedExitPriceSum / totalClosedQty : 0;
+
     const tradeData = {
       account_id: selectedAccountId,
       user_id: user?.id,
       asset,
+      type,
       entry_date: new Date(entryDate).toISOString(),
       contract_size: totalQty,
       entry_price: entry,
+      exit_price: avgExitPrice, // Providing avgExitPrice to satisfy NOT NULL constraint
       take_profit: parseFloat(takeProfit) || 0,
       stop_loss: parseFloat(stop_loss) || 0,
       screenshot_url: screenshot,
@@ -244,6 +266,7 @@ export default function Journal() {
 
   const resetForm = () => {
     setAsset('MNQ');
+    setType('LONG');
     setEntryDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     setContractSize('1');
     setEntryPrice('');
@@ -256,7 +279,6 @@ export default function Journal() {
     setPsychologyStatus('');
     setFundamentalContext('');
     setFormError('');
-    setActiveTab('info');
   };
 
   const handleAddExit = () => {
@@ -599,34 +621,9 @@ export default function Journal() {
                 </button>
               </div>
 
-              {/* Tabs */}
-              <div className="flex gap-4 mb-10 border-b border-[#262626] pb-4">
-                <button 
-                  onClick={() => setActiveTab('info')}
-                  className={cn(
-                    "flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all",
-                    activeTab === 'info' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
-                  )}
-                >
-                  <Layout className="w-4 h-4" />
-                  Trade Info
-                </button>
-                <button 
-                  onClick={() => setActiveTab('strategy')}
-                  className={cn(
-                    "flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all",
-                    activeTab === 'strategy' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
-                  )}
-                >
-                  <Brain className="w-4 h-4" />
-                  Strategy Tab
-                </button>
-              </div>
-
               <form onSubmit={handleSubmit} className="space-y-10">
-                {activeTab === 'info' ? (
-                  <div className="space-y-10">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="space-y-10">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                       <div className="space-y-3 relative">
                         <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Asset</label>
                         <div className="relative">
@@ -675,8 +672,7 @@ export default function Journal() {
                           <DatePicker
                             selected={entryDate ? parseISO(entryDate) : new Date()}
                             onChange={(date) => setEntryDate(date ? date.toISOString() : '')}
-                            showTimeSelect
-                            dateFormat="Pp"
+                            dateFormat="yyyy-MM-dd"
                             className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold"
                             calendarClassName="bg-[#1f1f1f] border-[#262626] text-white rounded-2xl shadow-2xl"
                             popperClassName="z-[150]"
@@ -684,6 +680,29 @@ export default function Journal() {
                           />
                           <CalendarIcon className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 pointer-events-none" />
                         </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Trade Type</label>
+                        <div className="flex bg-[#0a0a0a] border border-[#262626] rounded-2xl p-1.5 opacity-80 cursor-not-allowed">
+                          <div
+                            className={cn(
+                              "flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-center",
+                              type === 'LONG' ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-neutral-500"
+                            )}
+                          >
+                            Long
+                          </div>
+                          <div
+                            className={cn(
+                              "flex-1 py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-center",
+                              type === 'SHORT' ? "bg-rose-500 text-black shadow-lg shadow-rose-500/20" : "text-neutral-500"
+                            )}
+                          >
+                            Short
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-neutral-500 italic ml-1">Auto-detected from TP/SL</p>
                       </div>
 
                       <div className="space-y-3">
@@ -861,10 +880,7 @@ export default function Journal() {
                           </div>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Screenshot Section */}
-                    <div className="space-y-3">
+                    </div>                    <div className="space-y-3">
                       <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Entry Record Screenshot</label>
                       <div 
                         onPaste={handlePaste}
@@ -900,48 +916,48 @@ export default function Journal() {
                         )}
                       </div>
                     </div>
+
+                    {/* Strategy Fields Merged */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-[#262626]">
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Entry Context</label>
+                        <textarea 
+                          value={entryContext}
+                          onChange={(e) => setEntryContext(e.target.value)}
+                          placeholder="Describe market conditions at entry..."
+                          className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[120px]"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Market Regime</label>
+                        <input 
+                          type="text"
+                          value={marketRegime}
+                          onChange={(e) => setMarketRegime(e.target.value)}
+                          placeholder="e.g. Trending, Range-bound"
+                          className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Psychology Status</label>
+                        <textarea 
+                          value={psychologyStatus}
+                          onChange={(e) => setPsychologyStatus(e.target.value)}
+                          placeholder="How were you feeling during the trade?"
+                          className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[120px]"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Fundamental Context</label>
+                        <textarea 
+                          value={fundamentalContext}
+                          onChange={(e) => setFundamentalContext(e.target.value)}
+                          placeholder="Any news or macro factors?"
+                          className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[120px]"
+                        />
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Entry Context</label>
-                      <textarea 
-                        value={entryContext}
-                        onChange={(e) => setEntryContext(e.target.value)}
-                        placeholder="Describe market conditions at entry..."
-                        className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[150px]"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Market Regime</label>
-                      <input 
-                        type="text"
-                        value={marketRegime}
-                        onChange={(e) => setMarketRegime(e.target.value)}
-                        placeholder="e.g. Trending, Range-bound"
-                        className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Psychology Status</label>
-                      <textarea 
-                        value={psychologyStatus}
-                        onChange={(e) => setPsychologyStatus(e.target.value)}
-                        placeholder="How were you feeling during the trade?"
-                        className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[150px]"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Fundamental Context</label>
-                      <textarea 
-                        value={fundamentalContext}
-                        onChange={(e) => setFundamentalContext(e.target.value)}
-                        placeholder="Any news or macro factors?"
-                        className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 min-h-[150px]"
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {formError && (
                   <div className="flex items-center gap-4 p-5 bg-red-500/5 border border-red-500/20 rounded-3xl text-red-400 text-sm font-bold">
