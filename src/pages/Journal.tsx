@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { TradingAccount, Trade, DailyPnL, TradeExit } from '../types';
+import { TradingAccount, Trade, DailyPnL, TradeExit, Strategy } from '../types';
 import { 
   Book, 
   Plus, 
@@ -61,6 +61,7 @@ export default function Journal() {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(localStorage.getItem('selectedAccountId'));
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'calendar' | 'details'>('calendar');
@@ -108,6 +109,7 @@ export default function Journal() {
   const [marketRegime, setMarketRegime] = useState('');
   const [psychologyStatus, setPsychologyStatus] = useState('');
   const [fundamentalContext, setFundamentalContext] = useState('');
+  const [strategyId, setStrategyId] = useState<string | null>(null);
 
   // Automatic LONG/SHORT detection
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function Journal() {
   // Dropdown States
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false);
   const [openExitDropdown, setOpenExitDropdown] = useState<{ index: number, type: 'status' | 'reason' } | null>(null);
 
   useEffect(() => {
@@ -136,22 +139,34 @@ export default function Journal() {
   }, [user]);
 
   const fetchAccounts = async () => {
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user?.id);
+    const [accountsRes, strategiesRes] = await Promise.all([
+      supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user?.id),
+      supabase
+        .from('strategies')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'Active')
+    ]);
 
-    if (!error && data) {
-      setAccounts(data);
-      if (data.length > 0) {
+    if (!accountsRes.error && accountsRes.data) {
+      setAccounts(accountsRes.data);
+      if (accountsRes.data.length > 0) {
         const savedId = localStorage.getItem('selectedAccountId');
-        const exists = data.some(a => a.id === savedId);
+        const exists = accountsRes.data.some(a => a.id === savedId);
         if (!savedId || !exists) {
-          setSelectedAccountId(data[0].id);
-          localStorage.setItem('selectedAccountId', data[0].id);
+          setSelectedAccountId(accountsRes.data[0].id);
+          localStorage.setItem('selectedAccountId', accountsRes.data[0].id);
         }
       }
     }
+
+    if (!strategiesRes.error && strategiesRes.data) {
+      setStrategies(strategiesRes.data);
+    }
+
     setLoading(false);
   };
 
@@ -167,7 +182,7 @@ export default function Journal() {
       const [tradesRes, dailyPnlsRes] = await Promise.all([
         supabase
           .from('trades')
-          .select('*, trade_exit_records(*)')
+          .select('*, trade_exit_records(*), strategies(*)')
           .eq('account_id', selectedAccountId)
           .order('entry_date', { ascending: false })
           .order('exit_timestamp', { foreignTable: 'trade_exit_records', ascending: false }),
@@ -181,11 +196,11 @@ export default function Journal() {
       if (dailyPnlsRes.error) throw dailyPnlsRes.error;
 
       if (tradesRes.data) {
-        // Map trade_exit_records to trade_exits for compatibility with existing code if needed, 
-        // but it's better to just use the new name.
+        // Map trade_exit_records to trade_exits and strategies to strategy for compatibility
         const mappedTrades = tradesRes.data.map((t: any) => ({
           ...t,
-          trade_exits: t.trade_exit_records
+          trade_exits: t.trade_exit_records,
+          strategy: t.strategies
         }));
         setTrades(mappedTrades);
       }
@@ -240,6 +255,7 @@ export default function Journal() {
     setMarketRegime(trade.market_regime || '');
     setPsychologyStatus(trade.psychology_status || '');
     setFundamentalContext(trade.fundamental_context || '');
+    setStrategyId(trade.strategy_id);
     
     if (trade.trade_exits && trade.trade_exits.length > 0) {
       setExits(trade.trade_exits.map(e => ({
@@ -334,6 +350,7 @@ export default function Journal() {
       market_regime: marketRegime,
       psychology_status: psychologyStatus,
       fundamental_context: fundamentalContext,
+      strategy_id: strategyId,
       pnl: totalNetPnl,
       pnl_percent: (totalNetPnl / (selectedAccount?.initial_balance || 1)) * 100,
       status: totalClosedQty >= totalQty ? 'CLOSED' : 'OPEN',
@@ -446,6 +463,7 @@ export default function Journal() {
     setMarketRegime('');
     setPsychologyStatus('');
     setFundamentalContext('');
+    setStrategyId(null);
     setFormError('');
   };
 
@@ -754,6 +772,12 @@ export default function Journal() {
                             <Tag className="w-3.5 h-3.5" />
                             {trade.contract_size} contracts
                           </div>
+                          {trade.strategy && (
+                            <div className="flex items-center gap-1.5 text-xs text-sky-500/60 font-black uppercase tracking-widest">
+                              <Target className="w-3.5 h-3.5" />
+                              {trade.strategy.strategy_name}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -865,7 +889,15 @@ export default function Journal() {
                               <td className="px-6 py-4">
                                 <div className="flex flex-col">
                                   <span className="text-xs font-black text-white">{trade.asset}</span>
-                                  <span className="text-[8px] text-neutral-600 font-bold uppercase tracking-tighter">Trade ID: {trade.id.slice(0, 8)}</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[8px] text-neutral-600 font-bold uppercase tracking-tighter">Trade ID: {trade.id.slice(0, 8)}</span>
+                                    {trade.strategy && (
+                                      <>
+                                        <span className="text-[8px] text-neutral-700">•</span>
+                                        <span className="text-[8px] text-sky-500/60 font-black uppercase tracking-widest">{trade.strategy.strategy_name}</span>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-6 py-4">
@@ -1017,6 +1049,63 @@ export default function Journal() {
                                     )}
                                   >
                                     {a}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 relative">
+                        <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Strategy</label>
+                        <div className="relative">
+                          <button 
+                            type="button"
+                            onClick={() => setIsStrategyDropdownOpen(!isStrategyDropdownOpen)}
+                            className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
+                          >
+                            <span className="truncate">
+                              {strategies.find(s => s.strategy_id === strategyId)?.strategy_name || 'Select Strategy'}
+                            </span>
+                            <ChevronDown className={cn("w-5 h-5 text-neutral-500 transition-transform", isStrategyDropdownOpen && "rotate-180")} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isStrategyDropdownOpen && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute top-full left-0 right-0 mt-2 bg-[#1f1f1f] border border-[#262626] rounded-2xl shadow-2xl z-[110] overflow-hidden"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStrategyId(null);
+                                    setIsStrategyDropdownOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full px-7 py-4 text-left text-sm font-bold hover:bg-[#262626] transition-all",
+                                    !strategyId ? "text-sky-400 bg-sky-500/5" : "text-neutral-400"
+                                  )}
+                                >
+                                  None
+                                </button>
+                                {strategies.map((s) => (
+                                  <button
+                                    key={s.strategy_id}
+                                    type="button"
+                                    onClick={() => {
+                                      setStrategyId(s.strategy_id);
+                                      setIsStrategyDropdownOpen(false);
+                                    }}
+                                    className={cn(
+                                      "w-full px-7 py-4 text-left text-sm font-bold hover:bg-[#262626] transition-all",
+                                      strategyId === s.strategy_id ? "text-sky-400 bg-sky-500/5" : "text-neutral-400"
+                                    )}
+                                  >
+                                    {s.strategy_name}
                                   </button>
                                 ))}
                               </motion.div>

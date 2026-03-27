@@ -28,6 +28,33 @@ export type TradeExit = {
   created_at: string;
 };
 
+export type Strategy = {
+  strategy_id: string;
+  user_id: string;
+  strategy_name: string;
+  description: string | null;
+  // Entry Confirmation
+  context_setup: string | null;
+  market_regime: string | null;
+  fundamental_situation: string | null;
+  // Exit Strategy
+  partial_close_logic: string | null;
+  cut_loss_sl_logic: string | null;
+  move_sl_be_structure: string | null;
+  take_profit_targets: string | null;
+  // Psychology Status
+  calm_flow_state: string | null;
+  fear_anxiety: string | null;
+  greed_fomo: string | null;
+  exhaustion_tilt: string | null;
+  
+  assets_applicable: string[];
+  timeframes_applicable: string[];
+  status: 'Active' | 'Archived' | 'Under Review';
+  created_at: string;
+  updated_at: string;
+};
+
 export type Trade = {
   id: string;
   account_id: string;
@@ -47,6 +74,7 @@ export type Trade = {
   market_regime: string | null;
   psychology_status: string | null;
   fundamental_context: string | null;
+  strategy_id: string | null;
   // Computed fields
   pnl: number;
   pnl_percent: number;
@@ -54,6 +82,7 @@ export type Trade = {
   created_at: string;
   // Joined data
   trade_exits?: TradeExit[];
+  strategy?: Strategy;
 };
 
 export type DailyPnL = {
