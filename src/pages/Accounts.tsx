@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 const ASSET_COMMISSIONS: Record<string, number> = {
   'MNQ': 0.50,
@@ -168,7 +169,9 @@ export default function Accounts() {
 
     if (error) {
       setFormError(error.message);
+      toast.error(`Failed to ${editingAccount ? 'update' : 'create'} account: ${error.message}`);
     } else {
+      toast.success(`Account ${editingAccount ? 'updated' : 'created'} successfully!`);
       setIsModalOpen(false);
       resetForm();
       fetchAccounts();
@@ -177,12 +180,17 @@ export default function Accounts() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this account? This will also delete all associated trades.')) return;
+    
     const { error } = await supabase
       .from('accounts')
       .delete()
       .eq('id', id);
 
-    if (!error) {
+    if (error) {
+      toast.error(`Failed to delete account: ${error.message}`);
+    } else {
+      toast.success('Account deleted successfully');
       fetchAccounts();
     }
   };

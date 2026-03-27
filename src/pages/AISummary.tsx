@@ -32,12 +32,6 @@ import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 
-const AI_AGENTS = [
-  { id: 'Gemini', name: 'Gemini', description: 'Google\'s advanced multimodal model', icon: Sparkles },
-  { id: 'Manus AI', name: 'Manus AI', description: 'Custom agent fine-tuned for trading', icon: Brain },
-  { id: 'GPT', name: 'GPT', description: 'OpenAI\'s powerful reasoning model', icon: Zap },
-];
-
 const LANGUAGES = [
   { id: 'English', name: 'English', flag: '🇺🇸' },
   { id: 'Myanmar', name: 'Myanmar', flag: '🇲🇲' },
@@ -56,12 +50,10 @@ export default function AISummary() {
   const [error, setError] = useState<string | null>(null);
   
   // Preferences
-  const [selectedAgent, setSelectedAgent] = useState('Gemini');
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   
   // UI State
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
-  const [isAgentDropdownOpen, setIsAgentDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +69,7 @@ export default function AISummary() {
       // Fetch accounts and user preferences
       const [accountsRes, profileRes] = await Promise.all([
         supabase.from('accounts').select('*').eq('user_id', user?.id),
-        supabase.from('user_profiles').select('preferred_ai_agent, preferred_ai_language').eq('user_id', user?.id).maybeSingle()
+        supabase.from('user_profiles').select('preferred_ai_language').eq('user_id', user?.id).maybeSingle()
       ]);
 
       if (accountsRes.error) throw accountsRes.error;
@@ -90,7 +82,6 @@ export default function AISummary() {
       }
 
       if (profileRes.data) {
-        setSelectedAgent(profileRes.data.preferred_ai_agent || 'Gemini');
         setSelectedLanguage(profileRes.data.preferred_ai_language || 'English');
       }
     } catch (error) {
@@ -133,7 +124,7 @@ export default function AISummary() {
         .from('ai_summaries_cache')
         .select('summary_text')
         .eq('account_id', selectedAccountId)
-        .eq('ai_agent_used', selectedAgent)
+        .eq('ai_agent_used', 'Gemini')
         .eq('summary_language', selectedLanguage)
         .order('generated_at', { ascending: false })
         .limit(1)
@@ -152,11 +143,11 @@ export default function AISummary() {
     }
   };
 
-  const updatePreferences = async (agent: string, language: string) => {
+  const updatePreferences = async (language: string) => {
     try {
       await supabase.from('user_profiles').upsert({
         user_id: user?.id,
-        preferred_ai_agent: agent,
+        preferred_ai_agent: 'Gemini',
         preferred_ai_language: language,
         updated_at: new Date().toISOString()
       });
@@ -227,32 +218,24 @@ export default function AISummary() {
         Use Markdown for formatting with clear headers and bullet points.
       `;
 
-      let generatedText = "";
-
-      if (selectedAgent === 'Gemini') {
-        const ai = new GoogleGenAI({ apiKey: (process.env as any).GEMINI_API_KEY });
-        const model = "gemini-3-flash-preview";
-        
-        const response = await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config: {
-            systemInstruction: "You are a world-class trading performance analyst and psychology coach. You have deep expertise in Technical Analysis, Fundamental Analysis, and the mental game of trading."
-          }
-        });
-        generatedText = response.text || "Could not generate summary.";
-      } else {
-        // Mock implementation for Manus AI and GPT as we don't have their keys
-        // In a real app, these would call a backend proxy or their respective SDKs
-        generatedText = `### [MOCK] ${selectedAgent} Analysis (${selectedLanguage})\n\nThis is a placeholder for the ${selectedAgent} integration. To enable real analysis for this agent, please configure the respective API keys in the environment.\n\n**Data Analyzed:**\n- ${trades.length} trades\n- ${strategies.length} strategies\n- Account: ${account?.name}`;
-      }
+      const ai = new GoogleGenAI({ apiKey: (process.env as any).GEMINI_API_KEY });
+      const model = "gemini-3-flash-preview";
+      
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: "You are a world-class trading performance analyst and psychology coach. You have deep expertise in Technical Analysis, Fundamental Analysis, and the mental game of trading."
+        }
+      });
+      const generatedText = response.text || "Could not generate summary.";
 
       setSummary(generatedText);
 
       // Cache the result
       await supabase.from('ai_summaries_cache').upsert({
         account_id: selectedAccountId,
-        ai_agent_used: selectedAgent,
+        ai_agent_used: 'Gemini',
         summary_language: selectedLanguage,
         summary_text: generatedText,
         generated_at: new Date().toISOString()
@@ -355,7 +338,7 @@ export default function AISummary() {
                       onClick={() => {
                         setSelectedLanguage(lang.id);
                         setIsLanguageDropdownOpen(false);
-                        updatePreferences(selectedAgent, lang.id);
+                        updatePreferences(lang.id);
                       }}
                       className={cn(
                         "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
@@ -377,43 +360,21 @@ export default function AISummary() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Sidebar Controls */}
         <div className="lg:col-span-4 space-y-8">
-          {/* Agent Selection */}
+          {/* Analysis Action */}
           <div className="bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-neutral-500 uppercase tracking-[0.2em]">Select Intelligence</h3>
-              <Bot className="w-4 h-4 text-neutral-700" />
+              <h3 className="text-sm font-black text-neutral-500 uppercase tracking-[0.2em]">AI Intelligence</h3>
+              <Sparkles className="w-4 h-4 text-sky-500" />
             </div>
 
-            <div className="space-y-3">
-              {AI_AGENTS.map(agent => (
-                <button
-                  key={agent.id}
-                  onClick={() => {
-                    setSelectedAgent(agent.id);
-                    updatePreferences(agent.id, selectedLanguage);
-                  }}
-                  className={cn(
-                    "w-full flex items-start gap-4 p-5 rounded-2xl border transition-all text-left group",
-                    selectedAgent === agent.id 
-                      ? "bg-sky-500/5 border-sky-500/30 text-white" 
-                      : "bg-[#0a0a0a] border-[#262626] text-neutral-500 hover:border-neutral-700"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-                    selectedAgent === agent.id ? "bg-sky-500 text-black" : "bg-[#141414] text-neutral-600 group-hover:text-neutral-400"
-                  )}>
-                    <agent.icon className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{agent.name}</span>
-                      {selectedAgent === agent.id && <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse" />}
-                    </div>
-                    <p className="text-[11px] font-medium opacity-60 leading-relaxed">{agent.description}</p>
-                  </div>
-                </button>
-              ))}
+            <div className="p-6 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-4">
+              <div className="w-12 h-12 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
+                <Sparkles className="w-6 h-6 text-black" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-white">Gemini Pro</h4>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">Powered by Google's most capable AI model for deep trading analysis.</p>
+              </div>
             </div>
 
             <button 
@@ -499,7 +460,7 @@ export default function AISummary() {
                 <div className="text-center space-y-3">
                   <h3 className="text-2xl font-bold text-white">Synthesizing Data</h3>
                   <p className="text-neutral-500 max-w-xs mx-auto text-sm leading-relaxed">
-                    {selectedAgent} is currently analyzing your trade logs, psychological patterns, and strategy alignment...
+                    Gemini is currently analyzing your trade logs, psychological patterns, and strategy alignment...
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -530,7 +491,7 @@ export default function AISummary() {
                       </div>
                       <h3 className="text-3xl font-bold text-white">Performance Intelligence Report</h3>
                       <div className="flex items-center gap-4 text-neutral-500 text-xs font-bold">
-                        <span className="flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" /> {selectedAgent}</span>
+                        <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Gemini Pro</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />
                         <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> {selectedLanguage}</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />
@@ -607,7 +568,7 @@ export default function AISummary() {
                 <div className="max-w-sm space-y-4">
                   <h3 className="text-2xl font-bold text-neutral-400 tracking-tight">Intelligence Engine Standby</h3>
                   <p className="text-sm text-neutral-600 leading-relaxed">
-                    Select an account and your preferred AI agent to generate a deep synthesis of your trading performance, psychology, and strategy alignment.
+                    Select an account and your preferred language to generate a deep synthesis of your trading performance, psychology, and strategy alignment using Gemini.
                   </p>
                 </div>
                 <button 

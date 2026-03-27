@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useAccount } from '../lib/AccountContext';
 import { TradingAccount, Trade, DailyPnL, TradeExit, Strategy } from '../types';
 import { 
   Book, 
@@ -49,6 +50,7 @@ import {
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 const multipliers: Record<string, number> = {
   'MNQ': 2, 'NQ': 20,
@@ -58,8 +60,7 @@ const multipliers: Record<string, number> = {
 
 export default function Journal() {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(localStorage.getItem('selectedAccountId'));
+  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount, loading: accountsLoading } = useAccount();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
@@ -134,40 +135,20 @@ export default function Journal() {
 
   useEffect(() => {
     if (user) {
-      fetchAccounts();
+      fetchStrategies();
     }
   }, [user]);
 
-  const fetchAccounts = async () => {
-    const [accountsRes, strategiesRes] = await Promise.all([
-      supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', user?.id),
-      supabase
-        .from('strategies')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('status', 'Active')
-    ]);
+  const fetchStrategies = async () => {
+    const { data, error } = await supabase
+      .from('strategies')
+      .select('*')
+      .eq('user_id', user?.id)
+      .eq('status', 'Active');
 
-    if (!accountsRes.error && accountsRes.data) {
-      setAccounts(accountsRes.data);
-      if (accountsRes.data.length > 0) {
-        const savedId = localStorage.getItem('selectedAccountId');
-        const exists = accountsRes.data.some(a => a.id === savedId);
-        if (!savedId || !exists) {
-          setSelectedAccountId(accountsRes.data[0].id);
-          localStorage.setItem('selectedAccountId', accountsRes.data[0].id);
-        }
-      }
+    if (!error && data) {
+      setStrategies(data);
     }
-
-    if (!strategiesRes.error && strategiesRes.data) {
-      setStrategies(strategiesRes.data);
-    }
-
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -215,6 +196,7 @@ export default function Journal() {
   const handleDeleteTrade = async (id: string) => {
     const trade = trades.find(t => t.id === id);
     if (!trade) return;
+    if (!confirm('Are you sure you want to delete this trade?')) return;
 
     try {
       const { error } = await supabase.from('trades').delete().eq('id', id);
@@ -232,10 +214,11 @@ export default function Journal() {
         await supabase.from('daily_pnl').update({ pnl: Number(existingPnL.pnl) - Number(trade.pnl) }).eq('id', existingPnL.id);
       }
       
+      toast.success('Trade deleted successfully');
       fetchJournalData();
-      fetchAccounts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting trade:', error);
+      toast.error(`Failed to delete trade: ${error.message}`);
     }
   };
 
@@ -284,8 +267,6 @@ export default function Journal() {
   const handleCloseTrade = (trade: Trade) => {
     handleEditTrade(trade);
   };
-
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,8 +388,8 @@ export default function Journal() {
         setIsModalOpen(false);
         resetForm();
         setEditingTradeId(null);
+        toast.success('Trade updated successfully!');
         fetchJournalData();
-        fetchAccounts();
       } else {
         // Insert new trade
         const { data: trade, error: tradeError } = await supabase
@@ -437,13 +418,14 @@ export default function Journal() {
 
           setIsModalOpen(false);
           resetForm();
+          toast.success('Trade logged successfully!');
           fetchJournalData();
-          fetchAccounts();
         }
       }
     } catch (error: any) {
       console.error('Error submitting trade:', error);
       setFormError(error.message || 'An error occurred while saving the trade');
+      toast.error(`Failed to save trade: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -548,45 +530,6 @@ export default function Journal() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <button 
-              onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-              className="px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white focus:border-sky-500/50 focus:outline-none transition-all flex items-center gap-3 min-w-[200px]"
-            >
-              <Wallet className="w-4 h-4 text-sky-500" />
-              {selectedAccount?.name || 'Select Account'}
-              <ChevronDown className={cn("w-4 h-4 ml-auto transition-transform", isAccountDropdownOpen && "rotate-180")} />
-            </button>
-            
-            <AnimatePresence>
-              {isAccountDropdownOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-[#1f1f1f] border border-[#262626] rounded-2xl shadow-2xl z-[110] overflow-hidden"
-                >
-                  {accounts.map(account => (
-                    <button
-                      key={account.id}
-                      onClick={() => {
-                        setSelectedAccountId(account.id);
-                        localStorage.setItem('selectedAccountId', account.id);
-                        setIsAccountDropdownOpen(false);
-                      }}
-                      className={cn(
-                        "w-full px-6 py-4 text-left text-sm font-bold hover:bg-[#262626] transition-all",
-                        selectedAccountId === account.id ? "text-sky-400 bg-sky-500/5" : "text-neutral-400"
-                      )}
-                    >
-                      {account.name}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           <div className="flex bg-[#141414] border border-[#262626] rounded-2xl p-1">
             <button 
               onClick={() => setView('calendar')}

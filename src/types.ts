@@ -101,3 +101,22 @@ export type Resource = {
   thumbnail_url: string | null;
   created_at: string;
 };
+
+export type AssetSpecification = {
+  asset_id: string;
+  symbol: string;
+  full_name: string | null;
+  point_value: number;
+  tick_value: number;
+  tick_size: number;
+  created_at: string;
+};
+
+export type TradingReference = {
+  reference_id: string;
+  category: string;
+  title: string;
+  content: string;
+  display_order: number;
+  created_at: string;
+};

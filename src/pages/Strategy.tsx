@@ -25,6 +25,7 @@ import { useAuth } from '../lib/AuthContext';
 import { Strategy, Trade } from '../types';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
 
 const ASSETS = ['MNQ', 'NQ', 'MES', 'ES', 'MGC', 'GC'];
 const TIMEFRAMES = ['1min', '5min', '15min', '1hr', '4hr', 'Daily', 'Weekly'];
@@ -137,18 +138,21 @@ export default function StrategyPage() {
           .update(strategyData)
           .eq('strategy_id', editingStrategyId);
         if (error) throw error;
+        toast.success('Strategy updated successfully!');
       } else {
         const { error } = await supabase
           .from('strategies')
           .insert([strategyData]);
         if (error) throw error;
+        toast.success('Strategy created successfully!');
       }
 
       setIsModalOpen(false);
       resetForm();
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving strategy:', error);
+      toast.error(`Failed to save strategy: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -204,9 +208,11 @@ export default function StrategyPage() {
         .delete()
         .eq('strategy_id', id);
       if (error) throw error;
+      toast.success('Strategy deleted successfully');
       fetchData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting strategy:', error);
+      toast.error(`Failed to delete strategy: ${error.message}`);
     }
   };
 

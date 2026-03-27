@@ -1,7 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
+import { AccountProvider } from './lib/AccountContext';
+import { Toaster } from 'sonner';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -14,7 +16,7 @@ import Fundamental from './pages/Fundamental';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedLayout() {
   const { user, loading } = useAuth();
   const isConfigured = (import.meta as any).env.VITE_SUPABASE_URL && (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
@@ -53,74 +55,39 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" />;
   }
 
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <AccountProvider>
+        <Toaster position="top-right" theme="dark" closeButton />
+        <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/accounts" element={
-            <ProtectedRoute>
-              <Accounts />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/journal" element={
-            <ProtectedRoute>
-              <Journal />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/strategy" element={
-            <ProtectedRoute>
-              <Strategy />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/ai-summary" element={
-            <ProtectedRoute>
-              <AISummary />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/learning" element={
-            <ProtectedRoute>
-              <Learning />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/fundamental" element={
-            <ProtectedRoute>
-              <Fundamental />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          } />
+          <Route element={<ProtectedLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/strategy" element={<Strategy />} />
+            <Route path="/ai-summary" element={<AISummary />} />
+            <Route path="/learning" element={<Learning />} />
+            <Route path="/fundamental" element={<Fundamental />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+      </AccountProvider>
     </AuthProvider>
   );
 }

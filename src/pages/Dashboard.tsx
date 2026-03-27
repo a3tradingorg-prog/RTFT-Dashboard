@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useAccount } from '../lib/AccountContext';
 import { TradingAccount, Trade, DailyPnL } from '../types';
 import { 
   Wallet,
@@ -39,47 +40,36 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(localStorage.getItem('selectedAccountId'));
+  const { accounts, selectedAccountId, selectedAccount, loading: accountsLoading } = useAccount();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    fetchAccounts();
-  }, [user]);
-
-  const fetchAccounts = async () => {
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user?.id);
-
-    if (!error && data) {
-      setAccounts(data);
-      if (data.length > 0) {
-        const savedId = localStorage.getItem('selectedAccountId');
-        const exists = data.some(a => a.id === savedId);
-        if (!savedId || !exists) {
-          setSelectedAccountId(data[0].id);
-          localStorage.setItem('selectedAccountId', data[0].id);
+    const loadData = async () => {
+      try {
+        if (selectedAccountId) {
+          setTrades([]);
+          setDailyPnls([]);
+          setLoading(true);
+          setError(null);
+          await fetchDashboardData();
+        } else if (!accountsLoading) {
+          setLoading(false);
         }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load dashboard data');
+        setLoading(false);
       }
-    }
-    setLoading(false);
-  };
+    };
 
-  useEffect(() => {
-    if (selectedAccountId) {
-      setTrades([]);
-      setDailyPnls([]);
-      fetchDashboardData();
-    }
-  }, [selectedAccountId]);
+    loadData();
+  }, [selectedAccountId, accountsLoading, accounts.length]);
 
   const fetchDashboardData = async () => {
+    if (!selectedAccountId) return;
+    
     try {
       const [tradesRes, dailyPnlsRes] = await Promise.all([
         supabase.from('trades').select('*').eq('account_id', selectedAccountId).order('entry_date', { ascending: true }),
@@ -91,12 +81,13 @@ export default function Dashboard() {
 
       if (tradesRes.data) setTrades(tradesRes.data);
       if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
-
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
   const stats = React.useMemo(() => {
     if (!selectedAccount) return null;
@@ -207,10 +198,45 @@ export default function Dashboard() {
     return dailyPnls.find(p => isSameDay(new Date(p.date), date))?.pnl || 0;
   };
 
-  if (loading) {
+  if (loading || accountsLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
         <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-neutral-500 font-medium animate-pulse">Loading dashboard data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+        <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h2 className="text-2xl font-bold text-white">Error Loading Data</h2>
+          <p className="text-neutral-500">{error}</p>
+        </div>
+        <button 
+          onClick={() => fetchDashboardData()}
+          className="px-6 py-3 bg-[#141414] border border-[#262626] text-white font-bold rounded-xl hover:bg-[#1f1f1f] transition-all"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (accounts.length > 0 && !selectedAccountId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+        <div className="w-20 h-20 bg-sky-500/10 border border-sky-500/20 rounded-3xl flex items-center justify-center">
+          <Wallet className="w-10 h-10 text-sky-500" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h2 className="text-2xl font-bold text-white">Select an Account</h2>
+          <p className="text-neutral-500">Please select a trading account from the dropdown in the navbar to view your performance metrics.</p>
+        </div>
       </div>
     );
   }
@@ -238,63 +264,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-10">
-      {/* Header with Account Selection */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Dashboard</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-white">Dashboard Overview</h1>
           <p className="text-neutral-500 mt-2 font-medium">Performance analytics for your selected account.</p>
-        </div>
-
-        <div className="relative">
-          <button 
-            onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-            className="flex items-center gap-4 px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl hover:border-sky-500/50 transition-all min-w-[240px] group"
-          >
-            <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-sky-500" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Active Account</p>
-              <p className="text-sm font-bold text-white">{selectedAccount?.name}</p>
-            </div>
-            <ChevronDown className={cn("w-5 h-5 text-neutral-500 transition-transform duration-300", isAccountDropdownOpen && "rotate-180")} />
-          </button>
-
-          <AnimatePresence>
-            {isAccountDropdownOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute right-0 mt-3 w-full bg-[#141414] border border-[#262626] rounded-2xl shadow-2xl z-[100] overflow-hidden"
-              >
-                {accounts.map(account => (
-                  <button
-                    key={account.id}
-                    onClick={() => {
-                      setSelectedAccountId(account.id);
-                      localStorage.setItem('selectedAccountId', account.id);
-                      setIsAccountDropdownOpen(false);
-                    }}
-                    className={cn(
-                      "w-full px-6 py-4 text-left hover:bg-[#1f1f1f] transition-all flex items-center justify-between",
-                      selectedAccountId === account.id && "bg-sky-500/5 text-sky-400"
-                    )}
-                  >
-                    <span className="font-bold">{account.name}</span>
-                    {selectedAccountId === account.id && <div className="w-2 h-2 bg-sky-500 rounded-full shadow-[0_0_10px_rgba(14,165,233,0.5)]" />}
-                  </button>
-                ))}
-                <Link 
-                  to="/accounts"
-                  className="w-full px-6 py-4 text-left hover:bg-[#1f1f1f] transition-all flex items-center gap-2 text-sky-500 font-bold border-t border-[#262626]"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add New Account
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
 

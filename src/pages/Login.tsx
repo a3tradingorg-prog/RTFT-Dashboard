@@ -27,12 +27,24 @@ export default function Login() {
     }
   };
 
+  const logoUrl = (import.meta as any).env.VITE_SUPABASE_URL 
+    ? `${(import.meta as any).env.VITE_SUPABASE_URL}/storage/v1/object/public/brand-assets/V2.jpeg`
+    : 'https://picsum.photos/seed/trading/200/200';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] px-4">
       <div className="w-full max-w-md space-y-8 p-8 bg-[#141414] border border-[#262626] rounded-2xl shadow-2xl">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-500/10 mb-4">
-            <LogIn className="w-8 h-8 text-orange-500" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-[#1f1f1f] mb-6 overflow-hidden border border-[#262626] shadow-xl">
+            <img 
+              src={logoUrl} 
+              alt="RTFT Secondary Logo" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as any).src = 'https://picsum.photos/seed/trading/200/200';
+              }}
+            />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-white">RTFT Dashboard</h2>
           <p className="mt-2 text-sm text-neutral-400 italic">
