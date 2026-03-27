@@ -93,16 +93,20 @@ export default function Accounts() {
 
   const fetchAccounts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user?.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setAccounts(data);
+      if (error) throw error;
+      if (data) setAccounts(data);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const summary = useMemo(() => {
@@ -173,8 +177,6 @@ export default function Accounts() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this account? All associated trades will also be deleted.')) return;
-
     const { error } = await supabase
       .from('accounts')
       .delete()

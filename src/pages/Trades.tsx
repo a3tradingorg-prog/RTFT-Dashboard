@@ -61,36 +61,43 @@ export default function Trades() {
   };
 
   const fetchTrades = async () => {
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', user?.id)
-      .order('entry_date', { ascending: false });
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('entry_date', { ascending: false });
 
-    if (!error && data) {
-      setTrades(data);
+      if (error) throw error;
+      if (data) setTrades(data);
+    } catch (error) {
+      console.error('Error fetching trades:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddTrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    const { error } = await supabase.from('trades').insert([{
-      user_id: user.id,
-      account_id: newTrade.account_id,
-      asset: newTrade.asset,
-      type: newTrade.type,
-      entry_price: parseFloat(newTrade.entry_price),
-      exit_price: 0, // Providing default to satisfy NOT NULL constraint
-      contract_size: parseFloat(newTrade.contract_size),
-      entry_date: new Date(newTrade.entry_date).toISOString(),
-      status: 'OPEN',
-      notes: newTrade.notes
-    }]);
+    try {
+      const { error } = await supabase.from('trades').insert([{
+        user_id: user.id,
+        account_id: newTrade.account_id,
+        asset: newTrade.asset,
+        type: newTrade.type,
+        entry_price: parseFloat(newTrade.entry_price),
+        exit_price: 0, // Providing default to satisfy NOT NULL constraint
+        contract_size: parseFloat(newTrade.contract_size),
+        entry_date: new Date(newTrade.entry_date).toISOString(),
+        status: 'OPEN',
+        notes: newTrade.notes
+      }]);
 
-    if (!error) {
+      if (error) throw error;
+
       setIsModalOpen(false);
       setNewTrade({
         account_id: accounts[0]?.id || '',
@@ -102,17 +109,26 @@ export default function Trades() {
         notes: ''
       });
       fetchTrades();
+    } catch (error) {
+      console.error('Error adding trade:', error);
     }
   };
 
   const handleCloseTrade = async (trade: Trade) => {
-    const exitPrice = prompt('Enter exit price:');
+    const exitPrice = window.prompt('Enter exit price:');
     if (!exitPrice) return;
 
     const price = parseFloat(exitPrice);
+    const multipliers: Record<string, number> = {
+      'MNQ': 2, 'NQ': 20,
+      'MES': 5, 'ES': 50,
+      'MGC': 10, 'GC': 100
+    };
+    const multiplier = multipliers[trade.asset] || 1;
+
     const pnl = trade.type === 'LONG' 
-      ? (price - trade.entry_price) * trade.contract_size
-      : (trade.entry_price - price) * trade.contract_size;
+      ? (price - trade.entry_price) * trade.contract_size * multiplier
+      : (trade.entry_price - price) * trade.contract_size * multiplier;
     
     const pnlPercent = trade.type === 'LONG'
       ? ((price - trade.entry_price) / trade.entry_price) * 100
@@ -135,7 +151,6 @@ export default function Trades() {
   };
 
   const handleDeleteTrade = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this trade?')) return;
     const { error } = await supabase.from('trades').delete().eq('id', id);
     if (!error) fetchTrades();
   };

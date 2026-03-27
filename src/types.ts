@@ -22,6 +22,9 @@ export type TradeExit = {
   exit_price: number;
   exit_status: 'TP' | 'SL' | 'Cut lose' | 'Partial TP' | 'Move BE';
   exit_reason: 'Structural Break' | 'Psychology Move' | null;
+  pnl_for_this_exit?: number;
+  commission_for_this_exit?: number;
+  exit_timestamp?: string;
   created_at: string;
 };
 
@@ -50,7 +53,7 @@ export type Trade = {
   status: 'OPEN' | 'CLOSED';
   created_at: string;
   // Joined data
-  exits?: TradeExit[];
+  trade_exits?: TradeExit[];
 };
 
 export type DailyPnL = {

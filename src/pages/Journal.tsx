@@ -50,15 +50,34 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { motion, AnimatePresence } from 'motion/react';
 
+const multipliers: Record<string, number> = {
+  'MNQ': 2, 'NQ': 20,
+  'MES': 5, 'ES': 50,
+  'MGC': 10, 'GC': 100
+};
+
 export default function Journal() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(localStorage.getItem('selectedAccountId'));
   const [trades, setTrades] = useState<Trade[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'list' | 'calendar'>('calendar');
+  const [view, setView] = useState<'list' | 'calendar' | 'details'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [expandedTrades, setExpandedTrades] = useState<Set<string>>(new Set());
+
+  const toggleTradeExpansion = (tradeId: string) => {
+    setExpandedTrades(prev => {
+      const next = new Set(prev);
+      if (next.has(tradeId)) {
+        next.delete(tradeId);
+      } else {
+        next.add(tradeId);
+      }
+      return next;
+    });
+  };
   
   // Trade Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,7 +91,7 @@ export default function Journal() {
   const [contractSize, setContractSize] = useState('1');
   const [entryPrice, setEntryPrice] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
-  const [stop_loss, setStopLoss] = useState('');
+  const [stopLoss, setStopLoss] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   
   // Dynamic Exits
@@ -81,6 +100,7 @@ export default function Journal() {
     exit_price: string;
     exit_status: TradeExit['exit_status'];
     exit_reason: TradeExit['exit_reason'];
+    exit_timestamp?: string;
   }[]>([]);
 
   // Strategy Tab
@@ -93,7 +113,7 @@ export default function Journal() {
   useEffect(() => {
     const entry = parseFloat(entryPrice);
     const tp = parseFloat(takeProfit);
-    const sl = parseFloat(stop_loss);
+    const sl = parseFloat(stopLoss);
 
     if (!isNaN(entry) && !isNaN(tp) && !isNaN(sl)) {
       if (tp > entry && sl < entry) {
@@ -102,7 +122,7 @@ export default function Journal() {
         setType('SHORT');
       }
     }
-  }, [entryPrice, takeProfit, stop_loss]);
+  }, [entryPrice, takeProfit, stopLoss]);
 
   // Dropdown States
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
@@ -123,8 +143,13 @@ export default function Journal() {
 
     if (!error && data) {
       setAccounts(data);
-      if (data.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(data[0].id);
+      if (data.length > 0) {
+        const savedId = localStorage.getItem('selectedAccountId');
+        const exists = data.some(a => a.id === savedId);
+        if (!savedId || !exists) {
+          setSelectedAccountId(data[0].id);
+          localStorage.setItem('selectedAccountId', data[0].id);
+        }
       }
     }
     setLoading(false);
@@ -138,21 +163,110 @@ export default function Journal() {
 
   const fetchJournalData = async () => {
     setLoading(true);
-    const [tradesRes, dailyPnlsRes] = await Promise.all([
-      supabase
-        .from('trades')
-        .select('*')
-        .eq('account_id', selectedAccountId)
-        .order('entry_date', { ascending: false }),
-      supabase
-        .from('daily_pnl')
-        .select('*')
-        .eq('account_id', selectedAccountId)
-    ]);
+    try {
+      const [tradesRes, dailyPnlsRes] = await Promise.all([
+        supabase
+          .from('trades')
+          .select('*, trade_exit_records(*)')
+          .eq('account_id', selectedAccountId)
+          .order('entry_date', { ascending: false })
+          .order('exit_timestamp', { foreignTable: 'trade_exit_records', ascending: false }),
+        supabase
+          .from('daily_pnl')
+          .select('*')
+          .eq('account_id', selectedAccountId)
+      ]);
 
-    if (tradesRes.data) setTrades(tradesRes.data);
-    if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
-    setLoading(false);
+      if (tradesRes.error) throw tradesRes.error;
+      if (dailyPnlsRes.error) throw dailyPnlsRes.error;
+
+      if (tradesRes.data) {
+        // Map trade_exit_records to trade_exits for compatibility with existing code if needed, 
+        // but it's better to just use the new name.
+        const mappedTrades = tradesRes.data.map((t: any) => ({
+          ...t,
+          trade_exits: t.trade_exit_records
+        }));
+        setTrades(mappedTrades);
+      }
+      if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
+    } catch (error) {
+      console.error('Error fetching journal data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTrade = async (id: string) => {
+    const trade = trades.find(t => t.id === id);
+    if (!trade) return;
+
+    try {
+      const { error } = await supabase.from('trades').delete().eq('id', id);
+      
+      if (error) throw error;
+
+      // Revert account balance
+      const newBalance = (selectedAccount?.current_balance || 0) - Number(trade.pnl);
+      await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', selectedAccountId);
+      
+      // Revert daily PnL
+      const dateStr = format(new Date(trade.entry_date), 'yyyy-MM-dd');
+      const existingPnL = dailyPnls.find(p => p.date === dateStr);
+      if (existingPnL) {
+        await supabase.from('daily_pnl').update({ pnl: Number(existingPnL.pnl) - Number(trade.pnl) }).eq('id', existingPnL.id);
+      }
+      
+      fetchJournalData();
+      fetchAccounts();
+    } catch (error) {
+      console.error('Error deleting trade:', error);
+    }
+  };
+
+  const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+
+  const handleEditTrade = (trade: Trade) => {
+    setEditingTradeId(trade.id);
+    setAsset(trade.asset);
+    setType(trade.type);
+    setEntryDate(format(new Date(trade.entry_date), "yyyy-MM-dd'T'HH:mm"));
+    setContractSize(trade.contract_size.toString());
+    setEntryPrice(trade.entry_price.toString());
+    setTakeProfit(trade.take_profit.toString());
+    setStopLoss(trade.stop_loss.toString());
+    setScreenshot(trade.screenshot_url);
+    setEntryContext(trade.entry_context || '');
+    setMarketRegime(trade.market_regime || '');
+    setPsychologyStatus(trade.psychology_status || '');
+    setFundamentalContext(trade.fundamental_context || '');
+    
+    if (trade.trade_exits && trade.trade_exits.length > 0) {
+      setExits(trade.trade_exits.map(e => ({
+        closed_contract: e.closed_contract.toString(),
+        exit_price: e.exit_price.toString(),
+        exit_status: e.exit_status,
+        exit_reason: e.exit_reason,
+        exit_timestamp: e.exit_timestamp
+      })));
+    } else if (trade.status === 'CLOSED' && trade.exit_price) {
+      // Fallback for trades closed without explicit exit rows
+      setExits([{
+        closed_contract: trade.contract_size.toString(),
+        exit_price: trade.exit_price.toString(),
+        exit_status: 'TP', // Default to TP if unknown
+        exit_reason: null,
+        exit_timestamp: trade.exit_date || new Date().toISOString()
+      }]);
+    } else {
+      setExits([]);
+    }
+    
+    setIsModalOpen(true);
+  };
+
+  const handleCloseTrade = (trade: Trade) => {
+    handleEditTrade(trade);
   };
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
@@ -170,12 +284,6 @@ export default function Journal() {
     const entry = parseFloat(entryPrice);
     const totalQty = parseFloat(contractSize);
     
-    // Multipliers
-    const multipliers: Record<string, number> = {
-      'MNQ': 2, 'NQ': 20,
-      'MES': 5, 'ES': 50,
-      'MGC': 10, 'GC': 100
-    };
     const multiplier = multipliers[asset] || 1;
 
     // Calculate PnL from exits
@@ -184,8 +292,8 @@ export default function Journal() {
     let weightedExitPriceSum = 0;
 
     const processedExits = exits.map(exit => {
-      const exitP = parseFloat(exit.exit_price);
-      const exitQty = parseFloat(exit.closed_contract);
+      const exitP = parseFloat(exit.exit_price) || 0;
+      const exitQty = parseFloat(exit.closed_contract) || 0;
       totalClosedQty += exitQty;
       weightedExitPriceSum += (exitP * exitQty);
       
@@ -194,13 +302,17 @@ export default function Journal() {
         : (entry - exitP) * exitQty * multiplier;
       const commission = (selectedAccount?.commission || 0) * exitQty;
       
-      totalNetPnl += (exitPnl - commission);
+      const netExitPnl = exitPnl - commission;
+      totalNetPnl += netExitPnl;
       
       return {
         closed_contract: exitQty,
         exit_price: exitP,
         exit_status: exit.exit_status,
-        exit_reason: exit.exit_reason
+        exit_reason: exit.exit_reason,
+        exit_timestamp: exit.exit_timestamp || new Date().toISOString(),
+        pnl_for_this_exit: netExitPnl,
+        commission_for_this_exit: commission
       };
     });
 
@@ -214,9 +326,9 @@ export default function Journal() {
       entry_date: new Date(entryDate).toISOString(),
       contract_size: totalQty,
       entry_price: entry,
-      exit_price: avgExitPrice, // Providing avgExitPrice to satisfy NOT NULL constraint
+      exit_price: avgExitPrice,
       take_profit: parseFloat(takeProfit) || 0,
-      stop_loss: parseFloat(stop_loss) || 0,
+      stop_loss: parseFloat(stopLoss) || 0,
       screenshot_url: screenshot,
       entry_context: entryContext,
       market_regime: marketRegime,
@@ -225,43 +337,99 @@ export default function Journal() {
       pnl: totalNetPnl,
       pnl_percent: (totalNetPnl / (selectedAccount?.initial_balance || 1)) * 100,
       status: totalClosedQty >= totalQty ? 'CLOSED' : 'OPEN',
-      exit_date: totalClosedQty >= totalQty ? new Date().toISOString() : null,
+      exit_date: totalClosedQty >= totalQty ? new Date().toISOString() : new Date(entryDate).toISOString(),
     };
 
-    const { data: trade, error: tradeError } = await supabase
-      .from('trades')
-      .insert([tradeData])
-      .select()
-      .single();
+    try {
+      if (editingTradeId) {
+        // Update existing trade
+        const oldTrade = trades.find(t => t.id === editingTradeId);
+        const { error: tradeError } = await supabase
+          .from('trades')
+          .update(tradeData)
+          .eq('id', editingTradeId);
 
-    if (tradeError) {
-      setFormError(tradeError.message);
-    } else if (trade) {
-      // Insert exits
-      if (processedExits.length > 0) {
-        const exitsWithId = processedExits.map(e => ({ ...e, trade_id: trade.id }));
-        await supabase.from('trade_exits').insert(exitsWithId);
-      }
+        if (tradeError) throw tradeError;
 
-      // Update account balance
-      const newBalance = (selectedAccount?.current_balance || 0) + totalNetPnl;
-      await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', selectedAccountId);
-      
-      // Update daily PnL
-      const dateStr = format(new Date(entryDate), 'yyyy-MM-dd');
-      const existingPnL = dailyPnls.find(p => p.date === dateStr);
-      if (existingPnL) {
-        await supabase.from('daily_pnl').update({ pnl: existingPnL.pnl + totalNetPnl }).eq('id', existingPnL.id);
+        // Delete old exits and insert new ones
+        await supabase.from('trade_exit_records').delete().eq('trade_id', editingTradeId);
+        if (processedExits.length > 0) {
+          const exitsWithId = processedExits.map(e => ({ ...e, trade_id: editingTradeId }));
+          await supabase.from('trade_exit_records').insert(exitsWithId);
+        }
+        
+        // Update account balance (revert old pnl, add new pnl)
+        const revertedBalance = (selectedAccount?.current_balance || 0) - (oldTrade?.pnl || 0);
+        const newBalance = revertedBalance + totalNetPnl;
+        await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', selectedAccountId);
+
+        // Update daily PnL
+        const dateStr = format(new Date(entryDate), 'yyyy-MM-dd');
+        const oldDateStr = oldTrade ? format(new Date(oldTrade.entry_date), 'yyyy-MM-dd') : dateStr;
+        
+        if (dateStr === oldDateStr) {
+          const existingPnL = dailyPnls.find(p => p.date === dateStr);
+          if (existingPnL) {
+            await supabase.from('daily_pnl').update({ pnl: existingPnL.pnl - (oldTrade?.pnl || 0) + totalNetPnl }).eq('id', existingPnL.id);
+          }
+        } else {
+          // Revert old date
+          const oldPnL = dailyPnls.find(p => p.date === oldDateStr);
+          if (oldPnL) {
+            await supabase.from('daily_pnl').update({ pnl: oldPnL.pnl - (oldTrade?.pnl || 0) }).eq('id', oldPnL.id);
+          }
+          // Add to new date
+          const newPnL = dailyPnls.find(p => p.date === dateStr);
+          if (newPnL) {
+            await supabase.from('daily_pnl').update({ pnl: newPnL.pnl + totalNetPnl }).eq('id', newPnL.id);
+          } else {
+            await supabase.from('daily_pnl').insert([{ account_id: selectedAccountId, date: dateStr, pnl: totalNetPnl, user_id: user?.id }]);
+          }
+        }
+
+        setIsModalOpen(false);
+        resetForm();
+        setEditingTradeId(null);
+        fetchJournalData();
+        fetchAccounts();
       } else {
-        await supabase.from('daily_pnl').insert([{ account_id: selectedAccountId, date: dateStr, pnl: totalNetPnl, user_id: user?.id }]);
-      }
+        // Insert new trade
+        const { data: trade, error: tradeError } = await supabase
+          .from('trades')
+          .insert([tradeData])
+          .select()
+          .single();
 
-      setIsModalOpen(false);
-      resetForm();
-      fetchJournalData();
-      fetchAccounts();
+        if (tradeError) throw tradeError;
+        if (trade) {
+          if (processedExits.length > 0) {
+            const exitsWithId = processedExits.map(e => ({ ...e, trade_id: trade.id }));
+            await supabase.from('trade_exit_records').insert(exitsWithId);
+          }
+
+          const newBalance = (selectedAccount?.current_balance || 0) + totalNetPnl;
+          await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', selectedAccountId);
+          
+          const dateStr = format(new Date(entryDate), 'yyyy-MM-dd');
+          const existingPnL = dailyPnls.find(p => p.date === dateStr);
+          if (existingPnL) {
+            await supabase.from('daily_pnl').update({ pnl: existingPnL.pnl + totalNetPnl }).eq('id', existingPnL.id);
+          } else {
+            await supabase.from('daily_pnl').insert([{ account_id: selectedAccountId, date: dateStr, pnl: totalNetPnl, user_id: user?.id }]);
+          }
+
+          setIsModalOpen(false);
+          resetForm();
+          fetchJournalData();
+          fetchAccounts();
+        }
+      }
+    } catch (error: any) {
+      console.error('Error submitting trade:', error);
+      setFormError(error.message || 'An error occurred while saving the trade');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const resetForm = () => {
@@ -282,7 +450,16 @@ export default function Journal() {
   };
 
   const handleAddExit = () => {
-    setExits([...exits, { closed_contract: '1', exit_price: '', exit_status: 'TP', exit_reason: null }]);
+    const currentTotal = exits.reduce((acc, curr) => acc + (parseFloat(curr.closed_contract) || 0), 0);
+    const remaining = Math.max(0, parseFloat(contractSize) - currentTotal);
+    
+    setExits([...exits, { 
+      closed_contract: remaining.toString(), 
+      exit_price: '', 
+      exit_status: 'TP', 
+      exit_reason: null,
+      exit_timestamp: new Date().toISOString()
+    }]);
   };
 
   const handleRemoveExit = (index: number) => {
@@ -376,6 +553,7 @@ export default function Journal() {
                       key={account.id}
                       onClick={() => {
                         setSelectedAccountId(account.id);
+                        localStorage.setItem('selectedAccountId', account.id);
                         setIsAccountDropdownOpen(false);
                       }}
                       className={cn(
@@ -409,6 +587,15 @@ export default function Journal() {
               )}
             >
               List
+            </button>
+            <button 
+              onClick={() => setView('details')}
+              className={cn(
+                "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                view === 'details' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
+              )}
+            >
+              Details
             </button>
           </div>
 
@@ -522,7 +709,7 @@ export default function Journal() {
                 })}
               </div>
             </motion.div>
-          ) : (
+          ) : view === 'list' ? (
             <motion.div 
               key="list"
               initial={{ opacity: 0, y: 20 }}
@@ -584,16 +771,182 @@ export default function Journal() {
                       </div>
 
                       <div className="flex gap-2">
-                        <button className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all">
+                        {trade.status === 'OPEN' && (
+                          <button 
+                            onClick={() => handleCloseTrade(trade)}
+                            className="p-2 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all"
+                            title="Close Trade"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleEditTrade(trade)}
+                          className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
+                          title="Edit Trade"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
+                        <button 
+                          onClick={() => handleDeleteTrade(trade.id)}
+                          className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+                          title="Delete Trade"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))
+              )}
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="details"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden"
+            >
+              {trades.length === 0 ? (
+                <div className="p-12 text-center space-y-4">
+                  <Book className="w-12 h-12 text-neutral-700 mx-auto" />
+                  <p className="text-neutral-500 font-bold">No trades found for this account.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#262626] bg-[#1a1a1a]">
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Date</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Asset</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Direction</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Status</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Entry</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Exit</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Qty</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">PnL</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trades.map(trade => {
+                        const exitsList = trade.trade_exits && trade.trade_exits.length > 0 
+                          ? trade.trade_exits 
+                          : [{ 
+                              id: `temp-${trade.id}`, 
+                              closed_contract: trade.contract_size, 
+                              exit_price: trade.exit_price || 0, 
+                              exit_status: trade.status === 'OPEN' ? 'OPEN' : 'CLOSED',
+                              exit_reason: null,
+                              exit_timestamp: trade.exit_date || trade.entry_date,
+                              pnl_for_this_exit: trade.pnl,
+                              commission_for_this_exit: 0
+                            }];
+
+                        const totalPnl = exitsList.reduce((acc, e) => acc + (e.pnl_for_this_exit || 0), 0);
+                        const totalQty = exitsList.reduce((acc, e) => acc + (Number(e.closed_contract) || 0), 0);
+                        const isExpanded = expandedTrades.has(trade.id);
+
+                        return (
+                          <React.Fragment key={trade.id}>
+                            {/* Trade Summary Row */}
+                            <tr 
+                              className="bg-[#1a1a1a] border-t-2 border-[#262626] group cursor-pointer hover:bg-[#1f1f1f] transition-all"
+                              onClick={() => toggleTradeExpansion(trade.id)}
+                            >
+                              <td className="px-6 py-4 text-[10px] font-black text-sky-500 uppercase tracking-widest">
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-90")} />
+                                  {format(new Date(trade.entry_date), 'MM/dd/yyyy')}
+                                </div>
+                                <div className="text-[8px] text-neutral-600 mt-0.5 ml-5">{format(new Date(trade.entry_date), 'h:mm:ss a')}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-black text-white">{trade.asset}</span>
+                                  <span className="text-[8px] text-neutral-600 font-bold uppercase tracking-tighter">Trade ID: {trade.id.slice(0, 8)}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest",
+                                  trade.type === 'LONG' ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                                )}>
+                                  {trade.type}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-sky-500/10 text-sky-400"
+                                )}>
+                                  {trade.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-xs font-black text-white">{trade.entry_price.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-xs font-black text-neutral-500">-</td>
+                              <td className="px-6 py-4 text-xs font-black text-white">{totalQty} Total</td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "text-sm font-black",
+                                  totalPnl > 0 ? "text-sky-400" : "text-neutral-400"
+                                )}>
+                                  {totalPnl > 0 ? '+' : ''}{formatCurrency(totalPnl)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+                                {exitsList.length} Exits
+                              </td>
+                            </tr>
+                            
+                            {/* Individual Exit Rows */}
+                            <AnimatePresence>
+                              {isExpanded && exitsList.map((exit, index) => (
+                                <motion.tr 
+                                  key={`${trade.id}-${index}`}
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="border-b border-[#262626]/30 bg-[#0a0a0a]/20 hover:bg-[#1f1f1f]/30 transition-all"
+                                >
+                                  <td className="px-6 py-3 text-[9px] font-bold text-neutral-600 pl-10">
+                                    {exit.exit_timestamp ? format(new Date(exit.exit_timestamp), 'h:mm:ss a') : '-'}
+                                  </td>
+                                  <td className="px-6 py-3 text-[9px] font-bold text-neutral-700 italic">Partial Exit</td>
+                                  <td className="px-6 py-3"></td>
+                                  <td className="px-6 py-3">
+                                    <span className={cn(
+                                      "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+                                      exit.exit_status === 'OPEN' ? "bg-sky-500/10 text-sky-400" : "bg-neutral-600/10 text-neutral-500"
+                                    )}>
+                                      {exit.exit_status}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-3 text-[10px] font-bold text-neutral-700">{trade.entry_price.toLocaleString()}</td>
+                                  <td className="px-6 py-3 text-[10px] font-bold text-white">{exit.exit_price ? exit.exit_price.toLocaleString() : '-'}</td>
+                                  <td className="px-6 py-3 text-[10px] font-bold text-neutral-500">
+                                    -{exit.closed_contract}
+                                  </td>
+                                  <td className="px-6 py-3">
+                                    <span className={cn(
+                                      "text-[10px] font-black",
+                                      (exit.pnl_for_this_exit || 0) > 0 ? "text-sky-400/70" : "text-neutral-500"
+                                    )}>
+                                      {(exit.pnl_for_this_exit || 0) > 0 ? '+' : ''}{formatCurrency(exit.pnl_for_this_exit || 0)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-3 text-[9px] text-neutral-600 font-medium">
+                                    {exit.exit_reason || '-'}
+                                  </td>
+                                </motion.tr>
+                              ))}
+                            </AnimatePresence>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </motion.div>
           )}
@@ -612,9 +965,15 @@ export default function Journal() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-10">
-                <h2 className="text-3xl font-bold text-white tracking-tight">Add Trade Log</h2>
+                <h2 className="text-3xl font-bold text-white tracking-tight">
+                  {editingTradeId ? 'Edit Trade Log' : 'Add Trade Log'}
+                </h2>
                 <button 
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetForm();
+                    setEditingTradeId(null);
+                  }}
                   className="p-3 bg-[#1f1f1f] rounded-2xl text-neutral-500 hover:text-white transition-all"
                 >
                   <X className="w-6 h-6" />
@@ -745,7 +1104,7 @@ export default function Journal() {
                         <input 
                           type="number"
                           step="0.01"
-                          value={stop_loss}
+                          value={stopLoss}
                           onChange={(e) => setStopLoss(e.target.value)}
                           placeholder="0.00"
                           className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800"
@@ -880,7 +1239,49 @@ export default function Journal() {
                           </div>
                         ))}
                       </div>
-                    </div>                    <div className="space-y-3">
+
+                      {exits.length > 0 && (
+                        <div className="flex items-center justify-between px-6 py-4 bg-[#141414] border border-[#262626] rounded-3xl">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1 text-neutral-500">Remaining</span>
+                            <span className={cn(
+                              "text-sm font-bold",
+                              (parseFloat(contractSize) - exits.reduce((acc, curr) => acc + (parseFloat(curr.closed_contract) || 0), 0)) > 0 
+                                ? "text-sky-400" 
+                                : "text-neutral-500"
+                            )}>
+                              {(parseFloat(contractSize) - exits.reduce((acc, curr) => acc + (parseFloat(curr.closed_contract) || 0), 0)).toFixed(2)} Contracts
+                            </span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1 text-neutral-500">Estimated Net PnL</span>
+                            <span className={cn(
+                              "text-sm font-bold",
+                              exits.reduce((acc, curr) => {
+                                const entry = parseFloat(entryPrice) || 0;
+                                const exit = parseFloat(curr.exit_price) || 0;
+                                const qty = parseFloat(curr.closed_contract) || 0;
+                                const mult = multipliers[asset] || 1;
+                                const comm = (selectedAccount?.commission || 0) * qty;
+                                const pnl = type === 'LONG' ? (exit - entry) * qty * mult : (entry - exit) * qty * mult;
+                                return acc + (pnl - comm);
+                              }, 0) >= 0 ? "text-emerald-400" : "text-rose-400"
+                            )}>
+                              {formatCurrency(exits.reduce((acc, curr) => {
+                                const entry = parseFloat(entryPrice) || 0;
+                                const exit = parseFloat(curr.exit_price) || 0;
+                                const qty = parseFloat(curr.closed_contract) || 0;
+                                const mult = multipliers[asset] || 1;
+                                const comm = (selectedAccount?.commission || 0) * qty;
+                                const pnl = type === 'LONG' ? (exit - entry) * qty * mult : (entry - exit) * qty * mult;
+                                return acc + (pnl - comm);
+                              }, 0))}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
                       <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Entry Record Screenshot</label>
                       <div 
                         onPaste={handlePaste}

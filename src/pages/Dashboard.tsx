@@ -26,7 +26,12 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer
+  ResponsiveContainer,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -35,7 +40,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function Dashboard() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(localStorage.getItem('selectedAccountId'));
   const [trades, setTrades] = useState<Trade[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,8 +59,13 @@ export default function Dashboard() {
 
     if (!error && data) {
       setAccounts(data);
-      if (data.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(data[0].id);
+      if (data.length > 0) {
+        const savedId = localStorage.getItem('selectedAccountId');
+        const exists = data.some(a => a.id === savedId);
+        if (!savedId || !exists) {
+          setSelectedAccountId(data[0].id);
+          localStorage.setItem('selectedAccountId', data[0].id);
+        }
       }
     }
     setLoading(false);
@@ -63,18 +73,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (selectedAccountId) {
+      setTrades([]);
+      setDailyPnls([]);
       fetchDashboardData();
     }
   }, [selectedAccountId]);
 
   const fetchDashboardData = async () => {
-    const [tradesRes, dailyPnlsRes] = await Promise.all([
-      supabase.from('trades').select('*').eq('account_id', selectedAccountId).order('entry_date', { ascending: true }),
-      supabase.from('daily_pnl').select('*').eq('account_id', selectedAccountId)
-    ]);
+    try {
+      const [tradesRes, dailyPnlsRes] = await Promise.all([
+        supabase.from('trades').select('*').eq('account_id', selectedAccountId).order('entry_date', { ascending: true }),
+        supabase.from('daily_pnl').select('*').eq('account_id', selectedAccountId)
+      ]);
 
-    if (tradesRes.data) setTrades(tradesRes.data);
-    if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
+      if (tradesRes.error) throw tradesRes.error;
+      if (dailyPnlsRes.error) throw dailyPnlsRes.error;
+
+      if (tradesRes.data) setTrades(tradesRes.data);
+      if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    }
   };
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
@@ -83,66 +102,99 @@ export default function Dashboard() {
     if (!selectedAccount) return null;
     
     const closedTrades = trades.filter(t => t.status === 'CLOSED');
-    const totalPnl = closedTrades.reduce((acc, t) => acc + (t.pnl || 0), 0);
+    const totalPnl = closedTrades.reduce((acc, t) => acc + (Number(t.pnl) || 0), 0);
+    const currentBalance = selectedAccount.initial_balance + totalPnl;
+    
     const winRate = closedTrades.length > 0 
-      ? (closedTrades.filter(t => (t.pnl || 0) > 0).length / closedTrades.length) * 100 
+      ? (closedTrades.filter(t => (Number(t.pnl) || 0) > 0).length / closedTrades.length) * 100 
       : 0;
     
-    const grossProfit = closedTrades.filter(t => t.pnl > 0).reduce((acc, t) => acc + t.pnl, 0);
-    const grossLoss = Math.abs(closedTrades.filter(t => t.pnl < 0).reduce((acc, t) => acc + t.pnl, 0));
-    const profitFactor = grossLoss === 0 ? grossProfit : grossProfit / grossLoss;
+    const grossProfit = closedTrades.filter(t => (Number(t.pnl) || 0) > 0).reduce((acc, t) => acc + (Number(t.pnl) || 0), 0);
+    const grossLoss = Math.abs(closedTrades.filter(t => (Number(t.pnl) || 0) < 0).reduce((acc, t) => acc + (Number(t.pnl) || 0), 0));
+    const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? 9.99 : 0) : Math.min(9.99, grossProfit / grossLoss);
 
-    // Edge Score
-    const edgeScore = Math.min(100, Math.max(0, (winRate * 0.6) + (profitFactor * 10)));
+    // Avg Win/Loss Ratio
+    const wins = closedTrades.filter(t => (Number(t.pnl) || 0) > 0);
+    const losses = closedTrades.filter(t => (Number(t.pnl) || 0) < 0);
+    const avgWin = wins.length > 0 ? grossProfit / wins.length : 0;
+    const avgLoss = losses.length > 0 ? grossLoss / losses.length : 0;
+    const winLossRatio = avgLoss === 0 ? (avgWin > 0 ? 9.99 : 0) : Math.min(9.99, avgWin / avgLoss);
 
-    // Propfirm Consistency (No single day > consistency rules % of total profit)
-    const consistencyPercent = parseFloat(selectedAccount.consistency_rules) / 100 || 0.5;
+    // Edge Score Data
+    const edgeData = [
+      { subject: 'Win %', A: winRate, fullMark: 100 },
+      { subject: 'Profit Factor', A: Math.min(100, (profitFactor / 3) * 100), fullMark: 100 },
+      { subject: 'Avg win/loss', A: Math.min(100, (winLossRatio / 3) * 100), fullMark: 100 },
+    ];
+    const edgeScore = (winRate * 0.4) + (Math.min(100, (profitFactor / 2) * 100) * 0.3) + (Math.min(100, (winLossRatio / 2) * 100) * 0.3);
+
+    // Propfirm Consistency
+    const consistencyPercent = (parseFloat(selectedAccount.consistency_rules) || 50) / 100;
+    const profitTarget = selectedAccount.profit_target || (selectedAccount.initial_balance * 0.1);
     const maxDayProfit = Math.max(...dailyPnls.map(p => p.pnl), 0);
-    const isConsistent = totalPnl > 0 ? (maxDayProfit / totalPnl) <= consistencyPercent : true;
+    
+    // Consistency rule: No single day profit > consistency % of profit target
+    const currentConsistencyRatio = profitTarget > 0 ? (maxDayProfit / profitTarget) : 0;
+    const isConsistent = currentConsistencyRatio <= consistencyPercent;
 
     // Profit Target
-    const profitTarget = selectedAccount.profit_target || selectedAccount.initial_balance * 0.1;
     const targetProgress = Math.min(100, Math.max(0, (totalPnl / profitTarget) * 100));
+    const amountLeft = Math.max(0, profitTarget - totalPnl);
 
-    // Trailing Drawdown (Simple version: peak balance - current balance)
+    // Trailing Drawdown
     let peakBalance = selectedAccount.initial_balance;
-    let currentBal = selectedAccount.initial_balance;
+    let runningBal = selectedAccount.initial_balance;
     trades.forEach(t => {
-      currentBal += t.pnl;
-      if (currentBal > peakBalance) peakBalance = currentBal;
+      runningBal += (t.pnl || 0);
+      if (runningBal > peakBalance) peakBalance = runningBal;
     });
-    const trailingDrawdown = peakBalance - selectedAccount.current_balance;
+    
     const maxAllowedDrawdown = selectedAccount.max_drawdown || selectedAccount.initial_balance * 0.05;
-    const drawdownPercent = (trailingDrawdown / maxAllowedDrawdown) * 100;
+    const drawdownFloor = peakBalance - maxAllowedDrawdown;
+    const distanceToFloor = Math.max(0, currentBalance - drawdownFloor);
+    const drawdownPercent = ((peakBalance - currentBalance) / maxAllowedDrawdown) * 100;
 
     return { 
       totalPnl, 
       winRate, 
       profitFactor,
       edgeScore,
+      edgeData,
       isConsistent,
       targetProgress,
-      trailingDrawdown,
+      amountLeft,
+      profitTarget,
+      trailingDrawdown: peakBalance - currentBalance,
+      drawdownFloor,
+      distanceToFloor,
       maxAllowedDrawdown,
       drawdownPercent,
       initialBalance: selectedAccount.initial_balance,
-      currentBalance: selectedAccount.current_balance,
-      consistencyPercent
+      currentBalance,
+      consistencyPercent,
+      currentConsistencyRatio
     };
   }, [trades, selectedAccount, dailyPnls]);
 
   const chartData = React.useMemo(() => {
-    let cumulativePnl = 0;
-    return trades
+    if (!selectedAccount) return [];
+    let currentBalance = selectedAccount.initial_balance;
+    const data = [{
+      date: 'Start',
+      balance: currentBalance
+    }];
+    
+    trades
       .filter(t => t.status === 'CLOSED')
-      .map(t => {
-        cumulativePnl += (t.pnl || 0);
-        return {
+      .forEach(t => {
+        currentBalance += (Number(t.pnl) || 0);
+        data.push({
           date: format(new Date(t.exit_date || t.entry_date), 'MMM dd'),
-          pnl: cumulativePnl
-        };
+          balance: currentBalance
+        });
       });
-  }, [trades]);
+    return data;
+  }, [trades, selectedAccount]);
 
   const calendarDays = React.useMemo(() => {
     const today = new Date();
@@ -221,6 +273,7 @@ export default function Dashboard() {
                     key={account.id}
                     onClick={() => {
                       setSelectedAccountId(account.id);
+                      localStorage.setItem('selectedAccountId', account.id);
                       setIsAccountDropdownOpen(false);
                     }}
                     className={cn(
@@ -321,7 +374,7 @@ export default function Dashboard() {
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="pnl" 
+                  dataKey="balance" 
                   stroke="#0ea5e9" 
                   fillOpacity={1} 
                   fill="url(#colorPnl)" 
@@ -334,51 +387,81 @@ export default function Dashboard() {
         </div>
 
         <div className="space-y-8">
-          {/* Advanced Metrics */}
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8 space-y-6">
-            <h3 className="text-lg font-bold text-white">Advanced Analysis</h3>
-            
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Zap className="w-5 h-5 text-sky-400" />
-                  <span className="text-sm font-bold text-neutral-400">Edge Score</span>
-                </div>
-                <span className="text-xl font-black text-sky-400">{(stats?.edgeScore || 0).toFixed(0)}</span>
+          {/* Advanced Metrics & Edge Score */}
+          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8 space-y-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Edge Score</h3>
+              <div className="px-3 py-1 bg-sky-500/10 rounded-lg">
+                <span className="text-sm font-black text-sky-400">{(stats?.edgeScore || 0).toFixed(0)}</span>
               </div>
-              
+            </div>
+
+            <div className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={stats?.edgeData}>
+                  <PolarGrid stroke="#262626" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#737373', fontSize: 10, fontWeight: 700 }} />
+                  <Radar
+                    name="Edge"
+                    dataKey="A"
+                    stroke="#0ea5e9"
+                    fill="#0ea5e9"
+                    fillOpacity={0.3}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div className="space-y-6 pt-4 border-t border-[#262626]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 text-sky-400" />
                   <span className="text-sm font-bold text-neutral-400">Consistency</span>
                 </div>
-                <span className={cn(
-                  "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
-                  stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                )}>
-                  {stats?.isConsistent ? 'Compliant' : 'Violated'}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
+                  <span className={cn(
+                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
+                    stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                  )}>
+                    {stats?.isConsistent ? 'Compliant' : 'Violated'}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-                  <span>Profit Target</span>
-                  <span>{stats?.targetProgress.toFixed(0)}%</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Target Profit</p>
+                    <p className="text-xl font-black text-white">{formatCurrency(stats?.amountLeft || 0)} Left</p>
+                  </div>
+                  <span className="text-xs font-bold text-sky-500">{stats?.targetProgress.toFixed(1)}%</span>
                 </div>
-                <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
+                <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
                   <div 
                     className="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-1000" 
                     style={{ width: `${stats?.targetProgress}%` }}
                   />
                 </div>
+                <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+                  <span>Progress</span>
+                  <span>Target {formatCurrency((stats?.initialBalance || 0) + (stats?.profitTarget || 0))}</span>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-                  <span>Drawdown Usage</span>
-                  <span className={cn(stats?.drawdownPercent > 80 ? "text-red-500" : "text-neutral-500")}>{stats?.drawdownPercent.toFixed(0)}%</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Drawdown Usage</p>
+                    <p className={cn("text-xl font-black", stats?.drawdownPercent > 80 ? "text-red-500" : "text-white")}>
+                      {formatCurrency(stats?.distanceToFloor || 0)} Safe
+                    </p>
+                  </div>
+                  <span className={cn("text-xs font-bold", stats?.drawdownPercent > 80 ? "text-red-500" : "text-neutral-500")}>
+                    {stats?.drawdownPercent.toFixed(1)}%
+                  </span>
                 </div>
-                <div className="h-2 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
+                <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
                   <div 
                     className={cn(
                       "h-full transition-all duration-1000",
@@ -387,12 +470,9 @@ export default function Dashboard() {
                     style={{ width: `${Math.min(100, stats?.drawdownPercent)}%` }}
                   />
                 </div>
-              </div>
-
-              <div className="pt-4 border-t border-[#262626]">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Trailing Drawdown</span>
-                  <span className="text-sm font-bold text-neutral-200">-{formatCurrency(stats?.trailingDrawdown || 0)}</span>
+                <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+                  <span>Risk Level</span>
+                  <span>Floor {formatCurrency(stats?.drawdownFloor || 0)}</span>
                 </div>
               </div>
             </div>

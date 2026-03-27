@@ -36,18 +36,25 @@ export default function AISummary() {
   }, [user]);
 
   const fetchAccounts = async () => {
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user?.id);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user?.id);
 
-    if (!error && data) {
-      setAccounts(data);
-      if (data.length > 0) {
-        setSelectedAccountId(data[0].id);
+      if (error) throw error;
+      if (data) {
+        setAccounts(data);
+        if (data.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(data[0].id);
+        }
       }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -58,15 +65,21 @@ export default function AISummary() {
 
   const fetchTrades = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('account_id', selectedAccountId)
-      .order('entry_date', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*')
+        .eq('account_id', selectedAccountId)
+        .order('entry_date', { ascending: false })
+        .limit(50);
 
-    if (data) setTrades(data);
-    setLoading(false);
+      if (error) throw error;
+      if (data) setTrades(data);
+    } catch (error) {
+      console.error('Error fetching trades:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generateSummary = async () => {
