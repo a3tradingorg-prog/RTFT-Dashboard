@@ -113,28 +113,28 @@ function AccordionItem({ title, description, url, isOpen, onToggle }: { title: s
     )}>
       <button 
         onClick={onToggle}
-        className="w-full px-6 py-5 flex items-center justify-between transition-colors text-left group"
+        className="w-full px-5 py-4 flex items-center justify-between transition-colors text-left group"
       >
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4">
           <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+            "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
             isOpen ? "bg-sky-500 text-black" : "bg-sky-500/10 text-sky-500 group-hover:bg-sky-500/20"
           )}>
-            <Video className="w-6 h-6" />
+            <Video className="w-5 h-5" />
           </div>
           <div>
             <h3 className={cn(
-              "font-bold transition-colors",
-              isOpen ? "text-sky-400 text-lg" : "text-white"
+              "font-bold transition-colors text-sm",
+              isOpen ? "text-sky-400" : "text-white"
             )}>{title}</h3>
-            <p className="text-sm text-neutral-500 mt-0.5">{description}</p>
+            <p className="text-[10px] text-neutral-500 mt-0.5">{description}</p>
           </div>
         </div>
         <div className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+          "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
           isOpen ? "bg-sky-500/20 text-sky-400 rotate-180" : "bg-neutral-800 text-neutral-500"
         )}>
-          <ChevronDown className="w-5 h-5" />
+          <ChevronDown className="w-4 h-4" />
         </div>
       </button>
       
@@ -222,19 +222,19 @@ export default function Campus() {
 
   return (
     <div className="space-y-10">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Campus</h1>
-          <p className="text-neutral-500 mt-2 font-medium">Exclusive educational content and market outlooks.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Campus</h1>
+          <p className="text-xs font-medium text-neutral-500 mt-1 uppercase tracking-widest">Exclusive educational content and market outlooks.</p>
         </div>
-        <div className="relative group w-full md:w-72">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
+        <div className="relative group w-full md:w-64">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
           <input 
             type="text"
             placeholder="Search courses..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#141414] border border-[#262626] rounded-2xl py-3 pl-11 pr-4 text-sm text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
+            className="w-full bg-[#141414] border border-[#262626] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
           />
         </div>
       </header>

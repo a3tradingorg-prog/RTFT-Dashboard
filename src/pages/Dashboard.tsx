@@ -298,13 +298,13 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Dashboard Overview</h1>
-          <p className="text-neutral-500 mt-2 font-medium">Performance analytics for your selected account.</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard Overview</h1>
+          <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
         </div>
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <MetricCard 
           title="Current Balance" 
           value={formatCurrency(stats?.currentBalance || 0)} 
@@ -527,27 +527,27 @@ function MetricCard({ title, value, subtitle, icon: Icon, trend, color }: any) {
   };
 
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8 transition-all duration-300 hover:border-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/5 group">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 md:p-5 transition-all duration-300 hover:border-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/5 group">
+      <div className="flex items-center justify-between mb-3">
         <div className={cn(
-          "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110", 
+          "w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110", 
           bgColors[color] || 'bg-sky-500/10'
         )}>
-          <Icon className={cn("w-6 h-6", color)} />
+          <Icon className={cn("w-4 h-4", color)} />
         </div>
         {trend && (
           <div className={cn(
-            "flex items-center px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
+            "flex items-center px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest",
             trend === 'up' ? "bg-sky-500/10 text-sky-400" : "bg-neutral-500/10 text-neutral-400"
           )}>
-            {trend === 'up' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+            {trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5 mr-1" /> : <ArrowDownRight className="w-2.5 h-2.5 mr-1" />}
             {trend === 'up' ? 'Growth' : 'Drawdown'}
           </div>
         )}
       </div>
-      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-1">{title}</p>
-      <p className={cn("text-3xl font-black tracking-tighter", color)}>{value}</p>
-      {subtitle && <p className="text-[10px] font-bold text-neutral-600 mt-2">{subtitle}</p>}
+      <p className="text-[9px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-0.5">{title}</p>
+      <p className={cn("text-xl font-black tracking-tighter", color)}>{value}</p>
+      {subtitle && <p className="text-[9px] font-bold text-neutral-600 mt-1.5">{subtitle}</p>}
     </div>
   );
 }
