@@ -32,7 +32,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Journal', href: '/journal', icon: Book },
     { name: 'Strategy', href: '/strategy', icon: Brain },
     { name: 'AI Summary', href: '/ai-summary', icon: Sparkles },
-    { name: 'Learning', href: '/learning', icon: GraduationCap },
+    { name: 'Campus', href: '/campus', icon: GraduationCap },
     { name: 'Fundamental', href: '/fundamental', icon: Search },
     { name: 'Profile', href: '/profile', icon: User },
   ];
@@ -142,7 +142,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 ml-20 min-h-screen">
         {/* Top Navbar */}
-        <header className="h-20 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-[#262626] sticky top-0 z-40 px-8 md:px-12 flex items-center justify-between overflow-x-auto">
+        <header className="h-20 bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-[#262626] sticky top-0 z-40 px-8 md:px-12 flex items-center justify-between">
           <div className="flex items-center gap-4 shrink-0">
             <div className="md:hidden w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center">
               <TrendingUp className="text-black w-6 h-6" />

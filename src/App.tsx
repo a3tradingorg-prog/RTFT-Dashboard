@@ -11,7 +11,7 @@ import Accounts from './pages/Accounts';
 import Journal from './pages/Journal';
 import Strategy from './pages/Strategy';
 import AISummary from './pages/AISummary';
-import Learning from './pages/Learning';
+import Campus from './pages/Campus';
 import Fundamental from './pages/Fundamental';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
@@ -77,7 +77,7 @@ export default function App() {
             <Route path="/journal" element={<Journal />} />
             <Route path="/strategy" element={<Strategy />} />
             <Route path="/ai-summary" element={<AISummary />} />
-            <Route path="/learning" element={<Learning />} />
+            <Route path="/campus" element={<Campus />} />
             <Route path="/fundamental" element={<Fundamental />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
