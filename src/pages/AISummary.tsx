@@ -218,7 +218,11 @@ export default function AISummary() {
         Use Markdown for formatting with clear headers and bullet points.
       `;
 
-      const ai = new GoogleGenAI({ apiKey: (process.env as any).GEMINI_API_KEY });
+      const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please configure VITE_GEMINI_API_KEY.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const model = "gemini-3-flash-preview";
       
       const response = await ai.models.generateContent({

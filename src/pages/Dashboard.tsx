@@ -65,6 +65,37 @@ export default function Dashboard() {
     };
 
     loadData();
+
+    if (selectedAccountId) {
+      const tradesSubscription = supabase
+        .channel(`trades_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trades',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          fetchDashboardData();
+        })
+        .subscribe();
+
+      const dailyPnLSubscription = supabase
+        .channel(`daily_pnl_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'daily_pnl',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          fetchDashboardData();
+        })
+        .subscribe();
+
+      return () => {
+        tradesSubscription.unsubscribe();
+        dailyPnLSubscription.unsubscribe();
+      };
+    }
   }, [selectedAccountId, accountsLoading, accounts.length]);
 
   const fetchDashboardData = async () => {

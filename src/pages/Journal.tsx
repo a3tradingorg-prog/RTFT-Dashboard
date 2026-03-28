@@ -154,6 +154,49 @@ export default function Journal() {
   useEffect(() => {
     if (selectedAccountId) {
       fetchJournalData();
+
+      const tradesSubscription = supabase
+        .channel(`journal_trades_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trades',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          fetchJournalData();
+        })
+        .subscribe();
+
+      const exitsSubscription = supabase
+        .channel(`journal_exits_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trade_exit_records'
+        }, () => {
+          // Since we can't easily filter by account_id on the exit table directly without a join in the filter
+          // we'll just refresh if any exit changes. For better performance, we could filter by trade_ids.
+          fetchJournalData();
+        })
+        .subscribe();
+
+      const dailyPnLSubscription = supabase
+        .channel(`journal_pnl_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'daily_pnl',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          fetchJournalData();
+        })
+        .subscribe();
+
+      return () => {
+        tradesSubscription.unsubscribe();
+        exitsSubscription.unsubscribe();
+        dailyPnLSubscription.unsubscribe();
+      };
     }
   }, [selectedAccountId]);
 

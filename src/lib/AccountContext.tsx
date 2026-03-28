@@ -52,6 +52,24 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchAccounts();
+
+    if (user) {
+      const subscription = supabase
+        .channel('accounts_realtime')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'accounts',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchAccounts();
+        })
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, [user]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);

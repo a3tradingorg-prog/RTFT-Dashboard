@@ -102,6 +102,14 @@ CREATE TABLE IF NOT EXISTS daily_pnl (
   UNIQUE(account_id, date)
 );
 
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS trades_account_id_idx ON trades(account_id);
+CREATE INDEX IF NOT EXISTS trades_user_id_idx ON trades(user_id);
+CREATE INDEX IF NOT EXISTS trades_entry_date_idx ON trades(entry_date);
+CREATE INDEX IF NOT EXISTS daily_pnl_account_id_idx ON daily_pnl(account_id);
+CREATE INDEX IF NOT EXISTS daily_pnl_date_idx ON daily_pnl(date);
+CREATE INDEX IF NOT EXISTS trade_exits_trade_id_idx ON trade_exits(trade_id);
+
 -- 6. Ensure all columns exist in 'trades' (Safe Update)
 DO $$ 
 BEGIN 
