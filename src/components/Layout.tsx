@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 import { useAccount } from '../lib/AccountContext';
+import { supabase } from '../lib/supabase';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -25,10 +26,49 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount } = useAccount();
-  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = React.useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+
+      const subscription = supabase
+        .channel(`layout_profile_realtime_${user.id}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        }, () => {
+          fetchProfile();
+        })
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile in layout:', error);
+    }
+  };
 
   const hideAccountSelector = ['/campus', '/news', '/profile'].includes(location.pathname);
 
@@ -281,6 +321,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </AnimatePresence>
               </div>
             )}
+
+            {/* Profile Icon */}
+            <div className="relative p-[1px] rounded-full overflow-hidden group">
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#3b82f6,#8b5cf6,#ec4899,#f97316,#eab308,#22c55e,#3b82f6)] opacity-70 group-hover:opacity-100 transition-opacity" 
+              />
+              <Link 
+                to="/profile"
+                className={cn(
+                  "relative z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all bg-[#0a0a0a] overflow-hidden",
+                  location.pathname === '/profile'
+                    ? "text-sky-400"
+                    : "text-neutral-400"
+                )}
+              >
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <User className="w-4 h-4" />
+                )}
+              </Link>
+            </div>
           </div>
         </header>
 

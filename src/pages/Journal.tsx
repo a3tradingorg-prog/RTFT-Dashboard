@@ -595,7 +595,7 @@ export default function Journal() {
             <button 
               onClick={() => setView('details')}
               className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                "px-4 py-2 rounded-xl text-xs font-bold transition-all hidden md:block",
                 view === 'details' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
               )}
             >
@@ -653,7 +653,8 @@ export default function Journal() {
               <div className="grid grid-cols-7 border-b border-[#262626]">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                   <div key={day} className="py-4 text-center text-[10px] font-black text-neutral-500 uppercase tracking-widest border-r border-[#262626] last:border-r-0">
-                    {day}
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{day[0]}</span>
                   </div>
                 ))}
               </div>
@@ -668,43 +669,44 @@ export default function Journal() {
                     <div 
                       key={day.toString()} 
                       className={cn(
-                        "min-h-[140px] p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative",
+                        "min-h-[80px] sm:min-h-[140px] p-2 sm:p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative",
                         !isCurrentMonth && "opacity-20 grayscale",
                         (i + 1) % 7 === 0 && "border-r-0"
                       )}
                     >
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start mb-1 sm:mb-4">
                         <span className={cn(
-                          "text-xs font-black",
-                          isToday(day) ? "w-6 h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
+                          "text-[10px] sm:text-xs font-black",
+                          isToday(day) ? "w-5 h-5 sm:w-6 sm:h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
                         )}>
                           {format(day, 'd')}
                         </span>
                         {pnl !== 0 && (
                           <span className={cn(
-                            "text-[10px] font-black tracking-tighter",
+                            "text-[8px] sm:text-[10px] font-black tracking-tighter",
                             pnl > 0 ? "text-sky-400" : "text-neutral-500"
                           )}>
-                            {pnl > 0 ? '+' : ''}{formatCurrency(pnl)}
+                            {pnl > 0 ? '+' : ''}<span className="hidden sm:inline">{formatCurrency(pnl)}</span>
+                            <span className="sm:hidden">{pnl > 0 ? 'W' : 'L'}</span>
                           </span>
                         )}
                       </div>
 
-                      <div className="space-y-1">
-                        {dayTrades.slice(0, 3).map(trade => (
+                      <div className="space-y-0.5 sm:space-y-1">
+                        {dayTrades.slice(0, 2).map(trade => (
                           <div 
                             key={trade.id}
                             className={cn(
-                              "px-2 py-1 rounded text-[9px] font-bold truncate",
+                              "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
                               trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
                             )}
                           >
-                            {trade.asset} • {trade.type}
+                            {trade.asset}
                           </div>
                         ))}
-                        {dayTrades.length > 3 && (
-                          <div className="text-[9px] font-bold text-neutral-600 pl-1">
-                            + {dayTrades.length - 3} more
+                        {dayTrades.length > 2 && (
+                          <div className="text-[7px] sm:text-[9px] font-bold text-neutral-600 pl-1">
+                            + {dayTrades.length - 2}
                           </div>
                         )}
                       </div>

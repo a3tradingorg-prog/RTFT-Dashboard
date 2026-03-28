@@ -245,37 +245,39 @@ export default function StrategyPage() {
           <p className="text-neutral-500 mt-2 font-medium">Define your edge, manage your exits, and master your mind.</p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+          <div className="relative flex-1 sm:flex-none">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
             <input 
               type="text"
               placeholder="Search strategies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-11 pr-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white focus:border-sky-500/50 focus:outline-none transition-all w-64"
+              className="pl-11 pr-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white focus:border-sky-500/50 focus:outline-none transition-all w-full sm:w-64"
             />
           </div>
 
-          <div className="relative">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 sm:flex-none">
+              <button 
+                onClick={() => setStatusFilter(statusFilter === 'All' ? 'Active' : statusFilter === 'Active' ? 'Archived' : statusFilter === 'Archived' ? 'Under Review' : 'All')}
+                className="w-full px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all flex items-center justify-center gap-3"
+              >
+                <Filter className="w-4 h-4 text-sky-500" />
+                {statusFilter}
+              </button>
+            </div>
+
             <button 
-              onClick={() => setStatusFilter(statusFilter === 'All' ? 'Active' : statusFilter === 'Active' ? 'Archived' : statusFilter === 'Archived' ? 'Under Review' : 'All')}
-              className="px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all flex items-center gap-3"
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 shrink-0"
             >
-              <Filter className="w-4 h-4 text-sky-500" />
-              {statusFilter}
+              <Plus className="w-6 h-6" />
             </button>
           </div>
-
-          <button 
-            onClick={() => {
-              resetForm();
-              setIsModalOpen(true);
-            }}
-            className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
         </div>
       </div>
 

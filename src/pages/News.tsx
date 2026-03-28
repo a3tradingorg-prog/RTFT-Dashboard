@@ -124,7 +124,7 @@ const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loadin
                 key={f}
                 onClick={() => setFilter(f as any)}
                 className={cn(
-                  "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded transition-all",
+                  "px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all",
                   filter === f ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
                 )}
               >
@@ -142,43 +142,79 @@ const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loadin
             <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Fetching Calendar...</p>
           </div>
         ) : filteredEvents.length > 0 ? (
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-[#0a0a0a] z-10">
-              <tr>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Time</th>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Currency</th>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Event</th>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Impact</th>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626] text-right">Actual</th>
-                <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626] text-right">Forecast</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#262626]">
+          <>
+            {/* Desktop View */}
+            <table className="w-full text-left border-collapse hidden sm:table">
+              <thead className="sticky top-0 bg-[#0a0a0a] z-10">
+                <tr>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Time</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Currency</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Event</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626]">Impact</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626] text-right">Actual</th>
+                  <th className="px-6 py-3 text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-[#262626] text-right">Forecast</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#262626]">
+                {filteredEvents.map((event, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors group">
+                    <td className="px-6 py-4 text-xs font-mono text-neutral-400">{event.time}</td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-white">{event.currency}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-neutral-200 group-hover:text-sky-400 transition-colors">{event.event}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest",
+                        event.impact === 'High' ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" : 
+                        event.impact === 'Medium' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : 
+                        "bg-sky-500/10 text-sky-500 border border-sky-500/20"
+                      )}>
+                        {event.impact}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-xs font-bold text-white">{event.actual || '-'}</td>
+                    <td className="px-6 py-4 text-right text-xs font-bold text-neutral-500">{event.forecast || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Mobile View */}
+            <div className="sm:hidden divide-y divide-[#262626]">
               {filteredEvents.map((event, i) => (
-                <tr key={i} className="hover:bg-white/5 transition-colors group">
-                  <td className="px-6 py-4 text-xs font-mono text-neutral-400">{event.time}</td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-white">{event.currency}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-bold text-neutral-200 group-hover:text-sky-400 transition-colors">{event.event}</span>
-                  </td>
-                  <td className="px-6 py-4">
+                <div key={i} className="p-4 space-y-3 hover:bg-white/5 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">{event.currency}</span>
+                      <span className="text-[10px] font-bold text-neutral-500">• {event.time}</span>
+                    </div>
                     <span className={cn(
-                      "px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest",
-                      event.impact === 'High' ? "bg-rose-500/10 text-rose-500 border border-rose-500/20" : 
-                      event.impact === 'Medium' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : 
-                      "bg-sky-500/10 text-sky-500 border border-sky-500/20"
+                      "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+                      event.impact === 'High' ? "bg-rose-500/10 text-rose-500" : 
+                      event.impact === 'Medium' ? "bg-amber-500/10 text-amber-500" : 
+                      "bg-sky-500/10 text-sky-500"
                     )}>
                       {event.impact}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-xs font-bold text-white">{event.actual || '-'}</td>
-                  <td className="px-6 py-4 text-right text-xs font-bold text-neutral-500">{event.forecast || '-'}</td>
-                </tr>
+                  </div>
+                  <h4 className="text-xs font-bold text-neutral-200 leading-relaxed">{event.event}</h4>
+                  <div className="flex items-center gap-4 pt-1">
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-neutral-500 uppercase tracking-widest">Actual</span>
+                      <span className="text-xs font-mono font-bold text-white">{event.actual || '-'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-neutral-500 uppercase tracking-widest">Forecast</span>
+                      <span className="text-xs font-mono font-bold text-neutral-400">{event.forecast || '-'}</span>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center p-8">
             <Calendar className="w-12 h-12 text-neutral-800 mb-4" />
@@ -670,24 +706,25 @@ def crawl_news():
               </div>
               <h3 className="text-lg font-bold text-white uppercase tracking-tighter italic">News Crawler (V1.04)</h3>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button 
                 onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                className="px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white transition-all flex items-center gap-2"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white transition-all flex items-center justify-center gap-2"
               >
                 <HistoryIcon className="w-3 h-3" />
-                {isHistoryOpen ? 'Hide History' : 'View History'}
+                <span className="hidden xs:inline">{isHistoryOpen ? 'Hide History' : 'View History'}</span>
+                <span className="xs:hidden">History</span>
               </button>
               <button 
                 onClick={() => setShowCode(!showCode)}
-                className="px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white transition-all"
+                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white transition-all flex items-center justify-center"
               >
                 {showCode ? 'Hide Script' : 'Edit Script'}
               </button>
               <button 
                 onClick={handleCrawl}
                 disabled={crawling}
-                className="px-6 py-2 bg-sky-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-sky-400 transition-all flex items-center gap-2 disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-2 bg-sky-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {crawling ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
                 {crawling ? 'Crawling...' : 'Run Script'}
@@ -1131,25 +1168,27 @@ export default function News() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
+      <div className="flex flex-wrap gap-2 sm:gap-3 pb-4 border-b border-[#262626]">
         {[
-          { id: 'calendar', label: 'Economic Calendar', icon: Calendar },
-          { id: 'futures', label: 'Futures Prices', icon: Activity },
-          { id: 'headlines', label: 'Headline News', icon: Newspaper },
-          { id: 'crawler', label: 'AI News Crawler', icon: Code },
+          { id: 'calendar', label: 'Economic Calendar', icon: Calendar, mobileLabel: 'Calendar' },
+          { id: 'futures', label: 'Futures Prices', icon: Activity, mobileLabel: 'Futures', hiddenOnMobile: true },
+          { id: 'headlines', label: 'Headline News', icon: Newspaper, mobileLabel: 'News' },
+          { id: 'crawler', label: 'AI News Crawler', icon: Code, mobileLabel: 'Crawler' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={cn(
-              "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group border",
+              "px-4 sm:px-6 py-2 sm:py-3 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group border",
               activeTab === tab.id 
                 ? "bg-sky-500 text-black border-sky-400 shadow-xl shadow-sky-500/20 scale-105" 
-                : "bg-[#141414] text-neutral-500 hover:text-white border-[#262626] hover:border-neutral-700"
+                : "bg-[#141414] text-neutral-500 hover:text-white border-[#262626] hover:border-neutral-700",
+              tab.hiddenOnMobile && "hidden md:flex"
             )}
           >
-            <tab.icon className="w-4 h-4 relative z-10" />
-            <span className="relative z-10">{tab.label}</span>
+            <tab.icon className="w-3 h-3 sm:w-4 sm:h-4 relative z-10" />
+            <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+            <span className="relative z-10 sm:hidden">{tab.mobileLabel}</span>
           </button>
         ))}
       </div>
