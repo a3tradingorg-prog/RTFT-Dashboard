@@ -305,7 +305,7 @@ export default function MarketData() {
     setError(null);
 
     try {
-      const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("Gemini API Key is missing.");
       }
