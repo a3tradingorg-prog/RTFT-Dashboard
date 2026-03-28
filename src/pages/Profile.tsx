@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { 
@@ -11,17 +11,57 @@ import {
   Check,
   RefreshCw,
   ChevronRight,
-  Camera
+  Camera,
+  UserCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 export default function Profile() {
   const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+
+      // Subscribe to realtime changes for profile
+      const subscription = supabase
+        .channel(`profile_realtime_${user.id}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        }, () => {
+          fetchProfile();
+        })
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +107,7 @@ export default function Profile() {
                 </button>
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">{user?.email?.split('@')[0]}</h3>
+                <h3 className="text-xl font-bold text-white">{profile?.full_name || user?.email?.split('@')[0]}</h3>
                 <p className="text-sm text-neutral-500 font-medium">{user?.email}</p>
               </div>
             </div>

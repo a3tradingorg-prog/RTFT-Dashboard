@@ -67,6 +67,23 @@ export default function Accounts() {
   useEffect(() => {
     if (user) {
       fetchAccounts();
+
+      // Subscribe to realtime changes for accounts
+      const subscription = supabase
+        .channel('accounts_realtime')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'accounts',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchAccounts();
+        })
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
     }
   }, [user]);
 

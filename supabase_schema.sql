@@ -102,6 +102,17 @@ CREATE TABLE IF NOT EXISTS daily_pnl (
   UNIQUE(account_id, date)
 );
 
+-- 6. News Analyses Table
+CREATE TABLE IF NOT EXISTS news_analyses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
+  date_range TEXT NOT NULL,
+  raw_output TEXT,
+  analysis_json JSONB NOT NULL,
+  summary_text TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS trades_account_id_idx ON trades(account_id);
 CREATE INDEX IF NOT EXISTS trades_user_id_idx ON trades(user_id);
@@ -109,8 +120,10 @@ CREATE INDEX IF NOT EXISTS trades_entry_date_idx ON trades(entry_date);
 CREATE INDEX IF NOT EXISTS daily_pnl_account_id_idx ON daily_pnl(account_id);
 CREATE INDEX IF NOT EXISTS daily_pnl_date_idx ON daily_pnl(date);
 CREATE INDEX IF NOT EXISTS trade_exits_trade_id_idx ON trade_exits(trade_id);
+CREATE INDEX IF NOT EXISTS news_analyses_user_id_idx ON news_analyses(user_id);
+CREATE INDEX IF NOT EXISTS news_analyses_created_at_idx ON news_analyses(created_at);
 
--- 6. Ensure all columns exist in 'trades' (Safe Update)
+-- 7. Ensure all columns exist in 'trades' (Safe Update)
 DO $$ 
 BEGIN 
     -- asset
@@ -165,6 +178,7 @@ ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trade_exits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_pnl ENABLE ROW LEVEL SECURITY;
+ALTER TABLE news_analyses ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
 DROP POLICY IF EXISTS "Users can manage own profile" ON profiles;
@@ -187,5 +201,36 @@ DROP POLICY IF EXISTS "Users can manage own trade exits" ON trade_exits;
 CREATE POLICY "Users can manage own trade exits" ON trade_exits FOR ALL 
 USING (EXISTS (SELECT 1 FROM trades WHERE trades.id = trade_exits.trade_id AND trades.user_id = auth.uid()));
 
+-- News Analyses
+DROP POLICY IF EXISTS "Users can manage own news_analyses" ON news_analyses;
+CREATE POLICY "Users can manage own news_analyses" ON news_analyses FOR ALL USING (auth.uid() = user_id);
+
 -- REFRESH SCHEMA CACHE
 NOTIFY pgrst, 'reload schema';
+
+-- Enable Realtime for critical tables
+BEGIN;
+  -- Create publication if it doesn't exist
+  DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+      CREATE PUBLICATION supabase_realtime;
+    END IF;
+  END $$;
+
+  -- Add tables to the publication (ignoring errors if already added)
+  DO $$
+  DECLARE
+    t text;
+    tables_to_add text[] := ARRAY['trades', 'daily_pnl', 'accounts', 'profiles', 'news_analyses'];
+  BEGIN
+    FOREACH t IN ARRAY tables_to_add LOOP
+      BEGIN
+        EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+      EXCEPTION WHEN duplicate_object THEN
+        -- Table already in publication, skip
+        NULL;
+      END;
+    END LOOP;
+  END $$;
+COMMIT;

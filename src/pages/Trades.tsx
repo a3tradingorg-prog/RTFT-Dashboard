@@ -44,6 +44,23 @@ export default function Trades() {
     if (!user) return;
     fetchTrades();
     fetchAccounts();
+
+    // Subscribe to realtime changes for trades
+    const channel = supabase
+      .channel('trades_realtime')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'trades',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchTrades();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchAccounts = async () => {

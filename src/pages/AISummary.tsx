@@ -60,6 +60,23 @@ export default function AISummary() {
   useEffect(() => {
     if (user) {
       fetchInitialData();
+
+      // Subscribe to user profile changes (for language preferences)
+      const profileSub = supabase
+        .channel(`profile_realtime_${user.id}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'user_profiles',
+          filter: `user_id=eq.${user.id}`
+        }, () => {
+          fetchInitialData();
+        })
+        .subscribe();
+
+      return () => {
+        profileSub.unsubscribe();
+      };
     }
   }, [user]);
 
@@ -94,8 +111,25 @@ export default function AISummary() {
   useEffect(() => {
     if (selectedAccountId) {
       fetchAccountData();
+
+      // Subscribe to realtime changes for AI summaries
+      const summarySub = supabase
+        .channel(`summary_realtime_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'ai_summaries_cache',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          fetchAccountData();
+        })
+        .subscribe();
+
+      return () => {
+        summarySub.unsubscribe();
+      };
     }
-  }, [selectedAccountId]);
+  }, [selectedAccountId, selectedLanguage]);
 
   const fetchAccountData = async () => {
     setLoading(true);
@@ -242,7 +276,9 @@ export default function AISummary() {
         ai_agent_used: 'Gemini',
         summary_language: selectedLanguage,
         summary_text: generatedText,
-        generated_at: new Date().toISOString()
+        generated_at: new Date().toISOString(),
+        analysis_start_date: trades.length > 0 ? trades[trades.length - 1].entry_date : null,
+        analysis_end_date: trades.length > 0 ? trades[0].entry_date : null
       }, { onConflict: 'account_id, ai_agent_used, summary_language, analysis_start_date, analysis_end_date' });
 
     } catch (err: any) {
