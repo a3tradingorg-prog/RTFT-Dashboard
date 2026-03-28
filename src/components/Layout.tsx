@@ -13,6 +13,7 @@ import {
   User,
   LogOut,
   TrendingUp,
+  Monitor,
   ChevronRight,
   ChevronDown
 } from 'lucide-react';
@@ -33,7 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Strategy', href: '/strategy', icon: Brain },
     { name: 'AI Summary', href: '/ai-summary', icon: Sparkles },
     { name: 'Campus', href: '/campus', icon: GraduationCap },
-    { name: 'Fundamental', href: '/fundamental', icon: Search },
+    { name: 'Market Data', href: '/market-data', icon: Monitor },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 

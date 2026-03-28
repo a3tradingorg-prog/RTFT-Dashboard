@@ -12,7 +12,7 @@ import Journal from './pages/Journal';
 import Strategy from './pages/Strategy';
 import AISummary from './pages/AISummary';
 import Campus from './pages/Campus';
-import Fundamental from './pages/Fundamental';
+import MarketData from './pages/MarketData';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 
@@ -78,7 +78,7 @@ export default function App() {
             <Route path="/strategy" element={<Strategy />} />
             <Route path="/ai-summary" element={<AISummary />} />
             <Route path="/campus" element={<Campus />} />
-            <Route path="/fundamental" element={<Fundamental />} />
+            <Route path="/market-data" element={<MarketData />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

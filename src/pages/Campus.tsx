@@ -8,7 +8,8 @@ import {
   ExternalLink, 
   Search,
   PlayCircle,
-  ChevronDown
+  ChevronDown,
+  Clock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -81,7 +82,7 @@ const VIP2_VIDEOS = [
 ];
 
 const FUTURE_MENTORSHIP_VIDEOS = [
-  { id: 'fm1', title: '15 FEB 2026', url: 'https://youtu.be/odwT5WJlA', description: 'Mentorship session recorded on Feb 15.' },
+  { id: 'fm1', title: '15 FEB 2026', url: 'https://youtu.be/odwT5WJlAjA', description: 'Mentorship session recorded on Feb 15.' },
   { id: 'fm2', title: '16 FEB 2026', url: 'https://youtu.be/TClbTF6NB1Y', description: 'Mentorship session recorded on Feb 16.' },
   { id: 'fm3', title: '17 FEB 2026', url: 'https://youtu.be/mWl13hYFwmE', description: 'Mentorship session recorded on Feb 17.' },
   { id: 'fm4', title: '19 FEB 2026 - Part 1', url: 'https://youtu.be/usH3G1F9lm4', description: 'First part of the Feb 19 session.' },
@@ -106,21 +107,35 @@ function AccordionItem({ title, description, url, isOpen, onToggle }: { title: s
   const youtubeId = getYouTubeId(url);
   
   return (
-    <div className="border border-[#262626] rounded-2xl overflow-hidden bg-[#141414] mb-4">
+    <div className={cn(
+      "border transition-all duration-300 rounded-2xl overflow-hidden mb-4",
+      isOpen ? "border-sky-500/30 bg-[#1a1a1a] shadow-lg shadow-sky-500/5" : "border-[#262626] bg-[#141414] hover:border-neutral-700"
+    )}>
       <button 
         onClick={onToggle}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-[#1f1f1f] transition-colors text-left"
+        className="w-full px-6 py-5 flex items-center justify-between transition-colors text-left group"
       >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-500">
-            <Video className="w-5 h-5" />
+        <div className="flex items-center gap-5">
+          <div className={cn(
+            "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+            isOpen ? "bg-sky-500 text-black" : "bg-sky-500/10 text-sky-500 group-hover:bg-sky-500/20"
+          )}>
+            <Video className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-white">{title}</h3>
-            <p className="text-xs text-neutral-500">{description}</p>
+            <h3 className={cn(
+              "font-bold transition-colors",
+              isOpen ? "text-sky-400 text-lg" : "text-white"
+            )}>{title}</h3>
+            <p className="text-sm text-neutral-500 mt-0.5">{description}</p>
           </div>
         </div>
-        <ChevronDown className={cn("w-5 h-5 text-neutral-500 transition-transform duration-300", isOpen && "rotate-180")} />
+        <div className={cn(
+          "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300",
+          isOpen ? "bg-sky-500/20 text-sky-400 rotate-180" : "bg-neutral-800 text-neutral-500"
+        )}>
+          <ChevronDown className="w-5 h-5" />
+        </div>
       </button>
       
       <AnimatePresence>
@@ -169,8 +184,9 @@ function AccordionItem({ title, description, url, isOpen, onToggle }: { title: s
 export default function Campus() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('VIP-1 Courses');
+  const [filter, setFilter] = useState('2026 Future Mentorship');
   const [openVideoId, setOpenVideoId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchResources = async () => {
@@ -189,28 +205,42 @@ export default function Campus() {
   }, []);
 
   const categories = [
+    '2026 Future Mentorship',
     'VIP-1 Courses', 
     'VIP-2 Courses', 
-    'Weekly Outlooks', 
     'Day Trading Strategy', 
-    'TTT-Premium Courses', 
-    '2026 Future Mentorship',
     'Introduction about Crypto',
     'Fundamental',
     'Technical Analysis'
   ];
   
-  const filteredResources = resources.filter(r => r.category === filter);
+  const filteredResources = resources.filter(r => 
+    r.category === filter && 
+    (r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+     r.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="space-y-10">
-      <header>
-        <h1 className="text-4xl font-bold tracking-tight text-white">Campus</h1>
-        <p className="text-neutral-500 mt-2 font-medium">Exclusive educational content and market outlooks.</p>
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-white">Campus</h1>
+          <p className="text-neutral-500 mt-2 font-medium">Exclusive educational content and market outlooks.</p>
+        </div>
+        <div className="relative group w-full md:w-72">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search courses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#141414] border border-[#262626] rounded-2xl py-3 pl-11 pr-4 text-sm text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
+          />
+        </div>
       </header>
 
       {/* Category Filter */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
         {categories.map((cat) => (
           <button
             key={cat}
@@ -219,18 +249,24 @@ export default function Campus() {
               setOpenVideoId(null);
             }}
             className={cn(
-              "px-6 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2",
+              "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group",
               filter === cat 
-                ? "bg-sky-500 text-black shadow-lg shadow-sky-500/20" 
-                : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626]"
+                ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
+                : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
             )}
           >
-            {cat}
+            <span className="relative z-10">{cat}</span>
             {cat === '2026 Future Mentorship' && (
               <span className={cn(
-                "w-1.5 h-1.5 rounded-full animate-pulse",
+                "w-2 h-2 rounded-full animate-pulse relative z-10",
                 filter === cat ? "bg-black" : "bg-sky-500"
               )} />
+            )}
+            {filter === cat && (
+              <motion.div 
+                layoutId="activeTab"
+                className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
+              />
             )}
           </button>
         ))}
@@ -238,7 +274,71 @@ export default function Campus() {
 
       {/* Conditional Rendering */}
       {filter === 'Technical Analysis' ? (
-        <TradeReference />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <TradeReference />
+        </motion.div>
+      ) : filter === '2026 Future Mentorship' ? (
+        <div className="max-w-5xl space-y-12">
+          {/* Featured Banner */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-sky-500/20 via-sky-500/5 to-transparent border border-sky-500/20 p-8 md:p-12"
+          >
+            <div className="relative z-10 max-w-2xl">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="px-3 py-1 bg-sky-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Featured Course
+                </span>
+                <span className="px-3 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest border border-sky-500/20 rounded-lg animate-pulse">
+                  In Progress
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">2026 Future Mentorship Program</h2>
+              <p className="text-lg text-neutral-400 mb-8 leading-relaxed">
+                Join our most comprehensive mentorship program yet. Live sessions, deep-dive lectures, and real-time market analysis updated weekly.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+                  <Video className="w-4 h-4 text-sky-500" />
+                  <span className="text-xs font-bold text-white">{FUTURE_MENTORSHIP_VIDEOS.length} Lessons</span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+                  <Clock className="w-4 h-4 text-sky-500" />
+                  <span className="text-xs font-bold text-white">Updated Weekly</span>
+                </div>
+              </div>
+            </div>
+            {/* Decorative background element */}
+            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-sky-500/10 to-transparent pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-sky-500/20 rounded-full blur-[100px] pointer-events-none" />
+          </motion.div>
+
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Curriculum</h3>
+              <p className="text-xs text-neutral-500 font-black uppercase tracking-widest">
+                {FUTURE_MENTORSHIP_VIDEOS.length} Recorded Sessions
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {FUTURE_MENTORSHIP_VIDEOS.map((video) => (
+                <AccordionItem 
+                  key={video.id}
+                  title={video.title}
+                  description={video.description}
+                  url={video.url}
+                  isOpen={openVideoId === video.id}
+                  onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       ) : filter === 'VIP-1 Courses' ? (
         <div className="max-w-4xl">
           <div className="mb-8">
@@ -324,30 +424,6 @@ export default function Campus() {
             />
           ))}
         </div>
-      ) : filter === '2026 Future Mentorship' ? (
-        <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-white">2026 Future Mentorship</h2>
-                <span className="px-2 py-0.5 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest border border-sky-500/20 rounded-md animate-pulse">
-                  In Progress
-                </span>
-              </div>
-              <p className="text-neutral-500">Ongoing advanced mentorship program for the 2026 trading year.</p>
-            </div>
-          </div>
-          {FUTURE_MENTORSHIP_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
-        </div>
       ) : (
         <>
           {loading ? (
@@ -360,21 +436,23 @@ export default function Campus() {
                 const youtubeId = getYouTubeId(resource.url);
                 
                 return (
-                  <div key={resource.id} className="group bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden hover:border-sky-500/30 transition-all flex flex-col shadow-sm">
+                  <div key={resource.id} className="group bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden hover:border-sky-500/30 transition-all flex flex-col shadow-sm hover:shadow-xl hover:shadow-sky-500/5">
                     <div className="relative aspect-video bg-[#0a0a0a] overflow-hidden">
                       {youtubeId ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${youtubeId}`}
-                          title={resource.title}
-                          className="w-full h-full border-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
+                        <div className="w-full h-full relative">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${youtubeId}`}
+                            title={resource.title}
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
                       ) : resource.thumbnail_url ? (
                         <img 
                           src={resource.thumbnail_url} 
                           alt={resource.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                           referrerPolicy="no-referrer"
                         />
                       ) : (
@@ -382,7 +460,7 @@ export default function Campus() {
                           <PlayCircle className="w-16 h-16" />
                         </div>
                       )}
-                      <div className="absolute top-4 left-4">
+                      <div className="absolute top-4 left-4 z-10">
                         <span className="px-3 py-1 bg-black/80 backdrop-blur-md rounded-lg text-[10px] font-black uppercase tracking-widest text-sky-400 border border-sky-500/20">
                           {resource.category}
                         </span>
@@ -390,14 +468,14 @@ export default function Campus() {
                     </div>
                     
                     <div className="p-8 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold mb-3 text-white group-hover:text-sky-400 transition-colors">{resource.title}</h3>
+                      <h3 className="text-xl font-bold mb-3 text-white group-hover:text-sky-400 transition-colors line-clamp-1">{resource.title}</h3>
                       <p className="text-sm text-neutral-500 line-clamp-2 mb-8 flex-1 leading-relaxed">{resource.description}</p>
                       
                       <a 
                         href={resource.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-3 w-full py-4 bg-[#0a0a0a] border border-[#262626] hover:bg-sky-500 hover:text-black hover:border-sky-500 rounded-2xl font-black uppercase tracking-widest text-xs transition-all"
+                        className="inline-flex items-center justify-center gap-3 w-full py-4 bg-[#0a0a0a] border border-[#262626] hover:bg-sky-500 hover:text-black hover:border-sky-500 rounded-2xl font-black uppercase tracking-widest text-xs transition-all transform group-hover:translate-y-[-2px]"
                       >
                         {youtubeId ? 'Watch on YouTube' : 'View Resource'}
                         <ExternalLink className="w-4 h-4" />
