@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { useAccount } from '../lib/AccountContext';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { TradingAccount, Trade, DailyPnL, TradeExit, Strategy } from '../types';
 import { 
   Book, 
@@ -132,6 +133,10 @@ export default function Journal() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false);
   const [openExitDropdown, setOpenExitDropdown] = useState<{ index: number, type: 'status' | 'reason' } | null>(null);
+
+  const assetRef = useClickOutside(() => setIsAssetDropdownOpen(false));
+  const strategyRef = useClickOutside(() => setIsStrategyDropdownOpen(false));
+  const exitRef = useClickOutside(() => setOpenExitDropdown(null));
 
   useEffect(() => {
     if (user) {
@@ -604,7 +609,11 @@ export default function Journal() {
           </div>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              resetForm();
+              setEditingTradeId(null);
+              setIsModalOpen(true);
+            }}
             className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20"
           >
             <Plus className="w-6 h-6" />
@@ -1003,7 +1012,7 @@ export default function Journal() {
               <form onSubmit={handleSubmit} className="space-y-10">
                 <div className="space-y-10">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      <div className="space-y-3 relative">
+                      <div className="space-y-3 relative" ref={assetRef}>
                         <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Asset</label>
                         <div className="relative">
                           <button 
@@ -1045,7 +1054,7 @@ export default function Journal() {
                         </div>
                       </div>
 
-                      <div className="space-y-3 relative">
+                      <div className="space-y-3 relative" ref={strategyRef}>
                         <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Strategy</label>
                         <div className="relative">
                           <button 
@@ -1202,7 +1211,7 @@ export default function Journal() {
                         </button>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-4" ref={exitRef}>
                         {exits.map((exit, index) => (
                           <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-6 bg-[#0a0a0a] border border-[#262626] rounded-3xl relative group">
                             <div className="space-y-2">
@@ -1447,7 +1456,11 @@ export default function Journal() {
                 <div className="flex gap-6 pt-4">
                   <button 
                     type="button"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      resetForm();
+                      setEditingTradeId(null);
+                    }}
                     className="flex-1 py-5 bg-[#1f1f1f] text-neutral-400 rounded-3xl hover:bg-[#262626] transition-all flex items-center justify-center border border-[#262626]"
                   >
                     <X className="w-7 h-7" />

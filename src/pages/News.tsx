@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { useClickOutside } from '../hooks/useClickOutside';
 import { 
   Search, 
   Globe, 
@@ -445,6 +446,7 @@ def crawl_news():
   const [showCode, setShowCode] = useState(false);
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState('Today');
+  const langModalRef = useClickOutside(() => setIsLangModalOpen(false));
   
   // History & Deep Analysis
   const [history, setHistory] = useState<NewsAnalysisRecord[]>([]);
@@ -533,13 +535,24 @@ def crawl_news():
         
         Fetch the latest high-impact financial news for the period: "${selectedDateRange}" as if this script just ran. 
         Provide the raw "news_output" content.
+        
+        Note: Use your internal knowledge and real-time search capabilities to provide the most accurate news data for today.
       `;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: { tools: [{ googleSearch: {} }] }
-      });
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: { tools: [{ googleSearch: {} }] }
+        });
+      } catch (searchErr) {
+        console.warn("Crawler search failed, trying without it:", searchErr);
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt + " (Note: If real-time search is unavailable, use your latest knowledge base for today's news)",
+        });
+      }
 
       const output = response.text || "No output generated.";
       setNewsOutput(output);
@@ -705,6 +718,7 @@ def crawl_news():
                 <Code className="w-5 h-5 text-sky-500" />
               </div>
               <h3 className="text-lg font-bold text-white uppercase tracking-tighter italic">News Crawler (V1.04)</h3>
+              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-500/20">Free Version</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button 
@@ -961,6 +975,7 @@ def crawl_news():
         {isLangModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
             <motion.div 
+              ref={langModalRef}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -1022,73 +1037,93 @@ export default function News() {
         Fetch the most accurate, real-time financial market data for today, ${new Date().toLocaleDateString()}.
         
         1. Economic Calendar: Fetch high and medium impact economic events for today (US, EU, UK, JP). Include time, event name, currency, impact level (High/Medium), actual, forecast, and previous values.
-        2. Futures Prices: Fetch the latest quotes for the following active contracts (Barchart style): ESM26 (S&P 500 Jun '26), ESU26 (S&P 500 Sep '26), NQM26 (Nasdaq 100 Jun '26), NQU26 (Nasdaq 100 Sep '26), YMM26 (Dow Mini Jun '26), YMU26 (Dow Mini Sep '26). Include symbol, contract name, latest price, net change, open, high, low, volume, and last update time.
+        2. Futures Prices: Fetch the latest quotes for the following active contracts: ES (S&P 500), NQ (Nasdaq 100), YM (Dow Mini), RTY (Russell 2000), GC (Gold), CL (Crude Oil). Include symbol, contract name, latest price, net change, open, high, low, volume, and last update time.
         3. Headline News: Fetch the top 10 most recent HIGH IMPACT financial news headlines. Include time, headline text, source name, and a valid URL.
         
         Return the data in a strict JSON format.
       `;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              economicCalendar: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    time: { type: Type.STRING },
-                    event: { type: Type.STRING },
-                    currency: { type: Type.STRING },
-                    impact: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
-                    actual: { type: Type.STRING },
-                    forecast: { type: Type.STRING },
-                    previous: { type: Type.STRING }
-                  },
-                  required: ['time', 'event', 'currency', 'impact']
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                economicCalendar: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      time: { type: Type.STRING },
+                      event: { type: Type.STRING },
+                      currency: { type: Type.STRING },
+                      impact: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
+                      actual: { type: Type.STRING },
+                      forecast: { type: Type.STRING },
+                      previous: { type: Type.STRING }
+                    },
+                    required: ['time', 'event', 'currency', 'impact']
+                  }
+                },
+                futuresPrices: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      symbol: { type: Type.STRING },
+                      contractName: { type: Type.STRING },
+                      latest: { type: Type.STRING },
+                      change: { type: Type.STRING },
+                      open: { type: Type.STRING },
+                      high: { type: Type.STRING },
+                      low: { type: Type.STRING },
+                      volume: { type: Type.STRING },
+                      time: { type: Type.STRING }
+                    },
+                    required: ['symbol', 'contractName', 'latest', 'change']
+                  }
+                },
+                headlineNews: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      time: { type: Type.STRING },
+                      headline: { type: Type.STRING },
+                      source: { type: Type.STRING },
+                      url: { type: Type.STRING }
+                    },
+                    required: ['time', 'headline', 'source', 'url']
+                  }
                 }
               },
-              futuresPrices: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    symbol: { type: Type.STRING },
-                    contractName: { type: Type.STRING },
-                    latest: { type: Type.STRING },
-                    change: { type: Type.STRING },
-                    open: { type: Type.STRING },
-                    high: { type: Type.STRING },
-                    low: { type: Type.STRING },
-                    volume: { type: Type.STRING },
-                    time: { type: Type.STRING }
-                  },
-                  required: ['symbol', 'contractName', 'latest', 'change']
-                }
-              },
-              headlineNews: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    time: { type: Type.STRING },
-                    headline: { type: Type.STRING },
-                    source: { type: Type.STRING },
-                    url: { type: Type.STRING }
-                  },
-                  required: ['time', 'headline', 'source', 'url']
-                }
-              }
-            },
-            required: ['economicCalendar', 'futuresPrices', 'headlineNews']
+              required: ['economicCalendar', 'futuresPrices', 'headlineNews']
+            }
           }
-        }
-      });
+        });
+      } catch (searchErr) {
+        console.warn("Google Search failed, trying without it:", searchErr);
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt + " (Note: If real-time search is unavailable, use your latest knowledge base for today's expected events)",
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                economicCalendar: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { time: { type: Type.STRING }, event: { type: Type.STRING }, currency: { type: Type.STRING }, impact: { type: Type.STRING }, actual: { type: Type.STRING }, forecast: { type: Type.STRING }, previous: { type: Type.STRING } } } },
+                futuresPrices: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, contractName: { type: Type.STRING }, latest: { type: Type.STRING }, change: { type: Type.STRING } } } },
+                headlineNews: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { time: { type: Type.STRING }, headline: { type: Type.STRING }, source: { type: Type.STRING }, url: { type: Type.STRING } } } }
+              }
+            }
+          }
+        });
+      }
 
       const data = JSON.parse(response.text);
       setEvents(data.economicCalendar || []);

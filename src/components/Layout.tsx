@@ -22,12 +22,15 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
   const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount } = useAccount();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const accountDropdownRef = useClickOutside(() => setIsAccountDropdownOpen(false));
   const [profile, setProfile] = useState<any>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -271,7 +274,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 shrink-0">
             {/* Global Account Selector */}
             {!hideAccountSelector && (
-              <div className="relative">
+              <div className="relative" ref={accountDropdownRef}>
                 <button 
                   onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
                   className="flex items-center gap-2 px-2.5 py-1.5 bg-[#141414] border border-[#262626] rounded-xl hover:border-sky-500/50 transition-all min-w-[120px] md:min-w-[160px] group"

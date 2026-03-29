@@ -25,6 +25,8 @@ import {
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useAccount } from '../lib/AccountContext';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const ASSET_COMMISSIONS: Record<string, number> = {
   'MNQ': 0.50,
@@ -37,12 +39,13 @@ const ASSET_COMMISSIONS: Record<string, number> = {
 
 export default function Accounts() {
   const { user } = useAuth();
+  const { refreshAccounts: refreshGlobalAccounts } = useAccount();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<TradingAccount | null>(null);
   
-  // Form state
+  // ... existing form state ...
   const [name, setName] = useState('');
   const [propfirm, setPropfirm] = useState('');
   const [accountSize, setAccountSize] = useState('');
@@ -63,6 +66,8 @@ export default function Accounts() {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+
+  const typeRef = useClickOutside(() => setIsTypeDropdownOpen(false));
 
   useEffect(() => {
     if (user) {
@@ -192,6 +197,7 @@ export default function Accounts() {
       setIsModalOpen(false);
       resetForm();
       fetchAccounts();
+      refreshGlobalAccounts();
     }
     setIsSubmitting(false);
   };
@@ -441,7 +447,7 @@ export default function Accounts() {
                     />
                   </div>
 
-                  <div className="space-y-3 relative">
+                  <div className="space-y-3 relative" ref={typeRef}>
                     <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Account Type</label>
                     <div className="relative">
                       <button 
