@@ -211,7 +211,7 @@ export default function Campus() {
     'Day Trading Strategy', 
     'Introduction about Crypto',
     'Fundamental',
-    'Technical Analysis'
+    'Key Notes'
   ];
   
   const filteredResources = resources.filter(r => 
@@ -273,7 +273,7 @@ export default function Campus() {
       </div>
 
       {/* Conditional Rendering */}
-      {filter === 'Technical Analysis' ? (
+      {filter === 'Key Notes' ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

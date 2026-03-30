@@ -1,10 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { AssetSpecification, TradingReference } from '../types';
+import React, { useState } from 'react';
 import { 
   Clock, 
   Calculator, 
-  Table, 
   Maximize, 
   Book, 
   Info, 
@@ -17,59 +14,36 @@ import {
   Layers,
   List,
   AlertTriangle,
-  HelpCircle,
-  CheckCircle2,
-  TrendingUp,
-  TrendingDown
+  TrendingUp
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function TradeReference() {
-  const [assets, setAssets] = useState<AssetSpecification[]>([]);
-  const [references, setReferences] = useState<TradingReference[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Interactive Cheat Sheet State
+  // Calculator State
   const [selectedAssetSymbol, setSelectedAssetSymbol] = useState('MNQ');
   const [riskAmount, setRiskAmount] = useState(100);
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [assetsRes, refsRes] = await Promise.all([
-        supabase.from('asset_specifications').select('*').order('symbol'),
-        supabase.from('trading_references').select('*').order('display_order')
-      ]);
-
-      if (assetsRes.data) setAssets(assetsRes.data);
-      if (refsRes.data) setReferences(refsRes.data);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, []);
-
-  const selectedAsset = assets.find(a => a.symbol === selectedAssetSymbol);
-
-  // Cheat Sheet Calculations
-  const slPoints = [5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100];
-  const calculateContracts = (sl: number) => {
-    if (!selectedAsset) return 0;
-    // Risk = SL Points * Point Value * Contracts
-    // Contracts = Risk / (SL Points * Point Value)
-    const contracts = riskAmount / (sl * selectedAsset.point_value);
-    return Math.floor(contracts * 100) / 100; // 2 decimal places
+  const assetConfigs: Record<string, { pointValue: number, name: string }> = {
+    'MNQ': { pointValue: 2, name: 'Micro E-mini Nasdaq-100' },
+    'NQ': { pointValue: 20, name: 'E-mini Nasdaq-100' },
+    'MES': { pointValue: 5, name: 'Micro E-mini S&P 500' },
+    'ES': { pointValue: 50, name: 'E-mini S&P 500' },
+    'GC': { pointValue: 100, name: 'Gold Futures' },
+    'MGC': { pointValue: 10, name: 'Micro Gold Futures' }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const slPoints = Array.from({ length: 7 }, (_, i) => (i + 1) * 10); // 10, 20, 30, 40, 50, 60, 70
+
+  const calculateContracts = (sl: number) => {
+    const config = assetConfigs[selectedAssetSymbol];
+    if (!config) return 0;
+    // Formula: Risk / (SL Points * Point Value)
+    // Round down to nearest whole number
+    const contracts = riskAmount / (sl * config.pointValue);
+    return Math.floor(contracts);
+  };
 
   return (
     <div className="space-y-10">
@@ -138,7 +112,7 @@ export default function TradeReference() {
           </div>
         </div>
 
-        {/* Dynamic Cheat Sheet Card */}
+        {/* Contract Size Calculator Card */}
         <div className="lg:col-span-6 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
@@ -146,8 +120,8 @@ export default function TradeReference() {
                 <Calculator className="w-6 h-6 text-sky-500" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-white">Risk Cheat Sheet</h3>
-                <p className="text-xs text-neutral-500 font-medium">Contracts vs SL Points</p>
+                <h3 className="text-xl font-bold text-white">Contract Size Calculator</h3>
+                <p className="text-xs text-neutral-500 font-medium">Risk Management Tool</p>
               </div>
             </div>
 
@@ -169,19 +143,19 @@ export default function TradeReference() {
                       exit={{ opacity: 0, y: 5 }}
                       className="absolute top-full right-0 mt-2 w-32 bg-[#1f1f1f] border border-[#262626] rounded-xl shadow-2xl z-50 overflow-hidden"
                     >
-                      {assets.map(a => (
+                      {Object.keys(assetConfigs).map(symbol => (
                         <button
-                          key={a.symbol}
+                          key={symbol}
                           onClick={() => {
-                            setSelectedAssetSymbol(a.symbol);
+                            setSelectedAssetSymbol(symbol);
                             setIsAssetDropdownOpen(false);
                           }}
                           className={cn(
                             "w-full text-left px-4 py-2 text-xs font-bold transition-all",
-                            selectedAssetSymbol === a.symbol ? "bg-sky-500 text-black" : "text-neutral-400 hover:bg-[#262626] hover:text-white"
+                            selectedAssetSymbol === symbol ? "bg-sky-500 text-black" : "text-neutral-400 hover:bg-[#262626] hover:text-white"
                           )}
                         >
-                          {a.symbol}
+                          {symbol}
                         </button>
                       ))}
                     </motion.div>
@@ -191,7 +165,7 @@ export default function TradeReference() {
 
               {/* Risk Selector */}
               <div className="flex bg-[#0a0a0a] border border-[#262626] rounded-xl p-1">
-                {[100, 200, 500].map(amt => (
+                {[100, 200, 300, 400, 500].map(amt => (
                   <button
                     key={amt}
                     onClick={() => setRiskAmount(amt)}
@@ -212,7 +186,7 @@ export default function TradeReference() {
               <thead>
                 <tr className="bg-[#0a0a0a]">
                   <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">SL Points</th>
-                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Contracts</th>
+                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Contract Size</th>
                   <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Risk Amount</th>
                 </tr>
               </thead>
@@ -229,14 +203,14 @@ export default function TradeReference() {
           </div>
         </div>
 
-        {/* Opening Range & Gap Theory */}
+        {/* Opening Range Gap Theory */}
         <div className="lg:col-span-7 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
               <Maximize className="w-6 h-6 text-sky-500" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Opening Range & Gap Theory</h3>
+              <h3 className="text-xl font-bold text-white">Opening Range Gap Theory</h3>
               <p className="text-xs text-neutral-500 font-medium">Market Open Dynamics</p>
             </div>
           </div>
@@ -281,7 +255,7 @@ export default function TradeReference() {
             </div>
             <div>
               <h3 className="text-xl font-bold text-white">Contract Specs</h3>
-              <p className="text-xs text-neutral-500 font-medium">Point & Tick Values</p>
+              <p className="text-xs text-neutral-500 font-medium">Symbols & Months</p>
             </div>
           </div>
 
@@ -289,36 +263,22 @@ export default function TradeReference() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0a0a0a]">
-                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Asset</th>
-                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Pt Value</th>
-                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Tick</th>
+                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Symbol</th>
+                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Months</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#262626]">
-                {assets.map(a => (
-                  <tr key={a.symbol} className="hover:bg-white/5 transition-colors">
-                    <td className="p-4">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white">{a.symbol}</span>
-                        <span className="text-[10px] text-neutral-500">{a.full_name}</span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-xs font-black text-white text-right">${a.point_value}</td>
-                    <td className="p-4 text-xs font-medium text-neutral-400 text-right">{a.tick_size} / ${a.tick_value}</td>
+                {[
+                  { symbol: 'ES / NQ / MES / MNQ', months: 'H, M, U, Z' },
+                  { symbol: 'GC / MGC', months: 'G, J, M, Q, V, Z' }
+                ].map(item => (
+                  <tr key={item.symbol} className="hover:bg-white/5 transition-colors">
+                    <td className="p-4 text-xs font-bold text-white">{item.symbol}</td>
+                    <td className="p-4 text-xs font-black text-sky-400 text-right">{item.months}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="p-4 bg-sky-500/5 border border-sky-500/20 rounded-2xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="w-3.5 h-3.5 text-sky-500" />
-              <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">PnL Formula</span>
-            </div>
-            <code className="text-[11px] text-neutral-300 font-mono">
-              (Exit - Entry) × Pt Value × Contracts
-            </code>
           </div>
         </div>
 
@@ -336,32 +296,45 @@ export default function TradeReference() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {references.filter(r => r.category === 'FVG').map(ref => (
-              <div key={ref.reference_id} className="p-6 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-4 hover:border-sky-500/30 transition-all group">
-                <h4 className="text-sm font-bold text-white group-hover:text-sky-400 transition-colors">{ref.title}</h4>
-                <div className="prose prose-invert prose-p:text-[11px] prose-p:text-neutral-500 prose-p:leading-relaxed max-w-none">
-                  <Markdown>{ref.content}</Markdown>
-                </div>
+            {/* FVG Encyclopedia Content */}
+            {[
+              { title: 'BISI', desc: 'Buyside Imbalance Sellside Inefficiency. A gap created in an up move.', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
+              { title: 'SIBI', desc: 'Sellside Imbalance Buyside Inefficiency. A gap created in a down move.', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20' },
+              { title: 'Inversion FVG', desc: 'An FVG that has been closed through and now acts as support/resistance.', color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/20' },
+              { title: 'Breakaway Gap', desc: 'A gap that remains open, indicating strong trend momentum.', color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20' },
+            ].map(item => (
+              <div key={item.title} className={cn("p-6 rounded-2xl border space-y-3 transition-all", item.bg, item.border)}>
+                <h4 className={cn("text-sm font-bold", item.color)}>{item.title}</h4>
+                <p className="text-[11px] text-neutral-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
-            
-            {/* Fallback if no DB data */}
-            {references.filter(r => r.category === 'FVG').length === 0 && (
-              <>
-                {[
-                  { title: 'BISI', desc: 'Buyside Imbalance Sellside Inefficiency. A gap created in an up move.' },
-                  { title: 'SIBI', desc: 'Sellside Imbalance Buyside Inefficiency. A gap created in a down move.' },
-                  { title: 'Inversion FVG', desc: 'An FVG that has been closed through and now acts as support/resistance.' },
-                  { title: 'Breakaway FVG', desc: 'A gap that remains open, indicating strong trend momentum.' },
-                ].map(item => (
-                  <div key={item.title} className="p-6 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-3">
-                    <h4 className="text-sm font-bold text-white">{item.title}</h4>
-                    <p className="text-[11px] text-neutral-500 leading-relaxed">{item.desc}</p>
-                  </div>
-                ))}
-              </>
-            )}
+        </div>
+
+        {/* Advanced Gap Theory */}
+        <div className="lg:col-span-12 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
+              <Book className="w-6 h-6 text-sky-500" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Advanced Gap Theory</h3>
+              <p className="text-xs text-neutral-500 font-medium">ICT Gap Classifications</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-3">
+              <h4 className="text-sm font-bold text-white">Common Gap</h4>
+              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                Occurs within a trading range or congestion. These gaps are usually filled quickly and lack significant directional conviction. They represent minor imbalances that the market resolves rapidly.
+              </p>
+            </div>
+            <div className="p-6 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-3">
+              <h4 className="text-sm font-bold text-white">Measuring Gap</h4>
+              <p className="text-[11px] text-neutral-500 leading-relaxed">
+                Also known as a Runaway Gap. It occurs in the middle of a powerful trend, suggesting that the move is only halfway complete. It serves as a projection tool for price targets based on the distance already traveled.
+              </p>
+            </div>
           </div>
         </div>
 
