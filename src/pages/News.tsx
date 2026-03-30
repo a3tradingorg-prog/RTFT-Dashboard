@@ -32,7 +32,8 @@ import {
   FileText,
   ChevronDown,
   History as HistoryIcon,
-  Brain
+  Brain,
+  CheckCircle2
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -103,7 +104,7 @@ interface NewsAnalysisRecord {
 
 // --- Components ---
 
-const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loading: boolean }) => {
+const EconomicCalendar = ({ events, loading, view, setView }: { events: EconomicEvent[], loading: boolean, view: string, setView: (v: 'Today' | 'Weekly' | 'Monthly') => void }) => {
   const [filter, setFilter] = useState<'All' | 'High' | 'Medium'>('All');
 
   const filteredEvents = events.filter(e => {
@@ -113,12 +114,30 @@ const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loadin
 
   return (
     <div className="bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full">
-      <div className="p-5 border-b border-[#262626] flex items-center justify-between bg-[#1a1a1a]">
+      <div className="p-5 border-b border-[#262626] flex flex-col sm:flex-row sm:items-center justify-between bg-[#1a1a1a] gap-4">
         <div className="flex items-center gap-2.5">
           <Calendar className="w-4 h-4 text-sky-500" />
           <h3 className="text-base font-bold text-white uppercase tracking-tighter italic">Economic Calendar</h3>
         </div>
-        <div className="flex items-center gap-2">
+        
+        <div className="flex flex-wrap items-center gap-3">
+          {/* View Filter */}
+          <div className="flex bg-[#0a0a0a] rounded-lg p-1 border border-[#262626]">
+            {['Today', 'Weekly', 'Monthly'].map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v as any)}
+                className={cn(
+                  "px-2 sm:px-3 py-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded transition-all",
+                  view === v ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+
+          {/* Impact Filter */}
           <div className="flex bg-[#0a0a0a] rounded-lg p-1 border border-[#262626]">
             {['All', 'High', 'Medium'].map((f) => (
               <button
@@ -140,7 +159,7 @@ const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loadin
         {loading ? (
           <div className="flex flex-col items-center justify-center h-64 space-y-4">
             <RefreshCw className="w-8 h-8 text-sky-500 animate-spin" />
-            <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Fetching Calendar...</p>
+            <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Fetching {view} Calendar...</p>
           </div>
         ) : filteredEvents.length > 0 ? (
           <>
@@ -219,7 +238,7 @@ const EconomicCalendar = ({ events, loading }: { events: EconomicEvent[], loadin
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center p-8">
             <Calendar className="w-12 h-12 text-neutral-800 mb-4" />
-            <p className="text-sm font-bold text-neutral-500">No events found for today.</p>
+            <p className="text-sm font-bold text-neutral-500">No events found for {view.toLowerCase()}.</p>
           </div>
         )}
       </div>
@@ -587,6 +606,9 @@ def crawl_news():
   const handleDeepAnalysis = async (lang: string) => {
     setSummarizing(true);
     setIsLangModalOpen(false);
+    setSelectedAnalysis(null); // Clear previous analysis to allow re-run feedback
+    
+    const toastId = toast.loading('Initializing deep analysis...');
     
     try {
       let contentToAnalyze = newsOutput;
@@ -609,6 +631,13 @@ def crawl_news():
       }
 
       if (!contentToAnalyze) throw new Error("No news output found to analyze");
+
+      // Truncate content if too long to save tokens
+      if (contentToAnalyze.length > 30000) {
+        contentToAnalyze = contentToAnalyze.substring(0, 30000) + "... [Content Truncated]";
+      }
+
+      toast.loading('Analyzing market data with Gemini...', { id: toastId });
 
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key missing");
@@ -680,6 +709,8 @@ def crawl_news():
 
       const analysisData = JSON.parse(response.text);
       
+      toast.loading('Saving analysis results...', { id: toastId });
+
       // Save to Supabase
       const { data: savedRecord, error: saveError } = await supabase
         .from('news_analyses')
@@ -698,10 +729,10 @@ def crawl_news():
       setHistory(prev => [savedRecord, ...prev]);
       setSelectedAnalysis(savedRecord);
       setSelectedLang(lang);
-      toast.success('Deep analysis complete and saved');
+      toast.success('Deep analysis complete and saved', { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('Analysis failed');
+      toast.error('Analysis failed', { id: toastId });
     } finally {
       setSummarizing(false);
     }
@@ -718,7 +749,6 @@ def crawl_news():
                 <Code className="w-5 h-5 text-sky-500" />
               </div>
               <h3 className="text-lg font-bold text-white uppercase tracking-tighter italic">News Crawler (V1.04)</h3>
-              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-500/20">Free Version</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <button 
@@ -868,7 +898,25 @@ def crawl_news():
 
           <div className="flex-1 bg-[#0a0a0a] border border-[#262626] rounded-2xl p-6 overflow-y-auto scrollbar-hide min-h-[200px]">
             {newsOutput ? (
-              <pre className="text-xs text-neutral-500 whitespace-pre-wrap font-mono">{newsOutput}</pre>
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
+                <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-lg font-bold text-white">Crawling Complete</h4>
+                  <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+                    The news crawler has successfully gathered the latest market data. Proceed to Deep Analysis for professional intelligence.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setIsLangModalOpen(true)}
+                  disabled={summarizing}
+                  className="px-8 py-3 bg-emerald-500 text-black font-black uppercase tracking-widest text-[11px] rounded-xl hover:bg-emerald-400 transition-all flex items-center gap-3 shadow-lg shadow-emerald-500/20"
+                >
+                  {summarizing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  {summarizing ? 'Analyzing...' : 'Start Deep Analysis'}
+                </button>
+              </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
                 <FileText className="w-12 h-12 text-neutral-600" />
@@ -926,7 +974,7 @@ def crawl_news():
                       <h4 className="text-xl font-bold text-white tracking-tight">{cat.category} Analysis</h4>
                     </div>
                     <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-[#262626]">
-                      <Globe className="w-5 h-5 text-neutral-500" />
+                      <TrendingUp className="w-5 h-5 text-neutral-500" />
                     </div>
                   </div>
 
@@ -1020,6 +1068,7 @@ export default function News() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [activeTab, setActiveTab] = useState<'calendar' | 'futures' | 'headlines' | 'crawler'>('calendar');
+  const [calendarView, setCalendarView] = useState<'Today' | 'Weekly' | 'Monthly'>('Today');
   const [selectedNews, setSelectedNews] = useState<NewsHeadline | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -1034,11 +1083,25 @@ export default function News() {
       const model = "gemini-3-flash-preview";
 
       const prompt = `
-        Fetch the most accurate, real-time financial market data for today, ${new Date().toLocaleDateString()}.
+        Fetch the most accurate, real-time financial market data for the period: ${calendarView}.
+        Current Date: ${new Date().toLocaleDateString()}.
         
-        1. Economic Calendar: Fetch high and medium impact economic events for today (US, EU, UK, JP). Include time, event name, currency, impact level (High/Medium), actual, forecast, and previous values.
-        2. Futures Prices: Fetch the latest quotes for the following active contracts: ES (S&P 500), NQ (Nasdaq 100), YM (Dow Mini), RTY (Russell 2000), GC (Gold), CL (Crude Oil). Include symbol, contract name, latest price, net change, open, high, low, volume, and last update time.
-        3. Headline News: Fetch the top 10 most recent HIGH IMPACT financial news headlines. Include time, headline text, source name, and a valid URL.
+        1. Economic Calendar: Fetch HIGH and MEDIUM impact economic events for the United States (US) ONLY. 
+           - If view is "Today", fetch for today.
+           - If view is "Weekly", fetch for the current week.
+           - If view is "Monthly", fetch for the current month.
+           - Mimic Forex Factory's data points: time, event name, currency (USD), impact level (High/Medium), actual, forecast, and previous values.
+        
+        2. Futures Prices: Fetch the latest quotes for the following US Indices:
+           - ES (S&P 500)
+           - NQ (Nasdaq 100)
+           - YM (Dow Jones)
+           - For each, provide data for both "Active" (Front Month) and "Coming" (Next Month) contracts.
+           - Include: symbol, contract name, latest price, net change, open, high, low, volume, and last update time.
+        
+        3. Headline News: Fetch the top 10 most recent HIGH IMPACT financial news headlines. 
+           - PRIORITIZE: War news, geopolitical tensions, and significant posts/announcements from Donald Trump.
+           - Include: time, headline text, source name, and a valid URL.
         
         Return the data in a strict JSON format.
       `;
@@ -1136,7 +1199,7 @@ export default function News() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [calendarView]);
 
   const fetchArticleContent = async (item: NewsHeadline) => {
     if (item.content) return;
@@ -1171,7 +1234,7 @@ export default function News() {
     fetchData();
     const interval = setInterval(fetchData, 300000); // 5 mins
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, calendarView]);
 
   return (
     <div className="space-y-8 pb-20">
@@ -1231,7 +1294,7 @@ export default function News() {
       <AnimatePresence mode="wait">
         {activeTab === 'calendar' && (
           <motion.div key="calendar" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="h-[700px]">
-            <EconomicCalendar events={events} loading={loading} />
+            <EconomicCalendar events={events} loading={loading} view={calendarView} setView={setCalendarView} />
           </motion.div>
         )}
 

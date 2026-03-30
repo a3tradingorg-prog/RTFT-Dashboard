@@ -206,8 +206,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <div className="p-6 border-b border-[#262626] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="text-black w-5 h-5" />
+                  <div className="w-8 h-8 bg-[#1f1f1f] rounded-lg flex items-center justify-center overflow-hidden border border-[#262626]">
+                    <img 
+                      src={logoUrl} 
+                      alt="RTFT Logo" 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as any).src = 'https://picsum.photos/seed/trading/200/200';
+                      }}
+                    />
                   </div>
                   <span className="font-bold text-white tracking-tight">RTFT Dashboard</span>
                 </div>

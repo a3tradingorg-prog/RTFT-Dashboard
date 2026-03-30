@@ -31,6 +31,7 @@ import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 const LANGUAGES = [
   { id: 'English', name: 'English', flag: '🇺🇸' },
@@ -198,6 +199,9 @@ export default function AISummary() {
 
     setSummarizing(true);
     setError(null);
+    setSummary(null); // Clear previous summary to allow re-run feedback
+
+    const toastId = toast.loading('Initializing performance analysis...');
 
     try {
       // Prepare data for AI
@@ -252,6 +256,8 @@ export default function AISummary() {
         Use Markdown for formatting with clear headers and bullet points.
       `;
 
+      toast.loading('Synthesizing data with Gemini...', { id: toastId });
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("Gemini API Key is missing.");
@@ -270,6 +276,8 @@ export default function AISummary() {
 
       setSummary(generatedText);
 
+      toast.loading('Caching analysis results...', { id: toastId });
+
       // Cache the result
       await supabase.from('ai_summaries_cache').upsert({
         account_id: selectedAccountId,
@@ -281,9 +289,11 @@ export default function AISummary() {
         analysis_end_date: trades.length > 0 ? trades[0].entry_date : null
       }, { onConflict: 'account_id, ai_agent_used, summary_language, analysis_start_date, analysis_end_date' });
 
+      toast.success('Performance report generated', { id: toastId });
     } catch (err: any) {
       console.error(err);
       setError("Failed to generate AI summary. Please check your API configuration or try again later.");
+      toast.error('Analysis failed', { id: toastId });
     } finally {
       setSummarizing(false);
     }
@@ -359,7 +369,7 @@ export default function AISummary() {
               onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
               className="flex items-center gap-3 px-5 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all group"
             >
-              <Globe className="w-4 h-4 text-neutral-500 group-hover:text-sky-500 transition-colors" />
+              <TrendingUp className="w-4 h-4 text-neutral-500 group-hover:text-sky-500 transition-colors" />
               <span>{LANGUAGES.find(l => l.id === selectedLanguage)?.name}</span>
               <ChevronDown className={cn("w-4 h-4 text-neutral-500 transition-transform duration-300", isLanguageDropdownOpen && "rotate-180")} />
             </button>
@@ -533,7 +543,7 @@ export default function AISummary() {
                       <div className="flex items-center gap-4 text-neutral-500 text-xs font-bold">
                         <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Gemini Pro</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />
-                        <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> {selectedLanguage}</span>
+                        <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> {selectedLanguage}</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />
                         <span>{format(new Date(), 'MMM dd, yyyy • HH:mm')}</span>
                       </div>
