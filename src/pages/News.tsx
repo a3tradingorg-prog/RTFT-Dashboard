@@ -462,7 +462,6 @@ def crawl_news():
   const [summaries, setSummaries] = useState<{ [key: string]: string }>({});
   const [selectedLang, setSelectedLang] = useState('English');
   const [summarizing, setSummarizing] = useState(false);
-  const [showCode, setShowCode] = useState(false);
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState('Today');
   const langModalRef = useClickOutside(() => setIsLangModalOpen(false));
@@ -547,12 +546,7 @@ def crawl_news():
 
       // Simulate execution by asking Gemini to "act" as the script
       const prompt = `
-        Execute the following intent from this Python crawler code:
-        \`\`\`python
-        ${pythonCode}
-        \`\`\`
-        
-        Fetch the latest high-impact financial news for the period: "${selectedDateRange}" as if this script just ran. 
+        Fetch the latest high-impact financial news for the period: "${selectedDateRange}" as if a crawler script just ran. 
         Provide the raw "news_output" content.
         
         Note: Use your internal knowledge and real-time search capabilities to provide the most accurate news data for today.
@@ -760,12 +754,6 @@ def crawl_news():
                 <span className="xs:hidden">History</span>
               </button>
               <button 
-                onClick={() => setShowCode(!showCode)}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-neutral-400 hover:text-white transition-all flex items-center justify-center"
-              >
-                {showCode ? 'Hide Script' : 'Edit Script'}
-              </button>
-              <button 
                 onClick={handleCrawl}
                 disabled={crawling}
                 className="w-full sm:w-auto px-6 py-2 bg-sky-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
@@ -847,32 +835,12 @@ def crawl_news():
             </div>
           </div>
           
-          <AnimatePresence>
-            {showCode ? (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="relative overflow-hidden"
-              >
-                <textarea 
-                  value={pythonCode}
-                  onChange={(e) => setPythonCode(e.target.value)}
-                  className="w-full h-64 bg-[#0a0a0a] border border-[#262626] rounded-2xl p-6 font-mono text-xs text-neutral-400 focus:border-sky-500/50 focus:outline-none transition-all resize-none scrollbar-hide"
-                />
-                <div className="absolute top-4 right-4 flex items-center gap-2">
-                  <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 text-[8px] font-black uppercase tracking-widest rounded border border-sky-500/20">Python</span>
-                </div>
-              </motion.div>
-            ) : (
-              <div className="h-64 bg-[#0a0a0a] border border-[#262626] rounded-2xl flex flex-col items-center justify-center text-center p-8 space-y-4">
-                <ShieldCheck className="w-12 h-12 text-sky-500/20" />
-                <p className="text-xs font-bold text-neutral-600 uppercase tracking-widest leading-relaxed">
-                  Crawler script is active and secured.<br/>Click "Run Script" to fetch latest data.
-                </p>
-              </div>
-            )}
-          </AnimatePresence>
+          <div className="h-64 bg-[#0a0a0a] border border-[#262626] rounded-2xl flex flex-col items-center justify-center text-center p-8 space-y-4">
+            <ShieldCheck className="w-12 h-12 text-sky-500/20" />
+            <p className="text-xs font-bold text-neutral-600 uppercase tracking-widest leading-relaxed">
+              Crawler script is active and secured.<br/>Click "Run Script" to fetch latest data.
+            </p>
+          </div>
         </div>
 
         {/* Output & Summary */}
@@ -1071,8 +1039,8 @@ export default function News() {
   const [calendarView, setCalendarView] = useState<'Today' | 'Weekly' | 'Monthly'>('Today');
   const [selectedNews, setSelectedNews] = useState<NewsHeadline | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError(null);
 
     try {
@@ -1090,6 +1058,8 @@ export default function News() {
            - If view is "Today", fetch for today.
            - If view is "Weekly", fetch for the current week.
            - If view is "Monthly", fetch for the current month.
+           - IMPORTANT: Ensure the data is accurate and matches the current schedule on ForexFactory.com.
+           - Include the correct time in EST/EDT.
            - Mimic Forex Factory's data points: time, event name, currency (USD), impact level (High/Medium), actual, forecast, and previous values.
         
         2. Futures Prices: Fetch the latest quotes for the following US Indices:
@@ -1193,11 +1163,20 @@ export default function News() {
       setQuotes(data.futuresPrices || []);
       setNews(data.headlineNews || []);
       setLastUpdated(new Date());
+
+      // Save to session cache
+      sessionStorage.setItem(`news_cache_${calendarView}`, JSON.stringify({
+        events: data.economicCalendar || [],
+        quotes: data.futuresPrices || [],
+        news: data.headlineNews || [],
+        timestamp: Date.now()
+      }));
+
     } catch (err: any) {
       console.error("Market Data Fetch Error:", err);
-      setError("Failed to fetch real-time market data.");
+      if (!isBackground) setError("Failed to fetch real-time market data.");
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [calendarView]);
 
@@ -1231,8 +1210,24 @@ export default function News() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 300000); // 5 mins
+    const cachedData = sessionStorage.getItem(`news_cache_${calendarView}`);
+    if (cachedData) {
+      const { events: cEvents, quotes: cQuotes, news: cNews, timestamp } = JSON.parse(cachedData);
+      setEvents(cEvents);
+      setQuotes(cQuotes);
+      setNews(cNews);
+      setLastUpdated(new Date(timestamp));
+      setLoading(false);
+      
+      // Background refetch if older than 5 minutes
+      if (Date.now() - timestamp > 300000) {
+        fetchData(true);
+      }
+    } else {
+      fetchData();
+    }
+
+    const interval = setInterval(() => fetchData(true), 300000); // 5 mins background refresh
     return () => clearInterval(interval);
   }, [fetchData, calendarView]);
 
@@ -1255,7 +1250,7 @@ export default function News() {
         
         <div className="flex items-center gap-4">
           <button 
-            onClick={fetchData}
+            onClick={() => fetchData()}
             disabled={loading}
             className="px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:border-sky-500/50 transition-all flex items-center gap-3 group"
           >

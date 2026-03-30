@@ -134,6 +134,13 @@ export default function Journal() {
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false);
   const [openExitDropdown, setOpenExitDropdown] = useState<{ index: number, type: 'status' | 'reason' } | null>(null);
 
+  const closeAllDropdowns = () => {
+    setIsAssetDropdownOpen(false);
+    setIsAccountDropdownOpen(false);
+    setIsStrategyDropdownOpen(false);
+    setOpenExitDropdown(null);
+  };
+
   const assetRef = useClickOutside(() => setIsAssetDropdownOpen(false));
   const strategyRef = useClickOutside(() => setIsStrategyDropdownOpen(false));
   const exitRef = useClickOutside(() => setOpenExitDropdown(null));

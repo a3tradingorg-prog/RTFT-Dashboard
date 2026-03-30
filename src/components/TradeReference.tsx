@@ -26,21 +26,20 @@ export default function TradeReference() {
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
 
   const assetConfigs: Record<string, { pointValue: number, name: string }> = {
-    'MNQ': { pointValue: 2, name: 'Micro E-mini Nasdaq-100' },
+    'ES': { pointValue: 50, name: 'E-mini S&P 500' },
     'NQ': { pointValue: 20, name: 'E-mini Nasdaq-100' },
     'MES': { pointValue: 5, name: 'Micro E-mini S&P 500' },
-    'ES': { pointValue: 50, name: 'E-mini S&P 500' },
+    'MNQ': { pointValue: 2, name: 'Micro E-mini Nasdaq-100' },
     'GC': { pointValue: 100, name: 'Gold Futures' },
     'MGC': { pointValue: 10, name: 'Micro Gold Futures' }
   };
 
-  const slPoints = Array.from({ length: 7 }, (_, i) => (i + 1) * 10); // 10, 20, 30, 40, 50, 60, 70
+  const slPoints = Array.from({ length: 10 }, (_, i) => (i + 1) * 10); // 10, 20, ..., 100
 
   const calculateContracts = (sl: number) => {
     const config = assetConfigs[selectedAssetSymbol];
-    if (!config) return 0;
+    if (!config || sl === 0) return 0;
     // Formula: Risk / (SL Points * Point Value)
-    // Round down to nearest whole number
     const contracts = riskAmount / (sl * config.pointValue);
     return Math.floor(contracts);
   };
@@ -263,7 +262,7 @@ export default function TradeReference() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#0a0a0a]">
-                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Symbol</th>
+                  <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Contract Symbol</th>
                   <th className="p-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Months</th>
                 </tr>
               </thead>
@@ -296,7 +295,7 @@ export default function TradeReference() {
             </div>
           </div>
 
-            {/* FVG Encyclopedia Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { title: 'BISI', desc: 'Buyside Imbalance Sellside Inefficiency. A gap created in an up move.', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
               { title: 'SIBI', desc: 'Sellside Imbalance Buyside Inefficiency. A gap created in a down move.', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20' },
@@ -308,6 +307,7 @@ export default function TradeReference() {
                 <p className="text-[11px] text-neutral-400 leading-relaxed">{item.desc}</p>
               </div>
             ))}
+          </div>
         </div>
 
         {/* Advanced Gap Theory */}
@@ -338,8 +338,8 @@ export default function TradeReference() {
           </div>
         </div>
 
-        {/* Order Usage & Risk Management */}
-        <div className="lg:col-span-6 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
+        {/* Order Usage Guide */}
+        <div className="lg:col-span-12 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
               <Zap className="w-6 h-6 text-sky-500" />
@@ -386,35 +386,6 @@ export default function TradeReference() {
             </div>
           </div>
         </div>
-
-        <div className="lg:col-span-6 bg-[#141414] border border-[#262626] rounded-[32px] p-8 space-y-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
-              <Shield className="w-6 h-6 text-sky-500" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-white">Risk Management</h3>
-              <p className="text-xs text-neutral-500 font-medium">Capital Preservation Rules</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { title: '1% Rule', desc: 'Never risk more than 1% of equity per trade.', icon: Target },
-              { title: 'Scaling', desc: 'Take partials at key levels to lock in profit.', icon: TrendingUp },
-              { title: 'Tilt Check', desc: 'Walk away after 2 consecutive losses.', icon: AlertTriangle },
-            ].map(item => (
-              <div key={item.title} className="p-4 bg-[#0a0a0a] border border-[#262626] rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-sky-500">
-                  <item.icon className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">{item.title}</span>
-                </div>
-                <p className="text-[10px] text-neutral-500 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
       </div>
     </div>
   );

@@ -36,6 +36,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Dynamically set favicon and title
+    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+    const logoUrl = supabaseUrl 
+      ? `${supabaseUrl}/storage/v1/object/public/brand-assets/logo.jpg`
+      : 'https://picsum.photos/seed/trading/32/32';
+    
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.href = logoUrl;
+    link.type = 'image/jpeg';
+    
+    document.title = "RTFT Dashboard";
+  }, []);
+
+  useEffect(() => {
     if (user) {
       fetchProfile();
 
