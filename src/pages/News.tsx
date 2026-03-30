@@ -287,10 +287,10 @@ const FuturesPrices = ({ quotes, loading }: { quotes: FuturesQuote[], loading: b
               </tr>
             </thead>
             <tbody className="divide-y divide-[#262626]">
-              {quotes.map((quote) => {
+              {quotes.map((quote, i) => {
                 const isPositive = !quote.change.startsWith('-');
                 return (
-                  <tr key={quote.symbol} className="hover:bg-white/5 transition-colors group">
+                  <tr key={`${quote.symbol}-${quote.contractName}-${i}`} className="hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-sky-500 hover:underline cursor-pointer">+{quote.symbol}</span>
