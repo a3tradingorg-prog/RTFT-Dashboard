@@ -589,9 +589,13 @@ def crawl_news():
         localStorage.setItem('latest_news_output_raw', output);
         toast.info('Crawler output cached locally');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Crawling failed');
+      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const errorMessage = isQuotaError 
+        ? 'Gemini API quota exceeded. Please wait a moment before trying again or upgrade your API plan.' 
+        : 'Crawling failed. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setCrawling(false);
     }
@@ -724,9 +728,13 @@ def crawl_news():
       setSelectedAnalysis(savedRecord);
       setSelectedLang(lang);
       toast.success('Deep analysis complete and saved', { id: toastId });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error('Analysis failed', { id: toastId });
+      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const errorMessage = isQuotaError 
+        ? 'Gemini API quota exceeded. Please wait a moment before trying again.' 
+        : 'Analysis failed. Please try again.';
+      toast.error(errorMessage, { id: toastId });
     } finally {
       setSummarizing(false);
     }
@@ -1174,7 +1182,12 @@ export default function News() {
 
     } catch (err: any) {
       console.error("Market Data Fetch Error:", err);
-      if (!isBackground) setError("Failed to fetch real-time market data.");
+      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      if (!isBackground) {
+        setError(isQuotaError 
+          ? "Gemini API quota exceeded. Please wait a moment before refreshing." 
+          : "Failed to fetch real-time market data.");
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }
@@ -1204,8 +1217,12 @@ export default function News() {
       const content = response.text || "Could not retrieve article content.";
       setNews(prev => prev.map(n => n.url === item.url ? { ...n, content } : n));
       setSelectedNews(prev => prev?.url === item.url ? { ...prev, content } : prev);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Article Fetch Error:", err);
+      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      if (isQuotaError) {
+        toast.error("Gemini API quota exceeded. Could not load article content.");
+      }
     }
   };
 

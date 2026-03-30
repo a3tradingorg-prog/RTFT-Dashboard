@@ -295,8 +295,12 @@ export default function AISummary() {
       toast.success('Performance report generated', { id: toastId });
     } catch (err: any) {
       console.error(err);
-      setError("Failed to generate AI summary. Please check your API configuration or try again later.");
-      toast.error('Analysis failed', { id: toastId });
+      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const errorMessage = isQuotaError 
+        ? "Gemini API quota exceeded. Please wait a moment before trying again or upgrade your API plan." 
+        : "Failed to generate AI summary. Please check your API configuration or try again later.";
+      setError(errorMessage);
+      toast.error(isQuotaError ? 'Quota Exceeded' : 'Analysis failed', { id: toastId });
     } finally {
       setSummarizing(false);
     }
