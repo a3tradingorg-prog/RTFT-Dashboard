@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { TradingAccount, Trade, Strategy } from '../types';
 import { 
   Sparkles, 
@@ -56,7 +57,9 @@ export default function AISummary() {
   // UI State
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const accountRef = useClickOutside(() => setIsAccountDropdownOpen(false));
+  const languageRef = useClickOutside(() => setIsLanguageDropdownOpen(false));
 
   useEffect(() => {
     if (user) {
@@ -317,9 +320,12 @@ export default function AISummary() {
 
         <div className="flex flex-wrap items-center gap-4">
           {/* Enhanced Account Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative" ref={accountRef}>
             <button 
-              onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
+              onClick={() => {
+                setIsAccountDropdownOpen(!isAccountDropdownOpen);
+                setIsLanguageDropdownOpen(false);
+              }}
               className="flex items-center gap-3 px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all min-w-[240px] justify-between group"
             >
               <div className="flex items-center gap-3">
@@ -364,9 +370,12 @@ export default function AISummary() {
           </div>
 
           {/* Language Dropdown */}
-          <div className="relative">
+          <div className="relative" ref={languageRef}>
             <button 
-              onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
+              onClick={() => {
+                setIsLanguageDropdownOpen(!isLanguageDropdownOpen);
+                setIsAccountDropdownOpen(false);
+              }}
               className="flex items-center gap-3 px-5 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all group"
             >
               <TrendingUp className="w-4 h-4 text-neutral-500 group-hover:text-sky-500 transition-colors" />

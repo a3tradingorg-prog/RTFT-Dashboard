@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Strategy, Trade } from '../types';
 import { format } from 'date-fns';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 
@@ -71,6 +72,12 @@ export default function StrategyPage() {
   const [isAssetDropdownOpen, setIsAssetDropdownOpen] = useState(false);
   const [isTimeframeDropdownOpen, setIsTimeframeDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [isRegimeDropdownOpen, setIsRegimeDropdownOpen] = useState(false);
+
+  const assetDropdownRef = useClickOutside(() => setIsAssetDropdownOpen(false));
+  const timeframeDropdownRef = useClickOutside(() => setIsTimeframeDropdownOpen(false));
+  const statusDropdownRef = useClickOutside(() => setIsStatusDropdownOpen(false));
+  const regimeDropdownRef = useClickOutside(() => setIsRegimeDropdownOpen(false));
 
   useEffect(() => {
     if (user) {
@@ -438,19 +445,49 @@ export default function StrategyPage() {
 
                       <div className="space-y-3">
                         <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Market Regime</label>
-                        <div className="relative">
-                          <select 
-                            value={marketRegime}
-                            onChange={(e) => setMarketRegime(e.target.value)}
-                            className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold appearance-none cursor-pointer"
+                        <div className="relative" ref={regimeDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRegimeDropdownOpen(!isRegimeDropdownOpen);
+                              setIsAssetDropdownOpen(false);
+                              setIsTimeframeDropdownOpen(false);
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
                           >
-                            <option value="">Select Regime</option>
-                            <option value="Trending">Trending</option>
-                            <option value="Ranging">Ranging</option>
-                            <option value="Volatile">Volatile</option>
-                            <option value="Consolidating">Consolidating</option>
-                          </select>
-                          <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                            <span>{marketRegime || 'Select Regime'}</span>
+                            <ChevronDown className={cn("w-4 h-4 text-neutral-500 transition-transform", isRegimeDropdownOpen && "rotate-180")} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isRegimeDropdownOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden p-2"
+                              >
+                                {['Trending', 'Ranging', 'Volatile', 'Consolidating'].map((regime) => (
+                                  <button
+                                    key={regime}
+                                    type="button"
+                                    onClick={() => {
+                                      setMarketRegime(regime);
+                                      setIsRegimeDropdownOpen(false);
+                                    }}
+                                    className={cn(
+                                      "w-full px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-left flex items-center justify-between group",
+                                      marketRegime === regime ? "bg-sky-500 text-black" : "text-neutral-500 hover:bg-white/5 hover:text-white"
+                                    )}
+                                  >
+                                    {regime}
+                                    {marketRegime === regime && <Check className="w-3 h-3" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </div>
 
@@ -463,6 +500,156 @@ export default function StrategyPage() {
                           rows={3}
                           className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800 resize-none"
                         />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Applicable Assets</label>
+                        <div className="relative" ref={assetDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAssetDropdownOpen(!isAssetDropdownOpen);
+                              setIsRegimeDropdownOpen(false);
+                              setIsTimeframeDropdownOpen(false);
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
+                          >
+                            <span className="truncate">
+                              {selectedAssets.length > 0 ? selectedAssets.join(', ') : 'Select Assets'}
+                            </span>
+                            <ChevronDown className={cn("w-4 h-4 text-neutral-500 transition-transform", isAssetDropdownOpen && "rotate-180")} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isAssetDropdownOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden p-2 grid grid-cols-2 gap-1"
+                              >
+                                {['MNQ', 'NQ', 'MES', 'ES', 'MGC', 'GC'].map((asset) => (
+                                  <button
+                                    key={asset}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedAssets(prev => 
+                                        prev.includes(asset) ? prev.filter(a => a !== asset) : [...prev, asset]
+                                      );
+                                    }}
+                                    className={cn(
+                                      "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-left flex items-center justify-between group",
+                                      selectedAssets.includes(asset) ? "bg-sky-500 text-black" : "text-neutral-500 hover:bg-white/5 hover:text-white"
+                                    )}
+                                  >
+                                    {asset}
+                                    {selectedAssets.includes(asset) && <Check className="w-3 h-3" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Applicable Timeframes</label>
+                        <div className="relative" ref={timeframeDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsTimeframeDropdownOpen(!isTimeframeDropdownOpen);
+                              setIsRegimeDropdownOpen(false);
+                              setIsAssetDropdownOpen(false);
+                              setIsStatusDropdownOpen(false);
+                            }}
+                            className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
+                          >
+                            <span className="truncate">
+                              {selectedTimeframes.length > 0 ? selectedTimeframes.join(', ') : 'Select Timeframes'}
+                            </span>
+                            <ChevronDown className={cn("w-4 h-4 text-neutral-500 transition-transform", isTimeframeDropdownOpen && "rotate-180")} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isTimeframeDropdownOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden p-2 grid grid-cols-2 gap-1"
+                              >
+                                {['1m', '5m', '15m', '1h', '4h', 'Daily', 'Weekly'].map((tf) => (
+                                  <button
+                                    key={tf}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedTimeframes(prev => 
+                                        prev.includes(tf) ? prev.filter(t => t !== tf) : [...prev, tf]
+                                      );
+                                    }}
+                                    className={cn(
+                                      "px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-left flex items-center justify-between group",
+                                      selectedTimeframes.includes(tf) ? "bg-sky-500 text-black" : "text-neutral-500 hover:bg-white/5 hover:text-white"
+                                    )}
+                                  >
+                                    {tf}
+                                    {selectedTimeframes.includes(tf) && <Check className="w-3 h-3" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">Strategy Status</label>
+                        <div className="relative" ref={statusDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsStatusDropdownOpen(!isStatusDropdownOpen);
+                              setIsRegimeDropdownOpen(false);
+                              setIsAssetDropdownOpen(false);
+                              setIsTimeframeDropdownOpen(false);
+                            }}
+                            className="w-full px-6 py-4 bg-[#141414] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
+                          >
+                            <span>{status}</span>
+                            <ChevronDown className={cn("w-4 h-4 text-neutral-500 transition-transform", isStatusDropdownOpen && "rotate-180")} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isStatusDropdownOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden p-2"
+                              >
+                                {['Active', 'Archived', 'Under Review'].map((s) => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => {
+                                      setStatus(s as any);
+                                      setIsStatusDropdownOpen(false);
+                                    }}
+                                    className={cn(
+                                      "w-full px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-left flex items-center justify-between group",
+                                      status === s ? "bg-sky-500 text-black" : "text-neutral-500 hover:bg-white/5 hover:text-white"
+                                    )}
+                                  >
+                                    {s}
+                                    {status === s && <Check className="w-3 h-3" />}
+                                  </button>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
                       </div>
                     </div>
                   </div>
