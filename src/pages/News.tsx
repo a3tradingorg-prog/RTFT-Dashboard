@@ -27,6 +27,7 @@ import {
   Megaphone,
   X,
   Code,
+  Terminal,
   Languages,
   Play,
   FileText,
@@ -448,7 +449,7 @@ const NewsModal = ({ item, onClose }: { item: NewsHeadline | null, onClose: () =
 };
 
 const AICrawler = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [pythonCode, setPythonCode] = useState(`import requests
 from bs4 import BeautifulSoup
 
@@ -458,6 +459,7 @@ def crawl_news():
     return "Latest news data..."`);
   
   const [crawling, setCrawling] = useState(false);
+  const [pythonCrawling, setPythonCrawling] = useState(false);
   const [newsOutput, setNewsOutput] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<{ [key: string]: string }>({});
   const [selectedLang, setSelectedLang] = useState('English');
@@ -577,10 +579,16 @@ def crawl_news():
 
       let response;
       try {
+        // Only use googleSearch tool if we don't have raw data to save tokens/quota
+        const config: any = {};
+        if (!rawNewsData) {
+          config.tools = [{ googleSearch: {} }];
+        }
+
         response = await ai.models.generateContent({
           model,
           contents: prompt,
-          config: { tools: [{ googleSearch: {} }] }
+          config
         });
       } catch (searchErr) {
         console.warn("Crawler search failed, trying without it:", searchErr);
@@ -621,6 +629,39 @@ def crawl_news():
       toast.error(errorMessage);
     } finally {
       setCrawling(false);
+    }
+  };
+
+  const handlePythonCrawl = async () => {
+    setPythonCrawling(true);
+    const toastId = toast.loading('Fetching raw data from market sources...');
+    
+    try {
+      // Step 1: Trigger the crawler via our server endpoint
+      const response = await fetch('/api/trigger-crawler', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          dateRange: selectedDateRange
+        })
+      });
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast.success('Raw data fetched successfully!', { id: toastId });
+        setNewsOutput(`FETCHED RAW DATA (${new Date().toLocaleTimeString()}):\n\nSource: ${result.source}\n\nData Preview:\n${result.data_preview}...`);
+      } else {
+        throw new Error(result.message || 'Crawler failed');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Python Crawler failed: ${err.message}`, { id: toastId });
+    } finally {
+      setPythonCrawling(false);
     }
   };
 
@@ -785,12 +826,12 @@ def crawl_news():
                 <span className="xs:hidden">History</span>
               </button>
               <button 
-                onClick={handleCrawl}
-                disabled={crawling}
-                className="w-full sm:w-auto px-6 py-2 bg-sky-500 text-black font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-sky-400 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                onClick={handlePythonCrawl}
+                disabled={pythonCrawling || crawling}
+                className="w-full sm:w-auto px-6 py-2 bg-[#141414] border border-[#262626] text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:border-sky-500/50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {crawling ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                {crawling ? 'Crawling...' : 'Run Script'}
+                {pythonCrawling ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+                {pythonCrawling ? 'Fetching...' : 'Fetch Raw Data'}
               </button>
             </div>
           </div>
