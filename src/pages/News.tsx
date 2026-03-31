@@ -705,11 +705,6 @@ def crawl_news():
 
       toast.loading('Analyzing market data with Gemini...', { id: toastId });
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key missing");
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-
       const prompt = `
         Perform a deep economic analysis on the following "news_output" data for professional trading intelligence.
         
@@ -1117,7 +1112,16 @@ export default function News() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'futures' | 'headlines' | 'crawler'>('calendar');
   const [calendarView, setCalendarView] = useState<'Today' | 'Weekly' | 'Monthly'>('Today');
   const [selectedNews, setSelectedNews] = useState<NewsHeadline | null>(null);
-  const [lastQuotaError, setLastQuotaError] = useState<number | null>(null);
+  const [lastQuotaError, setLastQuotaError] = useState<number | null>(() => {
+    const cached = localStorage.getItem('last_quota_error');
+    return cached ? parseInt(cached) : null;
+  });
+  const isFetchingRef = useRef(false);
+
+  const updateQuotaError = useCallback((time: number) => {
+    setLastQuotaError(time);
+    localStorage.setItem('last_quota_error', time.toString());
+  }, []);
 
   const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -1140,7 +1144,7 @@ export default function News() {
                            err?.message?.toLowerCase().includes('quota');
         
         if (isQuotaError) {
-          setLastQuotaError(Date.now());
+          updateQuotaError(Date.now());
           if (retries < maxRetries - 1) {
             retries++;
             const delay = Math.pow(2, retries) * 2000; // 4s, 8s
@@ -1156,17 +1160,24 @@ export default function News() {
         throw err;
       }
     }
-  }, []);
+  }, [updateQuotaError]);
 
   const fetchData = useCallback(async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
-    setError(null);
+    if (isFetchingRef.current) return;
 
-    // Skip background fetch if we recently hit a quota error (within last 2 minutes)
-    if (isBackground && lastQuotaError && Date.now() - lastQuotaError < 120000) {
+    // Check for recent quota error from localStorage to sync across tabs
+    const cachedQuotaError = localStorage.getItem('last_quota_error');
+    const lastErrorTime = cachedQuotaError ? parseInt(cachedQuotaError) : null;
+    
+    // Skip background fetch if we recently hit a quota error (within last 5 minutes)
+    if (isBackground && lastErrorTime && Date.now() - lastErrorTime < 300000) {
       console.warn("Skipping background fetch due to recent quota error.");
       return;
     }
+
+    isFetchingRef.current = true;
+    if (!isBackground) setLoading(true);
+    setError(null);
 
     try {
       // Step 1: Fetch raw data via proxy to save Gemini tokens/quota
@@ -1317,8 +1328,9 @@ export default function News() {
       }
     } finally {
       if (!isBackground) setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [calendarView, callGeminiWithRetry, lastQuotaError]);
+  }, [calendarView, callGeminiWithRetry]);
 
   const fetchArticleContent = async (item: NewsHeadline) => {
     if (item.content) return;
@@ -1414,10 +1426,10 @@ export default function News() {
         </div>
         
         <div className="flex items-center gap-4">
-          {lastQuotaError && Date.now() - lastQuotaError < 120000 && (
+          {lastQuotaError && Date.now() - lastQuotaError < 300000 && (
             <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full">
               <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Quota Cooling Down</span>
+              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Quota Cooling Down (5m)</span>
             </div>
           )}
           <button 

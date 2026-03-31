@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -50,7 +50,16 @@ export default function AISummary() {
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lastQuotaError, setLastQuotaError] = useState<number | null>(null);
+  const [lastQuotaError, setLastQuotaError] = useState<number | null>(() => {
+    const cached = localStorage.getItem('last_quota_error');
+    return cached ? parseInt(cached) : null;
+  });
+  const isFetchingRef = useRef(false);
+
+  const updateQuotaError = useCallback((time: number) => {
+    setLastQuotaError(time);
+    localStorage.setItem('last_quota_error', time.toString());
+  }, []);
   
   // Preferences
   const [selectedLanguage, setSelectedLanguage] = useState('English');
@@ -195,7 +204,7 @@ export default function AISummary() {
     }
   };
 
-  const callGeminiWithRetry = React.useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
+  const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Gemini API Key is missing.");
     const ai = new GoogleGenAI({ apiKey });
@@ -216,7 +225,7 @@ export default function AISummary() {
                            err?.message?.toLowerCase().includes('quota');
         
         if (isQuotaError) {
-          setLastQuotaError(Date.now());
+          updateQuotaError(Date.now());
           if (retries < maxRetries - 1) {
             retries++;
             const delay = Math.pow(2, retries) * 2000; // 4s, 8s
@@ -232,14 +241,27 @@ export default function AISummary() {
         throw err;
       }
     }
-  }, []);
+  }, [updateQuotaError]);
 
   const generateSummary = async () => {
+    if (isFetchingRef.current) return;
+
+    // Check for recent quota error from localStorage to sync across tabs
+    const cachedQuotaError = localStorage.getItem('last_quota_error');
+    const lastErrorTime = cachedQuotaError ? parseInt(cachedQuotaError) : null;
+    
+    // If we hit a quota error recently (within 5 mins), warn the user
+    if (lastErrorTime && Date.now() - lastErrorTime < 300000) {
+      setError("Gemini API quota was recently exceeded. Please wait a few minutes before trying again.");
+      return;
+    }
+
     if (trades.length === 0) {
       setError("No trades found to analyze for this account.");
       return;
     }
 
+    isFetchingRef.current = true;
     setSummarizing(true);
     setError(null);
     setSummary(null); // Clear previous summary to allow re-run feedback
@@ -339,6 +361,7 @@ export default function AISummary() {
       toast.error(isQuotaError ? 'Quota Exceeded' : 'Analysis failed', { id: toastId });
     } finally {
       setSummarizing(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -483,6 +506,13 @@ export default function AISummary() {
                 <p className="text-[11px] text-neutral-500 leading-relaxed">Powered by Google's most capable AI model for deep trading analysis.</p>
               </div>
             </div>
+
+            {lastQuotaError && Date.now() - lastQuotaError < 300000 && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Gemini Quota Cooling Down (5m)</span>
+              </div>
+            )}
 
             <button 
               onClick={generateSummary}
