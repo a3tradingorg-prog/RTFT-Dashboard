@@ -207,10 +207,11 @@ export default function AISummary() {
     const toastId = toast.loading('Initializing performance analysis...');
 
     try {
-      // Prepare data for AI
+      // Prepare data for AI - Limit to last 50 trades to prevent token overflow
       const account = accounts.find(a => a.id === selectedAccountId);
+      const recentTrades = trades.slice(0, 50);
       
-      const tradeData = trades.map(t => ({
+      const tradeData = recentTrades.map(t => ({
         asset: t.asset,
         type: t.type,
         pnl: t.pnl,
@@ -238,7 +239,7 @@ export default function AISummary() {
         - Current Balance: ${formatCurrency(account?.current_balance || 0)}
         - Max Drawdown Limit: ${account?.max_drawdown}%
         
-        Trade History (Last ${trades.length} trades):
+        Trade History (Last ${recentTrades.length} trades):
         ${JSON.stringify(tradeData, null, 2)}
         
         Defined Strategies:

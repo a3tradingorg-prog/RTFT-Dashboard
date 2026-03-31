@@ -142,9 +142,9 @@ export default function TradeReference() {
                       exit={{ opacity: 0, y: 5 }}
                       className="absolute top-full right-0 mt-2 w-32 bg-[#1f1f1f] border border-[#262626] rounded-xl shadow-2xl z-50 overflow-hidden"
                     >
-                      {Object.keys(assetConfigs).map(symbol => (
+                      {Object.keys(assetConfigs).map((symbol, i) => (
                         <button
-                          key={symbol}
+                          key={`${symbol}-${i}`}
                           onClick={() => {
                             setSelectedAssetSymbol(symbol);
                             setIsAssetDropdownOpen(false);
@@ -270,8 +270,8 @@ export default function TradeReference() {
                 {[
                   { symbol: 'ES / NQ / MES / MNQ', months: 'H, M, U, Z' },
                   { symbol: 'GC / MGC', months: 'G, J, M, Q, V, Z' }
-                ].map(item => (
-                  <tr key={item.symbol} className="hover:bg-white/5 transition-colors">
+                ].map((item, i) => (
+                  <tr key={`${item.symbol}-${i}`} className="hover:bg-white/5 transition-colors">
                     <td className="p-4 text-xs font-bold text-white">{item.symbol}</td>
                     <td className="p-4 text-xs font-black text-sky-400 text-right">{item.months}</td>
                   </tr>
@@ -301,8 +301,8 @@ export default function TradeReference() {
               { title: 'SIBI', desc: 'Sellside Imbalance Buyside Inefficiency. A gap created in a down move.', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20' },
               { title: 'Inversion FVG', desc: 'An FVG that has been closed through and now acts as support/resistance.', color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/20' },
               { title: 'Breakaway Gap', desc: 'A gap that remains open, indicating strong trend momentum.', color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20' },
-            ].map(item => (
-              <div key={item.title} className={cn("p-6 rounded-2xl border space-y-3 transition-all", item.bg, item.border)}>
+            ].map((item, i) => (
+              <div key={`${item.title}-${i}`} className={cn("p-6 rounded-2xl border space-y-3 transition-all", item.bg, item.border)}>
                 <h4 className={cn("text-sm font-bold", item.color)}>{item.title}</h4>
                 <p className="text-[11px] text-neutral-400 leading-relaxed">{item.desc}</p>
               </div>

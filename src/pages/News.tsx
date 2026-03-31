@@ -539,17 +539,40 @@ def crawl_news():
     setSummaries({});
     
     try {
+      // Step 1: Fetch raw news data via proxy (Simulating the Python Crawler)
+      // This avoids using Gemini tokens for the initial "crawl"
+      let rawNewsData = "";
+      try {
+        const targetUrl = "https://www.forexfactory.com/news";
+        const proxyUrl = `/api/news-proxy?url=${encodeURIComponent(targetUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          rawNewsData = await response.text();
+          // Basic cleanup of the HTML to make it more readable for the AI later
+          rawNewsData = rawNewsData.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                                   .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                                   .replace(/<[^>]+>/g, " ")
+                                   .replace(/\s+/g, " ")
+                                   .substring(0, 10000); // Limit size
+        }
+      } catch (proxyErr) {
+        console.warn("Proxy fetch failed, will fallback to Gemini knowledge:", proxyErr);
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("API Key missing");
       const ai = new GoogleGenAI({ apiKey });
       const model = "gemini-3-flash-preview";
 
-      // Simulate execution by asking Gemini to "act" as the script
+      // Step 2: Use Gemini to format and analyze the crawled data
       const prompt = `
-        Fetch the latest high-impact financial news for the period: "${selectedDateRange}" as if a crawler script just ran. 
-        Provide the raw "news_output" content.
+        You are a financial news crawler script. 
+        ${rawNewsData ? `I have successfully crawled the following raw data from Forex Factory: \n\n ${rawNewsData} \n\n` : ""}
         
-        Note: Use your internal knowledge and real-time search capabilities to provide the most accurate news data for today.
+        Based on ${rawNewsData ? "this data" : "your internal knowledge and real-time search"}, 
+        provide the latest high-impact financial news for the period: "${selectedDateRange}".
+        
+        Format the output as a structured "news_output" content that looks like a professional crawler report.
       `;
 
       let response;
@@ -1052,6 +1075,33 @@ export default function News() {
     setError(null);
 
     try {
+      // Step 1: Fetch raw data via proxy to save Gemini tokens/quota
+      let rawCalendarData = "";
+      let rawNewsData = "";
+      try {
+        const calendarResponse = await fetch(`/api/news-proxy?url=${encodeURIComponent("https://www.forexfactory.com/calendar")}`);
+        if (calendarResponse.ok) {
+          rawCalendarData = await calendarResponse.text();
+          rawCalendarData = rawCalendarData.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                                           .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                                           .replace(/<[^>]+>/g, " ")
+                                           .replace(/\s+/g, " ")
+                                           .substring(0, 5000);
+        }
+
+        const newsResponse = await fetch(`/api/news-proxy?url=${encodeURIComponent("https://www.forexfactory.com/news")}`);
+        if (newsResponse.ok) {
+          rawNewsData = await newsResponse.text();
+          rawNewsData = rawNewsData.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                                   .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                                   .replace(/<[^>]+>/g, " ")
+                                   .replace(/\s+/g, " ")
+                                   .substring(0, 5000);
+        }
+      } catch (proxyErr) {
+        console.warn("Proxy fetch failed in fetchData, will rely on Gemini search:", proxyErr);
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API Key is missing.");
       
@@ -1062,13 +1112,15 @@ export default function News() {
         Fetch the most accurate, real-time financial market data for the period: ${calendarView}.
         Current Date: ${new Date().toLocaleDateString()}.
         
-        1. Economic Calendar: Fetch HIGH and MEDIUM impact economic events for the United States (US) ONLY. 
+        ${rawCalendarData ? `RAW CALENDAR DATA FROM FOREX FACTORY: \n ${rawCalendarData} \n\n` : ""}
+        ${rawNewsData ? `RAW NEWS DATA FROM FOREX FACTORY: \n ${rawNewsData} \n\n` : ""}
+
+        1. Economic Calendar: Extract HIGH and MEDIUM impact economic events for the United States (US) ONLY. 
            - If view is "Today", fetch for today.
            - If view is "Weekly", fetch for the current week.
            - If view is "Monthly", fetch for the current month.
-           - IMPORTANT: Ensure the data is accurate and matches the current schedule on ForexFactory.com.
            - Include the correct time in EST/EDT.
-           - Mimic Forex Factory's data points: time, event name, currency (USD), impact level (High/Medium), actual, forecast, and previous values.
+           - Data points: time, event name, currency (USD), impact level (High/Medium), actual, forecast, and previous values.
         
         2. Futures Prices: Fetch the latest quotes for the following US Indices:
            - ES (S&P 500)
@@ -1077,7 +1129,7 @@ export default function News() {
            - For each, provide data for both "Active" (Front Month) and "Coming" (Next Month) contracts.
            - Include: symbol, contract name, latest price, net change, open, high, low, volume, and last update time.
         
-        3. Headline News: Fetch the top 10 most recent HIGH IMPACT financial news headlines. 
+        3. Headline News: Extract the top 10 most recent HIGH IMPACT financial news headlines. 
            - PRIORITIZE: War news, geopolitical tensions, and significant posts/announcements from Donald Trump.
            - Include: time, headline text, source name, and a valid URL.
         
@@ -1086,11 +1138,13 @@ export default function News() {
 
       let response;
       try {
+        // Only use googleSearch if we didn't get enough raw data
+        const useSearch = !rawCalendarData || !rawNewsData;
         response = await ai.models.generateContent({
           model,
           contents: prompt,
           config: {
-            tools: [{ googleSearch: {} }],
+            tools: useSearch ? [{ googleSearch: {} }] : undefined,
             responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
@@ -1197,13 +1251,33 @@ export default function News() {
     if (item.content) return;
     
     try {
+      // Step 1: Try to fetch article content via proxy
+      let rawArticleData = "";
+      try {
+        const proxyUrl = `/api/news-proxy?url=${encodeURIComponent(item.url)}`;
+        const response = await fetch(proxyUrl);
+        if (response.ok) {
+          rawArticleData = await response.text();
+          // Cleanup HTML
+          rawArticleData = rawArticleData.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                                         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+                                         .replace(/<[^>]+>/g, " ")
+                                         .replace(/\s+/g, " ")
+                                         .substring(0, 8000);
+        }
+      } catch (proxyErr) {
+        console.warn("Proxy fetch failed for article, will fallback to Gemini search:", proxyErr);
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) return;
       const ai = new GoogleGenAI({ apiKey });
       const model = "gemini-3-flash-preview";
 
       const prompt = `
-        Fetch and summarize the full content of this financial news article: "${item.headline}" from ${item.source} (${item.url}).
+        Summarize the following financial news article: "${item.headline}" from ${item.source}.
+        ${rawArticleData ? `RAW ARTICLE CONTENT: \n ${rawArticleData} \n\n` : `URL: ${item.url}`}
+        
         Provide a detailed, readable summary that covers all key points.
         Use Markdown for formatting.
       `;
@@ -1211,7 +1285,7 @@ export default function News() {
       const response = await ai.models.generateContent({
         model,
         contents: prompt,
-        config: { tools: [{ googleSearch: {} }] }
+        config: { tools: !rawArticleData ? [{ googleSearch: {} }] : undefined }
       });
 
       const content = response.text || "Could not retrieve article content.";
