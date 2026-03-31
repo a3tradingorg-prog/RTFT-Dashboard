@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "^2.100.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/react-datepicker": "^6.2.0",
+    "@vercel/node": "^5.6.22",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
