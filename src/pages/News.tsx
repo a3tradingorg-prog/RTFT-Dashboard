@@ -649,7 +649,19 @@ def crawl_news():
           dateRange: selectedDateRange
         })
       });
-      const result = await response.json();
+
+      const responseText = await response.text();
+      
+      if (!response.ok) {
+        throw new Error(`Server error (${response.status}): ${responseText.substring(0, 100)}`);
+      }
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+      }
 
       if (result.status === 'success') {
         toast.success('Raw data fetched successfully!', { id: toastId });

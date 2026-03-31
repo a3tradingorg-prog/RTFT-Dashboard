@@ -23,6 +23,12 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Request logging middleware
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
   // API routes
   app.get("/api/news-proxy", async (req, res) => {
     try {
@@ -170,10 +176,25 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    
+    // API 404 handler
+    app.all('/api/*', (req, res) => {
+      res.status(404).json({ status: "error", message: `API route not found: ${req.method} ${req.url}` });
+    });
+
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Global error handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("Global error handler:", err);
+    res.status(err.status || 500).json({
+      status: "error",
+      message: err.message || "Internal Server Error"
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
