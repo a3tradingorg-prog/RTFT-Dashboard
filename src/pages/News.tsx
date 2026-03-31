@@ -535,6 +535,42 @@ def crawl_news():
     }
   };
 
+  const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API Key is missing.");
+    const ai = new GoogleGenAI({ apiKey });
+    const model = "gemini-3-flash-preview";
+    
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        return await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config
+        });
+      } catch (err: any) {
+        const isQuotaError = err?.message?.includes('429') || 
+                           err?.status === 429 || 
+                           JSON.stringify(err).includes('429') ||
+                           err?.message?.toLowerCase().includes('quota');
+        
+        if (isQuotaError && retries < maxRetries - 1) {
+          retries++;
+          const delay = Math.pow(2, retries) * 2000; // 4s, 8s
+          if (toastId) {
+            toast.loading(`Gemini quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
+          } else {
+            console.warn(`Gemini quota reached. Retrying in ${delay/1000}s...`);
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }, []);
+
   const handleCrawl = async () => {
     setCrawling(true);
     setNewsOutput(null);
@@ -561,11 +597,6 @@ def crawl_news():
         console.warn("Proxy fetch failed, will fallback to Gemini knowledge:", proxyErr);
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key missing");
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-
       // Step 2: Use Gemini to format and analyze the crawled data
       const prompt = `
         You are a financial news crawler script. 
@@ -577,26 +608,14 @@ def crawl_news():
         Format the output as a structured "news_output" content that looks like a professional crawler report.
       `;
 
-      let response;
-      try {
-        // Only use googleSearch tool if we don't have raw data to save tokens/quota
-        const config: any = {};
-        if (!rawNewsData) {
-          config.tools = [{ googleSearch: {} }];
-        }
-
-        response = await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config
-        });
-      } catch (searchErr) {
-        console.warn("Crawler search failed, trying without it:", searchErr);
-        response = await ai.models.generateContent({
-          model,
-          contents: prompt + " (Note: If real-time search is unavailable, use your latest knowledge base for today's news)",
-        });
+      // Only use googleSearch tool if we don't have raw data to save tokens/quota
+      const config: any = {};
+      if (!rawNewsData) {
+        config.tools = [{ googleSearch: {} }];
       }
+
+      const response = await callGeminiWithRetry(prompt, config, 3);
+      if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const output = response.text || "No output generated.";
       setNewsOutput(output);
@@ -706,9 +725,19 @@ def crawl_news():
 
       if (!contentToAnalyze) throw new Error("No news output found to analyze");
 
+      // Check if we already have a recent analysis for this exact content in history
+      const existingAnalysis = history.find(h => h.raw_output === contentToAnalyze);
+      if (existingAnalysis) {
+        setSelectedAnalysis(existingAnalysis);
+        setSelectedLang(lang);
+        toast.success('Loaded existing analysis from history', { id: toastId });
+        setSummarizing(false);
+        return;
+      }
+
       // Truncate content if too long to save tokens
-      if (contentToAnalyze.length > 30000) {
-        contentToAnalyze = contentToAnalyze.substring(0, 30000) + "... [Content Truncated]";
+      if (contentToAnalyze.length > 25000) {
+        contentToAnalyze = contentToAnalyze.substring(0, 25000) + "... [Content Truncated for Analysis]";
       }
 
       toast.loading('Analyzing market data with Gemini...', { id: toastId });
@@ -741,45 +770,70 @@ def crawl_news():
         Return the analysis in a strict JSON format.
       `;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              categories: {
-                type: Type.ARRAY,
-                items: {
+      // Implement retry logic with exponential backoff
+      const callWithRetry = async (maxRetries = 3) => {
+        let retries = 0;
+        while (retries < maxRetries) {
+          try {
+            return await ai.models.generateContent({
+              model,
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+                responseSchema: {
                   type: Type.OBJECT,
                   properties: {
-                    category: { type: Type.STRING },
-                    country: { type: Type.STRING },
-                    impact: { type: Type.STRING },
-                    instruments: {
+                    categories: {
                       type: Type.ARRAY,
                       items: {
                         type: Type.OBJECT,
                         properties: {
-                          instrument: { type: Type.STRING },
-                          sentiment: { type: Type.STRING, enum: ['Bullish', 'Bearish', 'Neutral'] },
-                          probability: { type: Type.NUMBER },
-                          reasoning: { type: Type.STRING }
+                          category: { type: Type.STRING },
+                          country: { type: Type.STRING },
+                          impact: { type: Type.STRING },
+                          instruments: {
+                            type: Type.ARRAY,
+                            items: {
+                              type: Type.OBJECT,
+                              properties: {
+                                instrument: { type: Type.STRING },
+                                sentiment: { type: Type.STRING, enum: ['Bullish', 'Bearish', 'Neutral'] },
+                                probability: { type: Type.NUMBER },
+                                reasoning: { type: Type.STRING }
+                              },
+                              required: ['instrument', 'sentiment', 'probability', 'reasoning']
+                            }
+                          }
                         },
-                        required: ['instrument', 'sentiment', 'probability', 'reasoning']
+                        required: ['category', 'country', 'impact', 'instruments']
                       }
-                    }
+                    },
+                    overall_summary: { type: Type.STRING }
                   },
-                  required: ['category', 'country', 'impact', 'instruments']
+                  required: ['categories', 'overall_summary']
                 }
-              },
-              overall_summary: { type: Type.STRING }
-            },
-            required: ['categories', 'overall_summary']
+              }
+            });
+          } catch (err: any) {
+            const isQuotaError = err?.message?.includes('429') || 
+                               err?.status === 429 || 
+                               JSON.stringify(err).includes('429') ||
+                               err?.message?.includes('quota');
+            
+            if (isQuotaError && retries < maxRetries - 1) {
+              retries++;
+              const delay = Math.pow(2, retries) * 2000; // 4s, 8s
+              toast.loading(`Quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+            throw err;
           }
         }
-      });
+      };
+
+      const response = await callWithRetry();
+      if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const analysisData = JSON.parse(response.text);
       
@@ -806,10 +860,14 @@ def crawl_news():
       toast.success('Deep analysis complete and saved', { id: toastId });
     } catch (err: any) {
       console.error(err);
-      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const isQuotaError = err?.message?.includes('429') || 
+                         err?.status === 429 || 
+                         JSON.stringify(err).includes('429') ||
+                         err?.message?.includes('quota');
+                         
       const errorMessage = isQuotaError 
-        ? 'Gemini API quota exceeded. Please wait a moment before trying again.' 
-        : 'Analysis failed. Please try again.';
+        ? 'Gemini API quota exceeded. The free tier has limits. Please wait 1-2 minutes and try again.' 
+        : `Analysis failed: ${err.message || 'Please try again.'}`;
       toast.error(errorMessage, { id: toastId });
     } finally {
       setSummarizing(false);
@@ -1123,6 +1181,42 @@ export default function News() {
   const [calendarView, setCalendarView] = useState<'Today' | 'Weekly' | 'Monthly'>('Today');
   const [selectedNews, setSelectedNews] = useState<NewsHeadline | null>(null);
 
+  const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API Key is missing.");
+    const ai = new GoogleGenAI({ apiKey });
+    const model = "gemini-3-flash-preview";
+    
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        return await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config
+        });
+      } catch (err: any) {
+        const isQuotaError = err?.message?.includes('429') || 
+                           err?.status === 429 || 
+                           JSON.stringify(err).includes('429') ||
+                           err?.message?.toLowerCase().includes('quota');
+        
+        if (isQuotaError && retries < maxRetries - 1) {
+          retries++;
+          const delay = Math.pow(2, retries) * 2000; // 4s, 8s
+          if (toastId) {
+            toast.loading(`Gemini quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
+          } else {
+            console.warn(`Gemini quota reached. Retrying in ${delay/1000}s...`);
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }, []);
+
   const fetchData = useCallback(async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     setError(null);
@@ -1189,89 +1283,68 @@ export default function News() {
         Return the data in a strict JSON format.
       `;
 
-      let response;
-      try {
-        // Only use googleSearch if we didn't get enough raw data
-        const useSearch = !rawCalendarData || !rawNewsData;
-        response = await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config: {
-            tools: useSearch ? [{ googleSearch: {} }] : undefined,
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                economicCalendar: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      time: { type: Type.STRING },
-                      event: { type: Type.STRING },
-                      currency: { type: Type.STRING },
-                      impact: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
-                      actual: { type: Type.STRING },
-                      forecast: { type: Type.STRING },
-                      previous: { type: Type.STRING }
-                    },
-                    required: ['time', 'event', 'currency', 'impact']
-                  }
+      // Only use googleSearch if we didn't get enough raw data
+      const useSearch = !rawCalendarData || !rawNewsData;
+      const config = {
+        tools: useSearch ? [{ googleSearch: {} }] : undefined,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            economicCalendar: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  time: { type: Type.STRING },
+                  event: { type: Type.STRING },
+                  currency: { type: Type.STRING },
+                  impact: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
+                  actual: { type: Type.STRING },
+                  forecast: { type: Type.STRING },
+                  previous: { type: Type.STRING }
                 },
-                futuresPrices: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      symbol: { type: Type.STRING },
-                      contractName: { type: Type.STRING },
-                      latest: { type: Type.STRING },
-                      change: { type: Type.STRING },
-                      open: { type: Type.STRING },
-                      high: { type: Type.STRING },
-                      low: { type: Type.STRING },
-                      volume: { type: Type.STRING },
-                      time: { type: Type.STRING }
-                    },
-                    required: ['symbol', 'contractName', 'latest', 'change']
-                  }
+                required: ['time', 'event', 'currency', 'impact']
+              }
+            },
+            futuresPrices: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  symbol: { type: Type.STRING },
+                  contractName: { type: Type.STRING },
+                  latest: { type: Type.STRING },
+                  change: { type: Type.STRING },
+                  open: { type: Type.STRING },
+                  high: { type: Type.STRING },
+                  low: { type: Type.STRING },
+                  volume: { type: Type.STRING },
+                  time: { type: Type.STRING }
                 },
-                headlineNews: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      time: { type: Type.STRING },
-                      headline: { type: Type.STRING },
-                      source: { type: Type.STRING },
-                      url: { type: Type.STRING }
-                    },
-                    required: ['time', 'headline', 'source', 'url']
-                  }
-                }
-              },
-              required: ['economicCalendar', 'futuresPrices', 'headlineNews']
-            }
-          }
-        });
-      } catch (searchErr) {
-        console.warn("Google Search failed, trying without it:", searchErr);
-        response = await ai.models.generateContent({
-          model,
-          contents: prompt + " (Note: If real-time search is unavailable, use your latest knowledge base for today's expected events)",
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                economicCalendar: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { time: { type: Type.STRING }, event: { type: Type.STRING }, currency: { type: Type.STRING }, impact: { type: Type.STRING }, actual: { type: Type.STRING }, forecast: { type: Type.STRING }, previous: { type: Type.STRING } } } },
-                futuresPrices: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { symbol: { type: Type.STRING }, contractName: { type: Type.STRING }, latest: { type: Type.STRING }, change: { type: Type.STRING } } } },
-                headlineNews: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { time: { type: Type.STRING }, headline: { type: Type.STRING }, source: { type: Type.STRING }, url: { type: Type.STRING } } } }
+                required: ['symbol', 'contractName', 'latest', 'change']
+              }
+            },
+            headlineNews: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  time: { type: Type.STRING },
+                  headline: { type: Type.STRING },
+                  source: { type: Type.STRING },
+                  url: { type: Type.STRING }
+                },
+                required: ['time', 'headline', 'source', 'url']
               }
             }
-          }
-        });
-      }
+          },
+          required: ['economicCalendar', 'futuresPrices', 'headlineNews']
+        }
+      };
+
+      const response = await callGeminiWithRetry(prompt, config, 3);
+      if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const data = JSON.parse(response.text);
       setEvents(data.economicCalendar || []);
@@ -1298,7 +1371,7 @@ export default function News() {
     } finally {
       if (!isBackground) setLoading(false);
     }
-  }, [calendarView]);
+  }, [calendarView, callGeminiWithRetry]);
 
   const fetchArticleContent = async (item: NewsHeadline) => {
     if (item.content) return;
@@ -1322,11 +1395,6 @@ export default function News() {
         console.warn("Proxy fetch failed for article, will fallback to Gemini search:", proxyErr);
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return;
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-
       const prompt = `
         Summarize the following financial news article: "${item.headline}" from ${item.source}.
         ${rawArticleData ? `RAW ARTICLE CONTENT: \n ${rawArticleData} \n\n` : `URL: ${item.url}`}
@@ -1335,18 +1403,19 @@ export default function News() {
         Use Markdown for formatting.
       `;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: { tools: !rawArticleData ? [{ googleSearch: {} }] : undefined }
-      });
+      const config = { tools: !rawArticleData ? [{ googleSearch: {} }] : undefined };
+      const response = await callGeminiWithRetry(prompt, config, 2);
+      if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const content = response.text || "Could not retrieve article content.";
       setNews(prev => prev.map(n => n.url === item.url ? { ...n, content } : n));
       setSelectedNews(prev => prev?.url === item.url ? { ...prev, content } : prev);
     } catch (err: any) {
       console.error("Article Fetch Error:", err);
-      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const isQuotaError = err?.message?.includes('429') || 
+                         err?.status === 429 || 
+                         JSON.stringify(err).includes('429') ||
+                         err?.message?.toLowerCase().includes('quota');
       if (isQuotaError) {
         toast.error("Gemini API quota exceeded. Could not load article content.");
       }
