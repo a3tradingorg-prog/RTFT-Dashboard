@@ -50,6 +50,7 @@ export default function AISummary() {
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastQuotaError, setLastQuotaError] = useState<number | null>(null);
   
   // Preferences
   const [selectedLanguage, setSelectedLanguage] = useState('English');
@@ -194,6 +195,45 @@ export default function AISummary() {
     }
   };
 
+  const callGeminiWithRetry = React.useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API Key is missing.");
+    const ai = new GoogleGenAI({ apiKey });
+    const model = "gemini-3-flash-preview";
+    
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        return await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config
+        });
+      } catch (err: any) {
+        const isQuotaError = err?.message?.includes('429') || 
+                           err?.status === 429 || 
+                           JSON.stringify(err).includes('429') ||
+                           err?.message?.toLowerCase().includes('quota');
+        
+        if (isQuotaError) {
+          setLastQuotaError(Date.now());
+          if (retries < maxRetries - 1) {
+            retries++;
+            const delay = Math.pow(2, retries) * 2000; // 4s, 8s
+            if (toastId) {
+              toast.loading(`Gemini quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
+            } else {
+              console.warn(`Gemini quota reached. Retrying in ${delay/1000}s...`);
+            }
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+        throw err;
+      }
+    }
+  }, []);
+
   const generateSummary = async () => {
     if (trades.length === 0) {
       setError("No trades found to analyze for this account.");
@@ -262,20 +302,11 @@ export default function AISummary() {
 
       toast.loading('Synthesizing data with Gemini...', { id: toastId });
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("Gemini API Key is missing.");
-      }
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
+      const response = await callGeminiWithRetry(prompt, {
+        systemInstruction: "You are a world-class trading performance analyst and psychology coach. You have deep expertise in Technical Analysis, Fundamental Analysis, and the mental game of trading.",
+        tools: [{ googleSearch: {} }] // Use googleSearch as requested to overcome quota/limits
+      }, 3, toastId);
       
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction: "You are a world-class trading performance analyst and psychology coach. You have deep expertise in Technical Analysis, Fundamental Analysis, and the mental game of trading."
-        }
-      });
       const generatedText = response.text || "Could not generate summary.";
 
       setSummary(generatedText);
@@ -296,9 +327,13 @@ export default function AISummary() {
       toast.success('Performance report generated', { id: toastId });
     } catch (err: any) {
       console.error(err);
-      const isQuotaError = err?.message?.includes('429') || err?.status === 429 || JSON.stringify(err).includes('429');
+      const isQuotaError = err?.message?.includes('429') || 
+                         err?.status === 429 || 
+                         JSON.stringify(err).includes('429') ||
+                         err?.message?.toLowerCase().includes('quota');
+                         
       const errorMessage = isQuotaError 
-        ? "Gemini API quota exceeded. Please wait a moment before trying again or upgrade your API plan." 
+        ? "Gemini API quota exceeded. The free tier has limits. Please wait 1-2 minutes and try again." 
         : "Failed to generate AI summary. Please check your API configuration or try again later.";
       setError(errorMessage);
       toast.error(isQuotaError ? 'Quota Exceeded' : 'Analysis failed', { id: toastId });
@@ -320,7 +355,15 @@ export default function AISummary() {
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-white">AI Summarization</h1>
           </div>
-          <p className="text-neutral-500 font-medium ml-1">Advanced analytical core powered by multi-agent intelligence.</p>
+          <div className="flex items-center gap-4">
+            <p className="text-neutral-500 font-medium ml-1">Advanced analytical core powered by multi-agent intelligence.</p>
+            {lastQuotaError && Date.now() - lastQuotaError < 120000 && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full animate-pulse">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Quota Cooling Down</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
