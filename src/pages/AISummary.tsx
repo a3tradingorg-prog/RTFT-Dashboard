@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { callGeminiWithRetry } from '../lib/gemini';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -323,7 +322,7 @@ export default function AISummary() {
         - List: [Actionable Adjustments]
       `;
 
-      toast.loading('Synthesizing data with Gemini 3 Flash...', { id: toastId });
+      toast.loading('Synthesizing data with Gemini 1.5 Flash...', { id: toastId });
 
       const response = await callGeminiWithRetry(prompt, {
         systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler.",
@@ -500,7 +499,7 @@ export default function AISummary() {
                 <Sparkles className="w-6 h-6 text-black" />
               </div>
               <div className="space-y-1">
-                <h4 className="font-bold text-white">Gemini 3 Flash</h4>
+                <h4 className="font-bold text-white">Gemini 1.5 Flash</h4>
                 <p className="text-[11px] text-neutral-500 leading-relaxed">Powered by Google's latest high-efficiency AI model for deep trading analysis.</p>
               </div>
             </div>
@@ -626,7 +625,7 @@ export default function AISummary() {
                       </div>
                       <h3 className="text-3xl font-bold text-white">Performance Intelligence Report</h3>
                       <div className="flex items-center gap-4 text-neutral-500 text-xs font-bold">
-                        <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Gemini 3 Flash</span>
+                        <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Gemini 1.5 Flash</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />
                         <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5" /> {selectedLanguage}</span>
                         <span className="w-1 h-1 bg-neutral-800 rounded-full" />

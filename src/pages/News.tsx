@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { callGeminiWithRetry } from '../lib/gemini';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { 
