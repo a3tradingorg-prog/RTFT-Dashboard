@@ -206,6 +206,17 @@ export default function AISummary() {
   };
 
 
+  const generateHash = (data: any) => {
+    const str = JSON.stringify(data);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(16);
+  };
+
   const generateSummary = async () => {
     if (isFetchingRef.current) return;
 
@@ -215,7 +226,7 @@ export default function AISummary() {
     
     // If we hit a quota error recently (within 5 mins), warn the user
     if (lastErrorTime && Date.now() - lastErrorTime < 300000) {
-      setError("Gemini API quota was recently exceeded. Please wait a few minutes before trying again.");
+      setError("Daily AI Quota Reached. Please wait a few minutes or try again tomorrow.");
       return;
     }
 
@@ -232,23 +243,6 @@ export default function AISummary() {
     const toastId = toast.loading('Initializing performance analysis...');
 
     try {
-      // Check cache first
-      const today = new Date().toISOString().split('T')[0];
-      const { data: cachedAnalysis } = await supabase
-        .from('analysis_cache')
-        .select('analysis_result')
-        .eq('account_id', selectedAccountId)
-        .eq('analysis_date', today)
-        .maybeSingle();
-
-      if (cachedAnalysis) {
-        setSummary(cachedAnalysis.analysis_result);
-        setSummarizing(false);
-        isFetchingRef.current = false;
-        toast.success('Loaded cached analysis.', { id: toastId });
-        return;
-      }
-
       // Prepare data for AI - Focus on Outcome, Entry Reason, Risk:Reward
       // Group trade entries into batches of 20 - taking the most recent batch
       const account = accounts.find(a => a.id === selectedAccountId);
@@ -262,13 +256,33 @@ export default function AISummary() {
         if (risk > 0) rr = Number((reward / risk).toFixed(2));
 
         return {
-          Outcome: t.pnl > 0 ? 'WIN' : t.pnl < 0 ? 'LOSS' : 'BE',
-          'Entry Reason': t.entry_context || 'N/A',
-          'Risk:Reward': rr,
-          PnL: t.pnl,
-          Asset: t.asset
+          O: t.pnl > 0 ? 'W' : t.pnl < 0 ? 'L' : 'B', // Minimized keys
+          R: t.entry_context || 'N/A',
+          RR: rr,
+          P: t.pnl,
+          A: t.asset
         };
       });
+
+      const dataHash = generateHash(tradeData);
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check cache first using account_id, data_hash, AND language
+      const { data: cachedAnalysis } = await supabase
+        .from('analysis_cache')
+        .select('analysis_result')
+        .eq('account_id', selectedAccountId)
+        .eq('data_hash', dataHash)
+        .eq('language', selectedLanguage)
+        .maybeSingle();
+
+      if (cachedAnalysis) {
+        setSummary(cachedAnalysis.analysis_result);
+        setSummarizing(false);
+        isFetchingRef.current = false;
+        toast.success('Loaded from cache.', { id: toastId });
+        return;
+      }
 
       const prompt = `
         ### ROLE: High-Efficiency Trading Data Analyst (Token-Optimized Mode)
@@ -282,10 +296,14 @@ export default function AISummary() {
         
         ### TASK: DEEP PERFORMANCE AUDIT (PRODUCTION ENV)
         
+        ### LANGUAGE REQUIREMENT:
+        CRITICAL: You must provide the entire analysis and report in ${selectedLanguage}. 
+        If the language is Myanmar, use professional Burmese terminology while keeping technical trading terms like 'BSL', 'SSL', 'FVG', 'RR', 'FVG', 'OB' in English.
+        
         ### DATA TO ANALYZE:
         Account Size: ${account?.account_size}
         Balance: ${formatCurrency(account?.current_balance || 0)}
-        Trades: ${JSON.stringify(tradeData)}
+        Trades (O=Outcome, R=Reason, RR=RiskReward, P=PnL, A=Asset): ${JSON.stringify(tradeData)}
         
         ### EXECUTION STEPS:
         1. Pre-filter: Identify 3 most significant equity curve drops.
@@ -305,7 +323,7 @@ export default function AISummary() {
         - List: [Actionable Adjustments]
       `;
 
-      toast.loading('Synthesizing data with Gemini (Token-Optimized)...', { id: toastId });
+      toast.loading('Synthesizing data with Gemini 1.5 Flash...', { id: toastId });
 
       const response = await callGeminiWithRetry(prompt, {
         systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler.",
@@ -320,13 +338,13 @@ export default function AISummary() {
       await supabase.from('analysis_cache').upsert({
         account_id: selectedAccountId,
         analysis_date: today,
+        data_hash: dataHash,
+        language: selectedLanguage,
         analysis_result: generatedText,
         created_at: new Date().toISOString()
-      }, { onConflict: 'account_id, analysis_date' });
+      }, { onConflict: 'account_id, data_hash, language' });
 
       toast.success('Analysis complete and cached.', { id: toastId });
-
-      toast.success('Performance report generated', { id: toastId });
     } catch (err: any) {
       console.error(err);
       const isQuotaError = err?.message?.includes('429') || 

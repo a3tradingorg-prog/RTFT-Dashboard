@@ -6,7 +6,10 @@ const getApiKeys = () => {
   return keys;
 };
 
-let currentKeyIndex = 0;
+const getRandomApiKey = (keys: string[]) => {
+  const index = Math.floor(Math.random() * keys.length);
+  return keys[index];
+};
 
 export const callGeminiWithRetry = async (
   prompt: string, 
@@ -20,9 +23,9 @@ export const callGeminiWithRetry = async (
   
   let retries = 0;
   while (retries < maxRetries) {
-    const apiKey = keys[currentKeyIndex];
+    const apiKey = getRandomApiKey(keys);
     const ai = new GoogleGenAI({ apiKey });
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-1.5-flash";
     
     try {
       return await ai.models.generateContent({
