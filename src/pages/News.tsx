@@ -1170,12 +1170,6 @@ export default function News() {
         console.warn("Proxy fetch failed in fetchData, will rely on Gemini search:", proxyErr);
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API Key is missing.");
-      
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-
       const prompt = `
         Fetch the most accurate, real-time financial market data for the period: ${calendarView}.
         Current Date: ${new Date().toLocaleDateString()}.

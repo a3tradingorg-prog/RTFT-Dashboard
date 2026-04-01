@@ -25,7 +25,7 @@ export const callGeminiWithRetry = async (
   while (retries < maxRetries) {
     const apiKey = getRandomApiKey(keys);
     const ai = new GoogleGenAI({ apiKey });
-    const model = "gemini-1.5-flash";
+    const model = "gemini-3-flash-preview";
     
     try {
       return await ai.models.generateContent({
@@ -41,9 +41,6 @@ export const callGeminiWithRetry = async (
       
       if (isQuotaError) {
         if (updateQuotaError) updateQuotaError(Date.now());
-        
-        // Rotate key on 429
-        currentKeyIndex = (currentKeyIndex + 1) % keys.length;
         
         if (retries < maxRetries - 1) {
           retries++;
