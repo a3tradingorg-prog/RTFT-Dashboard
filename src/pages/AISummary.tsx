@@ -269,64 +269,66 @@ export default function AISummary() {
     const toastId = toast.loading('Initializing performance analysis...');
 
     try {
-      // Prepare data for AI - Limit to last 50 trades to prevent token overflow
+      // Prepare data for AI - Focus on Outcome, Entry Reason, Risk:Reward
       const account = accounts.find(a => a.id === selectedAccountId);
       const recentTrades = trades.slice(0, 50);
       
-      const tradeData = recentTrades.map(t => ({
-        asset: t.asset,
-        type: t.type,
-        pnl: t.pnl,
-        pnl_percent: t.pnl_percent,
-        date: t.entry_date,
-        status: t.status,
-        psychology: t.psychology_status,
-        context: t.entry_context,
-        strategy: strategies.find(s => s.strategy_id === t.strategy_id)?.strategy_name || 'Unknown'
-      }));
+      const tradeData = recentTrades.map(t => {
+        // Calculate RR
+        let rr = 0;
+        const risk = Math.abs(t.entry_price - t.stop_loss);
+        const reward = Math.abs(t.take_profit - t.entry_price);
+        if (risk > 0) rr = Number((reward / risk).toFixed(2));
 
-      const strategyData = strategies.map(s => ({
-        name: s.strategy_name,
-        description: s.description,
-        assets: s.assets_applicable,
-        timeframes: s.timeframes_applicable
-      }));
+        return {
+          Outcome: t.pnl > 0 ? 'WIN' : t.pnl < 0 ? 'LOSS' : 'BE',
+          'Entry Reason': t.entry_context || 'N/A',
+          'Risk:Reward': rr,
+          PnL: t.pnl,
+          Asset: t.asset
+        };
+      });
 
       const prompt = `
-        Analyze the following trading data for the account "${account?.name}".
+        ### ROLE: High-Efficiency Trading Data Analyst (Token-Optimized Mode)
+        ### CONTEXT: Analyzing live trading account "${account?.name}" with TPM limits.
         
-        Account Context:
-        - Size: ${account?.account_size}
-        - Initial Balance: ${formatCurrency(account?.initial_balance || 0)}
-        - Current Balance: ${formatCurrency(account?.current_balance || 0)}
-        - Max Drawdown Limit: ${account?.max_drawdown}%
+        ### OPERATIONAL GUIDELINES:
+        1. Focus only on 'Outcome', 'Entry Reason', and 'Risk:Reward'.
+        2. Output only 'High-Impact Findings'. Do not repeat data.
+        3. Use compressed Markdown tables and bullet points. No conversational filler.
+        4. Prioritize most recent 20% of trades and 5 largest losses.
         
-        Trade History (Last ${recentTrades.length} trades):
-        ${JSON.stringify(tradeData, null, 2)}
+        ### TASK: DEEP PERFORMANCE AUDIT (PRODUCTION ENV)
         
-        Defined Strategies:
-        ${JSON.stringify(strategyData, null, 2)}
+        ### DATA TO ANALYZE:
+        Account Size: ${account?.account_size}
+        Balance: ${formatCurrency(account?.current_balance || 0)}
+        Trades: ${JSON.stringify(tradeData)}
         
-        Please provide a comprehensive analysis in ${selectedLanguage}.
-        Structure the response with the following sections:
+        ### EXECUTION STEPS:
+        1. Pre-filter: Identify 3 most significant equity curve drops.
+        2. Pattern Recognition: Compare 'Entry Logic' of losing vs winning trades.
+        3. Synthesis: Provide "Trader's Blindspot" analysis.
         
-        1. **Performance Overview**: A summary of profitability, win rate, and risk-adjusted returns.
-        2. **Psychological Insights**: Analysis of the "psychology_status" recorded for trades. Identify emotional patterns (e.g., FOMO, revenge trading, or disciplined execution).
-        3. **Strategic Alignment**: How well the trades align with the defined strategies. Are there "off-strategy" trades?
-        4. **Areas for Improvement**: 3-5 specific, actionable points to correct or refine.
-        5. **Reinforcement**: Identify 2-3 positive habits that should be maintained.
-        6. **Suggestions for Addition**: Recommendations for new strategies, risk management rules, or psychological approaches to consider.
+        ### TOKEN CONSTRAINTS:
+        - Response MUST NOT exceed 300 tokens.
+        - Use Technical Trading Shorthand (RR, BE, FVG, etc.).
+        - Focus 80% on 'Why losses happened' and 20% on 'How to scale wins'.
         
-        Use professional trading terminology (TA, FA, Psychology).
-        Keep the tone professional, objective, and constructive.
-        Use Markdown for formatting with clear headers and bullet points.
+        ### OUTPUT STRUCTURE:
+        - **Core Edge:** [1 sentence]
+        - **Primary Leak:** [1 sentence]
+        - **Strategic Fix:** [3 actionable bullet points]
+        - Table: [Trade Patterns]
+        - List: [Actionable Adjustments]
       `;
 
-      toast.loading('Synthesizing data with Gemini...', { id: toastId });
+      toast.loading('Synthesizing data with Gemini (Token-Optimized)...', { id: toastId });
 
       const response = await callGeminiWithRetry(prompt, {
-        systemInstruction: "You are a world-class trading performance analyst and psychology coach. You have deep expertise in Technical Analysis, Fundamental Analysis, and the mental game of trading.",
-        tools: [{ googleSearch: {} }] // Use googleSearch as requested to overcome quota/limits
+        systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler.",
+        tools: [{ googleSearch: {} }]
       }, 3, toastId);
       
       const generatedText = response.text || "Could not generate summary.";
