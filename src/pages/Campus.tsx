@@ -97,6 +97,148 @@ const FUTURE_MENTORSHIP_VIDEOS = [
   { id: 'fm13', title: 'Future Mentorship 2026: Power of Three', url: 'https://youtu.be/8_yZ8fjeL7s', description: 'Lecture episode about the "Power of Three" concept.' },
 ];
 
+const TTT_BASIC = [
+  {
+    title: "Introduction To The Path",
+    videos: [
+      { id: "ttt-b-1-1", title: "Introduction to the Course & to trading", url: "https://youtu.be/NHM0u5gn1nA?si=PcPR20cb-fjYUaaF", description: "Course overview and trading basics." },
+      { id: "ttt-b-1-2", title: "Who you are competing with", url: "https://youtu.be/vIocgg12jvs?si=NZgKmkC0dPCPxXAg", description: "Understanding market participants." },
+      { id: "ttt-b-1-3", title: "Investing Vs Trading", url: "https://youtu.be/Alv4Gy__hzw?si=zWD3fU6vmlp6ETD2", description: "Differences between investing and trading." }
+    ]
+  },
+  {
+    title: "Series 100 - Introduction To Trading",
+    videos: [
+      { id: "ttt-b-2-1", title: "Your trading journey", url: "https://youtu.be/BZ31WpVmsyw?si=3W2_rc0lGs5l5klq", description: "Setting expectations for your journey." },
+      { id: "ttt-b-2-2", title: "Understanding CFDs", url: "https://youtu.be/OACazUYigGU?si=LuYrwJCmPFGM0vqp", description: "Basics of Contract for Difference." },
+      { id: "ttt-b-2-3", title: "Understanding Futures", url: "https://youtu.be/fEwXKFTB2OM?si=4Yqk-hrT-q6sHIwl", description: "Basics of Futures trading." },
+      { id: "ttt-b-2-4", title: "Tools you will need as a trader", url: "https://youtu.be/Qr5x0Egap-o?si=ZqXGC3YdTLZ2sDih", description: "Essential trading tools." },
+      { id: "ttt-b-2-5", title: "Who, what, why, when, where, how", url: "https://youtu.be/JU_Sb5C2fEM?si=RjgvX3iri0pqTAmH", description: "The 5Ws and 1H of trading." },
+      { id: "ttt-b-2-6", title: "Introduction to technical analysis", url: "https://youtu.be/UB1f97ViD6Y?si=RZKE5rdM6mupOErV", description: "Basics of TA." },
+      { id: "ttt-b-2-7", title: "Trading styles and strategies", url: "https://youtu.be/cJWFBPQc4Xk?si=BKYP8K5qyTkRXgaf", description: "Different approaches to the market." },
+      { id: "ttt-b-2-8", title: "How to build your trading strategy", url: "https://youtu.be/Iq5z0KJkWls?si=diYYAEmj0bCygGyc", description: "Strategy development guide." },
+      { id: "ttt-b-2-9", title: "How to build your trading success", url: "https://youtu.be/WSBUVqmaeiE?si=2mYfkqe8NECiPTs3", description: "Path to consistent profitability." }
+    ]
+  },
+  {
+    title: "Series 200 - Introduction To Technical Analysis",
+    videos: [
+      { id: "ttt-b-3-1", title: "200 Series - Didactical Objectives", url: "https://youtu.be/Ao_qZp1vNWk?si=tibxBCVyI9e6XMOb", description: "Learning goals for TA series." },
+      { id: "ttt-b-3-2", title: "201 - Market Mechanics", url: "https://youtu.be/wQD8oh7cI6g?si=PsAFbwD_PMVVh00A", description: "How markets actually function." },
+      { id: "ttt-b-3-3", title: "202 - Volume", url: "https://youtu.be/oNysIXIuuuc?si=Nl_7R3lag5QswG26", description: "Importance of volume in trading." },
+      { id: "ttt-b-3-4", title: "203 - Indicators", url: "https://youtu.be/0nWM4DxxGhk?si=F2_szjCBXPSwki1i", description: "Using technical indicators effectively." },
+      { id: "ttt-b-3-5", title: "204 - Basic of Price Action Analysis", url: "https://youtu.be/UlCCTvqmN5I?si=cUnb-VLDKBQN6cUV", description: "Introduction to price action." }
+    ]
+  },
+  {
+    title: "Series 300 - Introduction To Fundamental Analysis",
+    videos: [
+      { id: "ttt-b-4-1", title: "300 - Introduction", url: "https://youtu.be/GkC1-KGvVso?si=yTDgnuR2-OXbsruQ", description: "Intro to FA series." },
+      { id: "ttt-b-4-2", title: "301 - What is fundamental Analysis", url: "https://youtu.be/1sGLeNXthXY?si=GC_yfwFnJ-u19jeT", description: "Core concepts of FA." },
+      { id: "ttt-b-4-3", title: "302 - Brief history of Money", url: "https://youtu.be/Ap06Wf8Vbz8?si=Ft_MiymlqNjEHNMC", description: "Evolution of currency." },
+      { id: "ttt-b-4-4", title: "303 - Debt Cycles", url: "https://youtu.be/STwPwThRo40?si=_0I0aJxJxBlbgFh8", description: "Understanding economic cycles." },
+      { id: "ttt-b-4-5", title: "304 - Role of Central Banks", url: "https://youtu.be/LGUAW3lPoX4?si=DPeB4qu1NDYRX59c", description: "Monetary policy and central banking." },
+      { id: "ttt-b-4-6", title: "305 - Economic Growth", url: "https://youtu.be/0rs31iOPYhM?si=r4Qq36h5lHWs8y2f", description: "GDP and growth indicators." },
+      { id: "ttt-b-4-7", title: "306 - Inflation", url: "https://youtu.be/WpKcwXF7dB8?si=AfhlB9wt4Khtq_2o", description: "CPI and inflation dynamics." },
+      { id: "ttt-b-4-8", title: "307 - Employment Data", url: "https://youtu.be/Ubh9PSCMjuQ?si=_q__IjGn5TnL7I_H", description: "NFP and unemployment reports." },
+      { id: "ttt-b-4-9", title: "308 - Business Sentiment", url: "https://youtu.be/gYDhxLFj5vY?si=eQJGKcfjrVtXGK9U", description: "PMI and business surveys." },
+      { id: "ttt-b-4-10", title: "309 - Consumer Sentiment", url: "https://youtu.be/nWuQRmc3Owc?si=losPGtFG48KXoSP_", description: "Consumer confidence metrics." },
+      { id: "ttt-b-4-11", title: "310 - The economic calendar", url: "https://youtu.be/IJ50yi-7994?si=u3EG8zsRxgcGMwut", description: "Navigating economic releases." }
+    ]
+  },
+  {
+    title: "Series 400 - Volume Profile Mastery, Day Trading & Swing Trading",
+    videos: [
+      { id: "ttt-b-5-1", title: "400 - Introduction", url: "https://youtu.be/Ceh43DXjdc4?si=Iza_j4eQBC1btfCK", description: "Intro to advanced execution." },
+      { id: "ttt-b-5-2", title: "401 - Why is our trading style unique", url: "https://youtu.be/tqb5HwKPZJA?si=hjHZQxlsZvrxNr-d", description: "Our edge in the market." },
+      { id: "ttt-b-5-3", title: "402 - What is the volume profile", url: "https://youtu.be/pkgov1VFQOo?si=bcqT5P1OlWLEUqlE", description: "Core concepts of Volume Profile." },
+      { id: "ttt-b-5-4", title: "403 - Introduction to intraday Setups", url: "https://youtu.be/osmVzyU4B9U?si=4fNiJlq7xm6WwGdB", description: "Day trading models." },
+      { id: "ttt-b-5-5", title: "403 - Summary & Entry_Exit Checklist", url: "https://youtu.be/9M2BHG9CjKc?si=2LctuOwRQbgZiOeO", description: "Execution checklist." },
+      { id: "ttt-b-5-6", title: "403 - Variant 1", url: "https://youtu.be/F0-2VJdg4As?si=PYHSAtaeN7WPMYse", description: "Setup Variant 1." },
+      { id: "ttt-b-5-7", title: "403 - Variant 1 - Example", url: "https://youtu.be/8IPJY5_ouHA?si=7z4_2-MjhTHWv6Mn", description: "Variant 1 in practice." },
+      { id: "ttt-b-5-8", title: "403 - Variant 2", url: "https://youtu.be/uC_v-9JGw1U?si=M2OvjHBS5orJnCZt", description: "Setup Variant 2." },
+      { id: "ttt-b-5-9", title: "403 - Variant 2 - Example", url: "https://youtu.be/8LJgwnwWkp0?si=0DhToN2NYQfQ8p5V", description: "Variant 2 in practice." },
+      { id: "ttt-b-5-10", title: "403 - Variant 3", url: "https://youtu.be/jb3xdfqtcYg?si=QXlbA9d9i0pfR16j", description: "Setup Variant 3." },
+      { id: "ttt-b-5-11", title: "403 - Variant 3 - Example", url: "https://youtu.be/rSFHh2cGgUY?si=eHycXUttT7F6Su4e", description: "Variant 3 in practice." },
+      { id: "ttt-b-5-12", title: "403 - Variant 4", url: "https://youtu.be/GtcakiWHMeI?si=Yh7JeQjJtSrEirYH", description: "Setup Variant 4." },
+      { id: "ttt-b-5-13", title: "403 - Variant 4 - Example", url: "https://youtu.be/zeNQb_O5tbU?si=nlyMhNTZGHbugvom", description: "Variant 4 in practice." },
+      { id: "ttt-b-5-14", title: "404 - Big Picture", url: "https://youtu.be/oQk-AZXixRs?si=qw2F_j9okkKK8eBG", description: "Higher timeframe context." },
+      { id: "ttt-b-5-15", title: "404 - Big Picture Example Booking", url: "https://youtu.be/ffP2Hj5YkcI?si=IVlDt2p0TUAm5cSA", description: "Macro context example." },
+      { id: "ttt-b-5-16", title: "404 - Big Picture Example CL", url: "https://youtu.be/CMhfOUp9xdE?si=Xa9IY5AKrrFhT3hW", description: "Crude Oil macro example." },
+      { id: "ttt-b-5-17", title: "405 - Technical Derivation", url: "https://youtu.be/-5Kx9mVeWWc?si=ZwpM-snak3YQ7Esz", description: "Advanced technical concepts." }
+    ]
+  },
+  {
+    title: "Live Q&As",
+    videos: [
+      { id: "ttt-b-6-1", title: "Q&A - Jonathan", url: "https://youtu.be/0WtQ2hV1YOY?si=IIezK9VMIh3ewkO8", description: "Live Q&A session." },
+      { id: "ttt-b-6-2", title: "Q&A - Jonathan", url: "https://youtu.be/MG6E4KXjPfo?si=D-PwvMhmo3HrVC5M", description: "Live Q&A session." }
+    ]
+  }
+];
+
+const TTT_PREMIUM = [
+  {
+    title: "Introduction Edge Implementation",
+    videos: [
+      { id: "ttt-p-1-1", title: "Introduction to edges", url: "https://youtu.be/IZvnNP_D_EE?si=K1eDTcLZ4oOZOA4T", description: "Defining market edges." },
+      { id: "ttt-p-1-2", title: "Edge 1 Opening Variants", url: "https://youtu.be/y3DmDLSyaIE?si=kmvQQr7WVEPvXVP_", description: "Opening bell strategies." },
+      { id: "ttt-p-1-3", title: "Edge 2 Overlaping Levels", url: "https://youtu.be/zCZH3ke5OhY?si=XyxnE4UgImYioK2L", description: "Confluence of levels." },
+      { id: "ttt-p-1-4", title: "Edge 3 Mountains & Valley", url: "https://youtu.be/AC9KmTDlJFg?si=I3waQvxWFtEyVHMl", description: "Structural edges." },
+      { id: "ttt-p-1-5", title: "Edge 4 Business Zones", url: "https://youtu.be/LXxVpxSb-cA?si=1GaN0tBqr1UNqaIr", description: "High probability zones." },
+      { id: "ttt-p-1-6", title: "Backtesting FDAX Edge Examples", url: "https://youtu.be/v0HhUVJpXDY?si=wAKOrRB5jJWcYqrZ", description: "DAX backtesting." },
+      { id: "ttt-p-1-7", title: "Building Tradingview Layout From Scratch", url: "https://youtu.be/9rdAjEfAmv8?si=cr1sAH6eYTadJ90Z", description: "Platform setup." },
+      { id: "ttt-p-1-8", title: "Tradingview Layout Overview", url: "https://youtu.be/ICZXFxTk6JI?si=33bIBr8FFTZpNaJv", description: "Optimizing your workspace." }
+    ]
+  },
+  {
+    title: "Series 5 - Market Profile",
+    videos: [
+      { id: "ttt-p-2-1", title: "500 - Introduction", url: "https://youtu.be/ckGzGjkImbg?si=6t4ZpiESk13W_aGg", description: "Intro to Market Profile." },
+      { id: "ttt-p-2-2", title: "501 - Market Profile", url: "https://youtu.be/RmSNlzp4sh8?si=zaVi0xnFb-UQJR62", description: "Core concepts of MP." },
+      { id: "ttt-p-2-3", title: "502 - Symmetric & Asymmetric Profiles", url: "https://youtu.be/MIwkUel-uh8?si=0Y3G780oxtZYUB_W", description: "Profile shapes and meaning." },
+      { id: "ttt-p-2-4", title: "503 - Market Openings", url: "https://youtu.be/AdgpCMa6mrQ?si=i9j5KkD4uEKwkE-4", description: "MP opening types." },
+      { id: "ttt-p-2-5", title: "504 - Checklist, Context, Timing & Execution", url: "https://youtu.be/7Sefk4nbFPU?si=2fXwZlMviWBPDoC7", description: "Execution framework." },
+      { id: "ttt-p-2-6", title: "505 - Business Zones", url: "https://youtu.be/Go1LYqw73vc?si=K1sN3dIhrmciqkLB", description: "MP business zones." }
+    ]
+  },
+  {
+    title: "Series 6 - Dynamic Setups",
+    videos: [
+      { id: "ttt-p-3-1", title: "600 - Introduction", url: "https://youtu.be/XUWQ-wmBzMo?si=3kZgQGUapf-th_lX", description: "Intro to Dynamic Setups." },
+      { id: "ttt-p-3-2", title: "601 - Dynamic Setups", url: "https://youtu.be/nFhrEsZLH78?si=VX2ba_vJVv67TGHa", description: "Adaptive trading models." },
+      { id: "ttt-p-3-3", title: "602 - Footprint Charts", url: "https://youtu.be/LVeUutCbE7o?si=HdEfrDX6wmHhSgLP", description: "Order flow visualization." },
+      { id: "ttt-p-3-4", title: "603 - Footprint Details", url: "https://youtu.be/ZIxdC65kzPg?si=2biS-zEQ6trzjcXX", description: "Deep dive into Footprint." },
+      { id: "ttt-p-3-5", title: "604 - Orderflow Basics", url: "https://youtu.be/Ja7ekO_cUkE?si=p50m1zZ5Xg0FmWi2", description: "Introduction to Order Flow." },
+      { id: "ttt-p-3-6", title: "605 - Orderflow Speed", url: "https://youtu.be/p4KTDJ-Yr2Q?si=B6WPWbVTSrHHgX-f", description: "Tape reading and speed." },
+      { id: "ttt-p-3-7", title: "606 - Technical Setups", url: "https://youtu.be/Vkv5BilH13A?si=S0-uaMH0uG-Oti8M", description: "Advanced technical execution." }
+    ]
+  },
+  {
+    title: "Series 7 - Risk & Money Management",
+    videos: [
+      { id: "ttt-p-4-1", title: "700 - Introduction", url: "https://youtu.be/LEC6KO0JqAo?si=JMcx_YRdxoeUZvdt", description: "Intro to Risk Management." },
+      { id: "ttt-p-4-2", title: "701 - Risk Vs Money Management", url: "https://youtu.be/dJujYooTI6o?si=nkD94_4C-QiEQ-P_", description: "Key distinctions." },
+      { id: "ttt-p-4-3", title: "702 - Money Management", url: "https://youtu.be/AzaNIQBnec0?si=YhRZs-V7xKHZeX38", description: "Capital preservation." },
+      { id: "ttt-p-4-4", title: "703 - Risk Management", url: "https://youtu.be/3PBhiZSqBVQ?si=EubgpISNO-zkP6gM", description: "Trade risk control." },
+      { id: "ttt-p-4-5", title: "704 - Hit Rate", url: "https://youtu.be/iuB5n3oT1M8?si=QKUW6_CspPWCLIfd", description: "Understanding win rates." },
+      { id: "ttt-p-4-6", title: "705 - Risk to Reward Ratio", url: "https://youtu.be/IZ8WrRpEFeM?si=uQBG9eGhiS1xJTay", description: "Optimizing RR." },
+      { id: "ttt-p-4-7", title: "706 - How important is hit rate", url: "https://youtu.be/8H3P02o85_k?si=glnE4gKzjfyCUycF", description: "Win rate vs RR." },
+      { id: "ttt-p-4-8", title: "707 - Expectancy", url: "https://youtu.be/OiQGmxoLSCY?si=7XkNGKa29D5958QP", description: "Mathematical edge." },
+      { id: "ttt-p-4-9", title: "708 - Montecarlo Simulation", url: "https://youtu.be/JZl3-EN-ShM?si=uYa0LW8LDGR7anh7", description: "Probability modeling." },
+      { id: "ttt-p-4-10", title: "709 - Maximum Drawdonw", url: "https://youtu.be/a2ZtomvGZEY?si=Vwtaj8o1Ckrrbae_", description: "Managing drawdowns." },
+      { id: "ttt-p-4-11", title: "710 - Maximum Losing Streak & Psychology", url: "https://youtu.be/vKmcJp0pFFg", description: "Mental game during streaks." }
+    ]
+  },
+  {
+    title: "Live Sessions",
+    videos: [
+      { id: "ttt-p-5-1", title: "Friday 17th Jan - Questions & Answers Session", url: "https://youtu.be/5ASQfwR2mYQ?si=2Ww92gbkx1X-tSms", description: "Live Q&A." },
+      { id: "ttt-p-5-2", title: "Tuesday 21st January - Market Outlook", url: "https://youtu.be/Ree-smR2Hdw?si=BtLKVI8VuJJf70hP", description: "Live Market Analysis." }
+    ]
+  }
+];
+
 const getYouTubeId = (url: string) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
@@ -185,6 +327,7 @@ export default function Campus() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('2026 Future Mentorship');
+  const [tttSubFilter, setTttSubFilter] = useState<'Basic' | 'Premium'>('Basic');
   const [openVideoId, setOpenVideoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -206,6 +349,7 @@ export default function Campus() {
 
   const categories = [
     '2026 Future Mentorship',
+    'TTT',
     'VIP-1 Courses', 
     'VIP-2 Courses', 
     'Day Trading Strategy', 
@@ -337,6 +481,78 @@ export default function Campus() {
                 />
               ))}
             </div>
+          </div>
+        </div>
+      ) : filter === 'TTT' ? (
+        <div className="max-w-5xl space-y-12">
+          {/* TTT Header */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-sky-500/20 via-sky-500/5 to-transparent border border-sky-500/20 p-8 md:p-12"
+          >
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="px-3 py-1 bg-sky-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Mentorship Program
+                </span>
+                <span className="px-3 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest border border-sky-500/20 rounded-lg">
+                  Complete Series
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">TTT Mentorship Program</h2>
+              <p className="text-lg text-neutral-400 mb-8 leading-relaxed max-w-2xl">
+                Master the markets with the TTT path. From basic introduction to advanced volume profile mastery and dynamic setups.
+              </p>
+              
+              {/* Sub-filter Toggle */}
+              <div className="flex p-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl w-fit">
+                {(['Basic', 'Premium'] as const).map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => {
+                      setTttSubFilter(sub);
+                      setOpenVideoId(null);
+                    }}
+                    className={cn(
+                      "px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                      tttSubFilter === sub 
+                        ? "bg-sky-500 text-black shadow-lg shadow-sky-500/20" 
+                        : "text-neutral-500 hover:text-white"
+                    )}
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-sky-500/10 to-transparent pointer-events-none" />
+          </motion.div>
+
+          {/* TTT Curriculum */}
+          <div className="space-y-12">
+            {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => (
+              <div key={section.title} className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-500 font-bold text-xs">
+                    0{sIdx + 1}
+                  </div>
+                  <h3 className="text-xl font-bold text-white">{section.title}</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {section.videos.map((video) => (
+                    <AccordionItem 
+                      key={video.id}
+                      title={video.title}
+                      description={video.description}
+                      url={video.url}
+                      isOpen={openVideoId === video.id}
+                      onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : filter === 'VIP-1 Courses' ? (

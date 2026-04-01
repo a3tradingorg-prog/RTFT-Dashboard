@@ -449,7 +449,7 @@ const NewsModal = ({ item, onClose }: { item: NewsHeadline | null, onClose: () =
   );
 };
 
-const AICrawler = ({ callGeminiWithRetry }: { callGeminiWithRetry: any }) => {
+const AICrawler = ({ callGeminiWithRetry, updateQuotaError }: { callGeminiWithRetry: any, updateQuotaError: (time: number) => void }) => {
   const { user, session } = useAuth();
   const [pythonCode, setPythonCode] = useState(`import requests
 from bs4 import BeautifulSoup
@@ -578,7 +578,7 @@ def crawl_news():
         tools: [{ googleSearch: {} }]
       };
 
-      const response = await callGeminiWithRetry(prompt, config, 3);
+      const response = await callGeminiWithRetry(prompt, config, 3, undefined, updateQuotaError);
       if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const output = response.text || "No output generated.";
@@ -1460,7 +1460,7 @@ export default function News() {
 
         {activeTab === 'crawler' && (
           <motion.div key="crawler" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <AICrawler callGeminiWithRetry={callGeminiWithRetry} />
+            <AICrawler callGeminiWithRetry={callGeminiWithRetry} updateQuotaError={updateQuotaError} />
           </motion.div>
         )}
       </AnimatePresence>
