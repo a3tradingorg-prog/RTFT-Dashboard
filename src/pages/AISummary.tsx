@@ -334,8 +334,7 @@ export default function AISummary() {
       toast.loading('Synthesizing data with Gemini 1.5 Flash...', { id: toastId });
 
       const response = await callGeminiWithRetry(prompt, {
-        systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler.",
-        tools: [{ googleSearch: {} }]
+        systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler."
       }, 3, toastId, updateQuotaError);
       
       const generatedText = response.text || "Could not generate summary.";
