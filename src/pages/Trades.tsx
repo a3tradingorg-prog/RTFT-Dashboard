@@ -87,7 +87,10 @@ export default function Trades() {
         .order('entry_date', { ascending: false });
 
       if (error) throw error;
-      if (data) setTrades(data);
+      if (data) {
+        const uniqueTrades = Array.from(new Map(data.map((t: any) => [t.id, t])).values());
+        setTrades(uniqueTrades as Trade[]);
+      }
     } catch (error) {
       console.error('Error fetching trades:', error);
     } finally {

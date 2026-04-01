@@ -21,6 +21,12 @@ const getApiKeys = () => {
   return keys;
 };
 
+const MODELS = [
+  "gemini-3-flash-preview",
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite-preview"
+];
+
 export const callGeminiWithRetry = async (
   prompt: string, 
   config: any = {}, 
@@ -31,24 +37,51 @@ export const callGeminiWithRetry = async (
   const allKeys = getApiKeys();
   if (allKeys.length === 0) throw new Error("Gemini API Key is missing.");
   
-  let retries = 0;
+  // 1. Attempt Backend Proxy Call First
+  try {
+    console.log("[Gemini] Attempting backend proxy call...");
+    const response = await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, config })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    }
+
+    if (response.status === 429) {
+      console.warn("[Gemini] Backend rate limited (429). Falling back to client-side rotation.");
+      if (toastId) toast.loading("Backend busy, switching to direct client-side connection...", { id: toastId });
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[Gemini] Backend error:", errorData);
+    }
+  } catch (err) {
+    console.error("[Gemini] Failed to reach backend proxy:", err);
+  }
+
+  // 2. Client-Side Fallback with Key & Model Rotation
   let lastError: any = null;
 
-  while (retries < maxRetries) {
-    // Shuffle keys for each retry attempt to distribute load
+  for (const modelName of MODELS) {
+    console.log(`[Gemini] Trying model: ${modelName}`);
+    
+    // Shuffle keys for each model attempt
     const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
     
     for (let i = 0; i < shuffledKeys.length; i++) {
       const apiKey = shuffledKeys[i];
       const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
       
       try {
-        return await ai.models.generateContent({
-          model,
+        const result = await ai.models.generateContent({
+          model: modelName,
           contents: prompt,
           config
         });
+        return result;
       } catch (err: any) {
         lastError = err;
         const isQuotaError = err?.message?.includes('429') || 
@@ -57,45 +90,22 @@ export const callGeminiWithRetry = async (
                            err?.message?.toLowerCase().includes('quota');
         
         if (isQuotaError) {
-          // If it's a quota error, try the NEXT key immediately
-          console.warn(`Key ${apiKey.substring(0, 8)}... exhausted. Trying next key (${i + 1}/${shuffledKeys.length})`);
+          console.warn(`[Gemini] Key ${apiKey.substring(0, 8)}... exhausted for ${modelName}. Trying next key...`);
           continue; 
         }
         
-        // For other errors, we might want to retry this key or move on
-        // But for now, let's just move to the next key to be safe
+        console.error(`[Gemini] Error with model ${modelName} and key ${apiKey.substring(0, 8)}...:`, err);
         continue;
       }
     }
-
-    // If we reached here, it means ALL keys failed in this pass
-    const isQuotaError = lastError?.message?.includes('429') || 
-                       lastError?.status === 429 || 
-                       JSON.stringify(lastError).includes('429') ||
-                       lastError?.message?.toLowerCase().includes('quota');
-
-    if (isQuotaError && updateQuotaError) {
-      // Only trigger global quota error if ALL keys failed
-      updateQuotaError(Date.now());
-    }
-
-    if (retries < maxRetries - 1) {
-      retries++;
-      const delay = Math.pow(2, retries) * 2000; // 4s, 8s
-      const msg = `All ${allKeys.length} keys busy, retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`;
-      
-      if (toastId) {
-        toast.loading(msg, { id: toastId });
-      } else {
-        console.warn(msg);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, delay));
-      continue;
-    }
     
-    break;
+    console.warn(`[Gemini] All keys exhausted for model ${modelName}. Trying next model...`);
   }
 
-  throw lastError || new Error("All Gemini API keys failed after multiple attempts.");
+  // If we reached here, ALL models and ALL keys failed
+  if (updateQuotaError) {
+    updateQuotaError(Date.now());
+  }
+
+  throw lastError || new Error("All Gemini API models and keys failed after multiple attempts.");
 };

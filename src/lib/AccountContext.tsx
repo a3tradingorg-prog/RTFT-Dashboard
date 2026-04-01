@@ -38,12 +38,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', user.id);
 
     if (!error && data) {
-      setAccounts(data);
-      if (data.length > 0) {
+      const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values());
+      setAccounts(uniqueAccounts as TradingAccount[]);
+      if (uniqueAccounts.length > 0) {
         const savedId = localStorage.getItem('selectedAccountId');
-        const exists = data.some(a => a.id === savedId);
+        const exists = uniqueAccounts.some(a => a.id === savedId);
         if (!savedId || !exists) {
-          setSelectedAccountId(data[0].id);
+          setSelectedAccountId(uniqueAccounts[0].id);
         }
       }
     }

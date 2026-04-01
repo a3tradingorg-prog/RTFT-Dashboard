@@ -45,6 +45,7 @@ import { toast } from 'sonner';
 
 import { useAuth } from '../lib/AuthContext';
 import { format } from 'date-fns';
+import { CoolDownTimer } from '../components/CoolDownTimer';
 
 // --- Types ---
 
@@ -1383,11 +1384,8 @@ export default function News() {
         </div>
         
         <div className="flex items-center gap-4">
-          {lastQuotaError && Date.now() - lastQuotaError < 300000 && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full">
-              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Quota Cooling Down (5m)</span>
-            </div>
+          {lastQuotaError && Date.now() - lastQuotaError < 3600000 && (
+            <CoolDownTimer lastError={lastQuotaError} />
           )}
           <button 
             onClick={() => fetchData()}

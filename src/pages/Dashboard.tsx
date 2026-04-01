@@ -110,8 +110,14 @@ export default function Dashboard() {
       if (tradesRes.error) throw tradesRes.error;
       if (dailyPnlsRes.error) throw dailyPnlsRes.error;
 
-      if (tradesRes.data) setTrades(tradesRes.data);
-      if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
+      if (tradesRes.data) {
+        const uniqueTrades = Array.from(new Map(tradesRes.data.map((t: any) => [t.id, t])).values());
+        setTrades(uniqueTrades as Trade[]);
+      }
+      if (dailyPnlsRes.data) {
+        const uniquePnls = Array.from(new Map(dailyPnlsRes.data.map((p: any) => [p.id, p])).values());
+        setDailyPnls(uniquePnls as DailyPnL[]);
+      }
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
       throw err;

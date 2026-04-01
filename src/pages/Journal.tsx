@@ -238,7 +238,12 @@ export default function Journal() {
           trade_exits: t.trade_exit_records,
           strategy: t.strategies
         }));
-        setTrades(mappedTrades);
+        
+        // Deduplicate trades by ID to prevent duplicate key errors
+        const uniqueTrades = Array.from(
+          new Map(mappedTrades.map((t: any) => [t.id, t])).values()
+        );
+        setTrades(uniqueTrades);
       }
       if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
     } catch (error) {
@@ -711,7 +716,7 @@ export default function Journal() {
                       <div className="space-y-0.5 sm:space-y-1">
                         {dayTrades.slice(0, 2).map(trade => (
                           <div 
-                            key={trade.id}
+                            key={`calendar-${trade.id}`}
                             className={cn(
                               "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
                               trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
@@ -747,7 +752,7 @@ export default function Journal() {
               ) : (
                 trades.map(trade => (
                   <div 
-                    key={trade.id}
+                    key={`list-${trade.id}`}
                     className="bg-[#141414] border border-[#262626] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-sky-500/30 transition-all group"
                   >
                     <div className="flex items-center gap-6">
@@ -877,7 +882,7 @@ export default function Journal() {
                         const isExpanded = expandedTrades.has(trade.id);
 
                         return (
-                          <React.Fragment key={trade.id}>
+                          <React.Fragment key={`details-${trade.id}`}>
                             {/* Trade Summary Row */}
                             <tr 
                               className="bg-[#1a1a1a] border-t-2 border-[#262626] group cursor-pointer hover:bg-[#1f1f1f] transition-all"

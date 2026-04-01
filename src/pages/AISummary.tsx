@@ -33,6 +33,7 @@ import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { CoolDownTimer } from '../components/CoolDownTimer';
 
 const LANGUAGES = [
   { id: 'English', name: 'English', flag: '🇺🇸' },
@@ -50,6 +51,7 @@ export default function AISummary() {
   const [summarizing, setSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [analysisType, setAnalysisType] = useState<'quick' | 'deep'>('quick');
   const [lastQuotaError, setLastQuotaError] = useState<number | null>(() => {
     const cached = localStorage.getItem('last_quota_error');
     return cached ? parseInt(cached) : null;
@@ -164,8 +166,14 @@ export default function AISummary() {
       if (tradesRes.error) throw tradesRes.error;
       if (strategiesRes.error) throw strategiesRes.error;
 
-      if (tradesRes.data) setTrades(tradesRes.data);
-      if (strategiesRes.data) setStrategies(strategiesRes.data);
+      if (tradesRes.data) {
+        const uniqueTrades = Array.from(new Map(tradesRes.data.map((t: any) => [t.id, t])).values());
+        setTrades(uniqueTrades);
+      }
+      if (strategiesRes.data) {
+        const uniqueStrategies = Array.from(new Map(strategiesRes.data.map((s: any) => [s.id, s])).values());
+        setStrategies(uniqueStrategies);
+      }
       
       // Check for cached summary
       const { data: cachedSummary } = await supabase
@@ -239,31 +247,30 @@ export default function AISummary() {
     setError(null);
     setSummary(null); // Clear previous summary to allow re-run feedback
 
-    const toastId = toast.loading('Initializing performance analysis...');
+    const toastId = toast.loading(`Initializing ${analysisType} performance analysis...`);
 
     try {
       // Prepare data for AI - Focus on Outcome, Entry Reason, Risk:Reward
-      // Group trade entries into batches of 20 - taking the most recent batch
+      // Extreme Data Minimization: 10 for Quick, 30 for Deep
       const account = accounts.find(a => a.id === selectedAccountId);
-      const recentTrades = trades.slice(0, 20);
+      const limit = analysisType === 'quick' ? 10 : 30;
+      const recentTrades = trades.slice(0, limit);
       
-      const tradeData = recentTrades.map(t => {
-        // Calculate RR
+      // Convert to CSV-like string to minimize tokens
+      const csvHeader = "O,R,RR,P,A";
+      const csvData = recentTrades.map(t => {
         let rr = 0;
-        const risk = Math.abs(t.entry_price - t.stop_loss);
-        const reward = Math.abs(t.take_profit - t.entry_price);
-        if (risk > 0) rr = Number((reward / risk).toFixed(2));
+        const risk = Math.abs(t.entry_price - (t.stop_loss || t.entry_price));
+        const reward = Math.abs((t.take_profit || t.entry_price) - t.entry_price);
+        if (risk > 0) rr = Number((reward / risk).toFixed(1));
+        
+        const outcome = t.pnl > 0 ? 'W' : t.pnl < 0 ? 'L' : 'B';
+        const reason = (t.entry_context || 'N/A').replace(/,/g, ';'); // Avoid CSV break
+        return `${outcome},${reason},${rr},${t.pnl.toFixed(0)},${t.asset}`;
+      }).join('\n');
 
-        return {
-          O: t.pnl > 0 ? 'W' : t.pnl < 0 ? 'L' : 'B', // Minimized keys
-          R: t.entry_context || 'N/A',
-          RR: rr,
-          P: t.pnl,
-          A: t.asset
-        };
-      });
-
-      const dataHash = generateHash(tradeData);
+      const tradeDataString = `${csvHeader}\n${csvData}`;
+      const dataHash = generateHash(`${tradeDataString}-${analysisType}`);
       const today = new Date().toISOString().split('T')[0];
 
       // Check cache first using account_id, data_hash, AND language
@@ -286,6 +293,7 @@ export default function AISummary() {
       const prompt = `
         ### ROLE: High-Efficiency Trading Data Analyst (Token-Optimized Mode)
         ### CONTEXT: Analyzing live trading account "${account?.name}" with TPM limits.
+        ### ANALYSIS TYPE: ${analysisType.toUpperCase()}
         
         ### OPERATIONAL GUIDELINES:
         1. Focus only on 'Outcome', 'Entry Reason', and 'Risk:Reward'.
@@ -293,16 +301,17 @@ export default function AISummary() {
         3. Use compressed Markdown tables and bullet points. No conversational filler.
         4. Prioritize most recent 20% of trades and 5 largest losses.
         
-        ### TASK: DEEP PERFORMANCE AUDIT (PRODUCTION ENV)
+        ### TASK: ${analysisType === 'quick' ? 'QUICK PERFORMANCE SNAPSHOT' : 'DEEP PERFORMANCE AUDIT (PRODUCTION ENV)'}
         
         ### LANGUAGE REQUIREMENT:
         CRITICAL: You must provide the entire analysis and report in ${selectedLanguage}. 
         If the language is Myanmar, use professional Burmese terminology while keeping technical trading terms like 'BSL', 'SSL', 'FVG', 'RR', 'FVG', 'OB' in English.
         
-        ### DATA TO ANALYZE:
+        ### DATA TO ANALYZE (CSV FORMAT):
         Account Size: ${account?.account_size}
         Balance: ${formatCurrency(account?.current_balance || 0)}
-        Trades (O=Outcome, R=Reason, RR=RiskReward, P=PnL, A=Asset): ${JSON.stringify(tradeData)}
+        Trades (O=Outcome, R=Reason, RR=RiskReward, P=PnL, A=Asset):
+        ${tradeDataString}
         
         ### EXECUTION STEPS:
         1. Pre-filter: Identify 3 most significant equity curve drops.
@@ -504,12 +513,31 @@ export default function AISummary() {
               </div>
             </div>
 
-            {lastQuotaError && Date.now() - lastQuotaError < 300000 && (
-              <div className="flex items-center gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
-                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Gemini Quota Cooling Down (5m)</span>
-              </div>
+            {lastQuotaError && Date.now() - lastQuotaError < 3600000 && (
+              <CoolDownTimer lastError={lastQuotaError} />
             )}
+
+            {/* Analysis Type Toggle */}
+            <div className="flex p-1 bg-[#0a0a0a] border border-[#262626] rounded-2xl">
+              <button
+                onClick={() => setAnalysisType('quick')}
+                className={cn(
+                  "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                  analysisType === 'quick' ? "bg-sky-500 text-black shadow-lg shadow-sky-500/20" : "text-neutral-500 hover:text-white"
+                )}
+              >
+                Quick Analysis (10)
+              </button>
+              <button
+                onClick={() => setAnalysisType('deep')}
+                className={cn(
+                  "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                  analysisType === 'deep' ? "bg-sky-500 text-black shadow-lg shadow-sky-500/20" : "text-neutral-500 hover:text-white"
+                )}
+              >
+                Deep Analysis (30)
+              </button>
+            </div>
 
             <button 
               onClick={generateSummary}
@@ -521,7 +549,7 @@ export default function AISummary() {
               ) : (
                 <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
               )}
-              {summarizing ? 'Analyzing Data...' : 'Run Deep Analysis'}
+              {summarizing ? 'Analyzing Data...' : `Run ${analysisType === 'quick' ? 'Quick' : 'Deep'} Analysis`}
             </button>
           </div>
 
