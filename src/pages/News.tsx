@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
+import { callGeminiWithRetry } from '../lib/gemini';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { 
   Search, 
@@ -764,7 +765,7 @@ def crawl_news():
         }
       };
 
-      const response = await callGeminiWithRetry(prompt, config, 3, toastId);
+      const response = await callGeminiWithRetry(prompt, config, 3, toastId, updateQuotaError);
       if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const analysisData = JSON.parse(response.text);
@@ -1123,44 +1124,6 @@ export default function News() {
     localStorage.setItem('last_quota_error', time.toString());
   }, []);
 
-  const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Gemini API Key is missing.");
-    const ai = new GoogleGenAI({ apiKey });
-    const model = "gemini-3-flash-preview";
-    
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        return await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config
-        });
-      } catch (err: any) {
-        const isQuotaError = err?.message?.includes('429') || 
-                           err?.status === 429 || 
-                           JSON.stringify(err).includes('429') ||
-                           err?.message?.toLowerCase().includes('quota');
-        
-        if (isQuotaError) {
-          updateQuotaError(Date.now());
-          if (retries < maxRetries - 1) {
-            retries++;
-            const delay = Math.pow(2, retries) * 2000; // 4s, 8s
-            if (toastId) {
-              toast.loading(`Gemini quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
-            } else {
-              console.warn(`Gemini quota reached. Retrying in ${delay/1000}s...`);
-            }
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-        }
-        throw err;
-      }
-    }
-  }, [updateQuotaError]);
 
   const fetchData = useCallback(async (isBackground = false) => {
     if (isFetchingRef.current) return;
@@ -1301,7 +1264,7 @@ export default function News() {
         }
       };
 
-      const response = await callGeminiWithRetry(prompt, config, 3);
+      const response = await callGeminiWithRetry(prompt, config, 3, undefined, updateQuotaError);
       if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const data = JSON.parse(response.text);
@@ -1364,7 +1327,7 @@ export default function News() {
 
       // Use googleSearch tool as requested by the user for "free version of Gemini search"
       const config = { tools: [{ googleSearch: {} }] };
-      const response = await callGeminiWithRetry(prompt, config, 2);
+      const response = await callGeminiWithRetry(prompt, config, 2, undefined, updateQuotaError);
       if (!response || !response.text) throw new Error("Empty response from Gemini");
 
       const content = response.text || "Could not retrieve article content.";

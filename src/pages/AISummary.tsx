@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
+import { callGeminiWithRetry } from '../lib/gemini';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
@@ -204,44 +205,6 @@ export default function AISummary() {
     }
   };
 
-  const callGeminiWithRetry = useCallback(async (prompt: string, config: any = {}, maxRetries = 3, toastId?: string | number) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Gemini API Key is missing.");
-    const ai = new GoogleGenAI({ apiKey });
-    const model = "gemini-3-flash-preview";
-    
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        return await ai.models.generateContent({
-          model,
-          contents: prompt,
-          config
-        });
-      } catch (err: any) {
-        const isQuotaError = err?.message?.includes('429') || 
-                           err?.status === 429 || 
-                           JSON.stringify(err).includes('429') ||
-                           err?.message?.toLowerCase().includes('quota');
-        
-        if (isQuotaError) {
-          updateQuotaError(Date.now());
-          if (retries < maxRetries - 1) {
-            retries++;
-            const delay = Math.pow(2, retries) * 2000; // 4s, 8s
-            if (toastId) {
-              toast.loading(`Gemini quota reached. Retrying in ${delay/1000}s... (Attempt ${retries}/${maxRetries-1})`, { id: toastId });
-            } else {
-              console.warn(`Gemini quota reached. Retrying in ${delay/1000}s...`);
-            }
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue;
-          }
-        }
-        throw err;
-      }
-    }
-  }, [updateQuotaError]);
 
   const generateSummary = async () => {
     if (isFetchingRef.current) return;
@@ -269,9 +232,27 @@ export default function AISummary() {
     const toastId = toast.loading('Initializing performance analysis...');
 
     try {
+      // Check cache first
+      const today = new Date().toISOString().split('T')[0];
+      const { data: cachedAnalysis } = await supabase
+        .from('analysis_cache')
+        .select('analysis_result')
+        .eq('account_id', selectedAccountId)
+        .eq('analysis_date', today)
+        .maybeSingle();
+
+      if (cachedAnalysis) {
+        setSummary(cachedAnalysis.analysis_result);
+        setSummarizing(false);
+        isFetchingRef.current = false;
+        toast.success('Loaded cached analysis.', { id: toastId });
+        return;
+      }
+
       // Prepare data for AI - Focus on Outcome, Entry Reason, Risk:Reward
+      // Group trade entries into batches of 20 - taking the most recent batch
       const account = accounts.find(a => a.id === selectedAccountId);
-      const recentTrades = trades.slice(0, 50);
+      const recentTrades = trades.slice(0, 20);
       
       const tradeData = recentTrades.map(t => {
         // Calculate RR
@@ -329,24 +310,21 @@ export default function AISummary() {
       const response = await callGeminiWithRetry(prompt, {
         systemInstruction: "You are a High-Efficiency Trading Data Analyst. Use technical shorthand. Be concise. No filler.",
         tools: [{ googleSearch: {} }]
-      }, 3, toastId);
+      }, 3, toastId, updateQuotaError);
       
       const generatedText = response.text || "Could not generate summary.";
 
       setSummary(generatedText);
 
-      toast.loading('Caching analysis results...', { id: toastId });
-
-      // Cache the result
-      await supabase.from('ai_summaries_cache').upsert({
+      // Save to cache
+      await supabase.from('analysis_cache').upsert({
         account_id: selectedAccountId,
-        ai_agent_used: 'Gemini',
-        summary_language: selectedLanguage,
-        summary_text: generatedText,
-        generated_at: new Date().toISOString(),
-        analysis_start_date: trades.length > 0 ? trades[trades.length - 1].entry_date : null,
-        analysis_end_date: trades.length > 0 ? trades[0].entry_date : null
-      }, { onConflict: 'account_id, ai_agent_used, summary_language, analysis_start_date, analysis_end_date' });
+        analysis_date: today,
+        analysis_result: generatedText,
+        created_at: new Date().toISOString()
+      }, { onConflict: 'account_id, analysis_date' });
+
+      toast.success('Analysis complete and cached.', { id: toastId });
 
       toast.success('Performance report generated', { id: toastId });
     } catch (err: any) {
