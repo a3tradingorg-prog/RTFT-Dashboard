@@ -15,6 +15,7 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScrollReveal } from '../components/ScrollReveal';
 import PDFLibrary from '../components/PDFLibrary';
+import ICTNotes from '../components/ICTNotes';
 
 const VIP1_VIDEOS = [
   { id: '1', title: 'VIP-1 Course: Lesson 1', url: 'https://youtu.be/c2AH-wDneIU', description: 'Introduction to the VIP-1 curriculum.' },
@@ -356,6 +357,7 @@ export default function Campus() {
     'Day Trading Strategy', 
     'Introduction about Crypto',
     'Fundamental',
+    'ICT Notes',
     'PDF'
   ];
   
@@ -422,7 +424,15 @@ export default function Campus() {
       </ScrollReveal>
 
       {/* Conditional Rendering */}
-      {filter === 'PDF' ? (
+      {filter === 'ICT Notes' ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <ICTNotes />
+        </motion.div>
+      ) : filter === 'PDF' ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
