@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAccount } from '../lib/AccountContext';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 const ASSET_COMMISSIONS: Record<string, number> = {
   'MNQ': 0.50,
@@ -250,51 +251,68 @@ export default function Accounts() {
 
   return (
     <div className="space-y-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Accounts</h1>
-          <p className="text-neutral-500 mt-2 font-medium">Manage your trading accounts and balances.</p>
+      <ScrollReveal>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-white">Accounts</h1>
+            <p className="text-neutral-500 mt-2 font-medium">Manage your trading accounts and balances.</p>
+          </div>
+          <button 
+            onClick={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="w-14 h-14 bg-sky-500 text-black rounded-2xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 group"
+          >
+            <Plus className="w-7 h-7 group-hover:scale-110 transition-transform" />
+          </button>
         </div>
-        <button 
-          onClick={() => {
-            resetForm();
-            setIsModalOpen(true);
-          }}
-          className="w-14 h-14 bg-sky-500 text-black rounded-2xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 group"
-        >
-          <Plus className="w-7 h-7 group-hover:scale-110 transition-transform" />
-        </button>
-      </div>
+      </ScrollReveal>
 
       {/* Account Summary Display */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5">
-          <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
-            <Layers className="w-6 h-6 text-sky-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Total Accounts</p>
-            <p className="text-2xl font-black text-white">{summary.total}</p>
-          </div>
-        </div>
-        <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5">
-          <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
-            <Zap className="w-6 h-6 text-sky-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Challenge Accounts</p>
-            <p className="text-2xl font-black text-white">{summary.challenge}</p>
-          </div>
-        </div>
-        <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5">
-          <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center">
-            <Skull className="w-6 h-6 text-red-500" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Failed / Breached</p>
-            <p className="text-2xl font-black text-white">{summary.failed}</p>
-          </div>
-        </div>
+        <ScrollReveal delay={0.1}>
+          <motion.div 
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5"
+          >
+            <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
+              <Layers className="w-6 h-6 text-sky-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Total Accounts</p>
+              <p className="text-2xl font-black text-white">{summary.total}</p>
+            </div>
+          </motion.div>
+        </ScrollReveal>
+        <ScrollReveal delay={0.2}>
+          <motion.div 
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5"
+          >
+            <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center">
+              <Zap className="w-6 h-6 text-sky-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Challenge Accounts</p>
+              <p className="text-2xl font-black text-white">{summary.challenge}</p>
+            </div>
+          </motion.div>
+        </ScrollReveal>
+        <ScrollReveal delay={0.3}>
+          <motion.div 
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-[#141414] border border-[#262626] rounded-3xl p-6 flex items-center gap-5"
+          >
+            <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center">
+              <Skull className="w-6 h-6 text-red-500" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Failed / Breached</p>
+              <p className="text-2xl font-black text-white">{summary.failed}</p>
+            </div>
+          </motion.div>
+        </ScrollReveal>
       </div>
 
       {loading ? (
@@ -302,89 +320,93 @@ export default function Accounts() {
           <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       ) : accounts.length === 0 ? (
-        <div className="bg-[#141414] border border-[#262626] rounded-3xl p-12 text-center space-y-6">
-          <div className="w-20 h-20 bg-sky-500/5 rounded-3xl flex items-center justify-center mx-auto border border-sky-500/10">
-            <Wallet className="w-10 h-10 text-sky-500/40" />
+        <ScrollReveal delay={0.4}>
+          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-12 text-center space-y-6">
+            <div className="w-20 h-20 bg-sky-500/5 rounded-3xl flex items-center justify-center mx-auto border border-sky-500/10">
+              <Wallet className="w-10 h-10 text-sky-500/40" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">No accounts found</h3>
+              <p className="text-neutral-500 max-w-xs mx-auto">Start by creating a trading account to track your performance and journal your trades.</p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-xl font-bold text-white">No accounts found</h3>
-            <p className="text-neutral-500 max-w-xs mx-auto">Start by creating a trading account to track your performance and journal your trades.</p>
-          </div>
-        </div>
+        </ScrollReveal>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts.map((account) => {
+          {accounts.map((account, index) => {
             const isBreached = account.account_type === 'Fail/Breached';
             return (
-              <motion.div 
-                key={account.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={cn(
-                  "bg-[#141414] border border-[#262626] rounded-3xl p-8 group transition-all duration-300 relative overflow-hidden",
-                  isBreached ? "opacity-60 grayscale-[0.5]" : "hover:border-sky-500/30"
-                )}
-              >
-                {/* Status Indicator */}
-                {!isBreached && (
-                  <div className="absolute top-8 right-8 flex items-center gap-2">
-                    <div className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
+              <ScrollReveal key={account.id} delay={0.1 * (index % 3)}>
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className={cn(
+                    "bg-[#141414] border border-[#262626] rounded-3xl p-8 group transition-all duration-300 relative overflow-hidden h-full",
+                    isBreached ? "opacity-60 grayscale-[0.5]" : "hover:border-sky-500/30"
+                  )}
+                >
+                  {/* Status Indicator */}
+                  {!isBreached && (
+                    <div className="absolute top-8 right-8 flex items-center gap-2">
+                      <div className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-sky-500"></span>
+                      </div>
+                      <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Live</span>
                     </div>
-                    <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest">Live</span>
-                  </div>
-                )}
-                {isBreached && (
-                  <div className="absolute top-8 right-8 flex items-center gap-2">
-                    <Skull className="w-4 h-4 text-red-500" />
-                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Breached</span>
-                  </div>
-                )}
+                  )}
+                  {isBreached && (
+                    <div className="absolute top-8 right-8 flex items-center gap-2">
+                      <Skull className="w-4 h-4 text-red-500" />
+                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Breached</span>
+                    </div>
+                  )}
 
-                <div className="flex items-center justify-between mb-8">
-                  <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center",
-                    isBreached ? "bg-red-500/10" : "bg-sky-500/10"
-                  )}>
-                    {isBreached ? <Ban className="w-6 h-6 text-red-500" /> : <TrendingUp className="w-6 h-6 text-sky-500" />}
+                  <div className="flex items-center justify-between mb-8">
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center",
+                      isBreached ? "bg-red-500/10" : "bg-sky-500/10"
+                    )}>
+                      {isBreached ? <Ban className="w-6 h-6 text-red-500" /> : <TrendingUp className="w-6 h-6 text-sky-500" />}
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => openEditModal(account)}
+                        className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(account.id)}
+                        className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => openEditModal(account)}
-                      className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(account.id)}
-                      className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="space-y-1 mb-8">
-                  <h3 className="text-xl font-bold text-white">{account.name}</h3>
-                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{account.propfirm} • {account.account_size}</p>
-                </div>
+                  <div className="space-y-1 mb-8">
+                    <h3 className="text-xl font-bold text-white">{account.name}</h3>
+                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{account.propfirm} • {account.account_size}</p>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-6 border-t border-[#262626]">
-                  <div>
-                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Initial</p>
-                    <p className="text-lg font-bold text-white">{formatCurrency(account.initial_balance)}</p>
+                  <div className="grid grid-cols-2 gap-4 pt-6 border-t border-[#262626]">
+                    <div>
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Initial</p>
+                      <p className="text-lg font-bold text-white">{formatCurrency(account.initial_balance)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Current</p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        isBreached ? "text-neutral-400" : "text-sky-400"
+                      )}>{formatCurrency(account.current_balance)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Current</p>
-                    <p className={cn(
-                      "text-lg font-bold",
-                      isBreached ? "text-neutral-400" : "text-sky-400"
-                    )}>{formatCurrency(account.current_balance)}</p>
-                  </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </ScrollReveal>
             );
           })}
         </div>

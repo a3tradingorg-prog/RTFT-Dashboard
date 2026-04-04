@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import TradeReference from '../components/TradeReference';
+import { ScrollReveal } from '../components/ScrollReveal';
+import PDFLibrary from '../components/PDFLibrary';
 
 const VIP1_VIDEOS = [
   { id: '1', title: 'VIP-1 Course: Lesson 1', url: 'https://youtu.be/c2AH-wDneIU', description: 'Introduction to the VIP-1 curriculum.' },
@@ -355,7 +356,7 @@ export default function Campus() {
     'Day Trading Strategy', 
     'Introduction about Crypto',
     'Fundamental',
-    'Key Notes'
+    'PDF'
   ];
   
   const filteredResources = resources.filter(r => 
@@ -366,64 +367,68 @@ export default function Campus() {
 
   return (
     <div className="space-y-10">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Campus</h1>
-          <p className="text-xs font-medium text-neutral-500 mt-1 uppercase tracking-widest">Exclusive educational content and market outlooks.</p>
-        </div>
-        <div className="relative group w-full md:w-64">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
-          <input 
-            type="text"
-            placeholder="Search courses..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#141414] border border-[#262626] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
-          />
-        </div>
-      </header>
+      <ScrollReveal>
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Campus</h1>
+            <p className="text-xs font-medium text-neutral-500 mt-1 uppercase tracking-widest">Exclusive educational content and market outlooks.</p>
+          </div>
+          <div className="relative group w-full md:w-64">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder="Search courses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#141414] border border-[#262626] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
+            />
+          </div>
+        </header>
+      </ScrollReveal>
 
       {/* Category Filter */}
-      <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => {
-              setFilter(cat);
-              setOpenVideoId(null);
-            }}
-            className={cn(
-              "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group",
-              filter === cat 
-                ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
-                : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
-            )}
-          >
-            <span className="relative z-10">{cat}</span>
-            {cat === '2026 Future Mentorship' && (
-              <span className={cn(
-                "w-2 h-2 rounded-full animate-pulse relative z-10",
-                filter === cat ? "bg-black" : "bg-sky-500"
-              )} />
-            )}
-            {filter === cat && (
-              <motion.div 
-                layoutId="activeTab"
-                className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
-              />
-            )}
-          </button>
-        ))}
-      </div>
+      <ScrollReveal delay={0.1}>
+        <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setFilter(cat);
+                setOpenVideoId(null);
+              }}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group",
+                filter === cat 
+                  ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
+                  : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
+              )}
+            >
+              <span className="relative z-10">{cat}</span>
+              {cat === '2026 Future Mentorship' && (
+                <span className={cn(
+                  "w-2 h-2 rounded-full animate-pulse relative z-10",
+                  filter === cat ? "bg-black" : "bg-sky-500"
+                )} />
+              )}
+              {filter === cat && (
+                <motion.div 
+                  layoutId="activeTab"
+                  className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </ScrollReveal>
 
       {/* Conditional Rendering */}
-      {filter === 'Key Notes' ? (
+      {filter === 'PDF' ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <TradeReference />
+          <PDFLibrary />
         </motion.div>
       ) : filter === '2026 Future Mentorship' ? (
         <div className="max-w-5xl space-y-12">

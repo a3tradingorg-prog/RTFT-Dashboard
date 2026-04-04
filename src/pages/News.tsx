@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Type } from "@google/genai";
 import { callGeminiWithRetry } from '../lib/gemini';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { ScrollReveal } from '../components/ScrollReveal';
 import { 
   Search, 
   Globe, 
@@ -1369,90 +1370,109 @@ export default function News() {
   return (
     <div className="space-y-8 pb-20">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center border border-sky-500/20">
-              <Megaphone className="w-6 h-6 text-sky-500" />
+      <ScrollReveal>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <motion.div 
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center border border-sky-500/20"
+              >
+                <Megaphone className="w-6 h-6 text-sky-500" />
+              </motion.div>
+              <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">News Terminal</h1>
             </div>
-            <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">News Terminal</h1>
+            <p className="text-neutral-500 font-bold text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              Verified Real-Time Data Stream • {lastUpdated.toLocaleTimeString()}
+            </p>
           </div>
-          <p className="text-neutral-500 font-bold text-sm flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            Verified Real-Time Data Stream • {lastUpdated.toLocaleTimeString()}
-          </p>
+          
+          <div className="flex items-center gap-4">
+            {lastQuotaError && Date.now() - lastQuotaError < 3600000 && (
+              <CoolDownTimer lastError={lastQuotaError} />
+            )}
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => fetchData()}
+              disabled={loading}
+              className="px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:border-sky-500/50 transition-all flex items-center gap-3 group"
+            >
+              <RefreshCw className={cn("w-4 h-4 text-sky-500", loading && "animate-spin")} />
+              {loading ? 'Syncing...' : 'Refresh Stream'}
+            </motion.button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          {lastQuotaError && Date.now() - lastQuotaError < 3600000 && (
-            <CoolDownTimer lastError={lastQuotaError} />
-          )}
-          <button 
-            onClick={() => fetchData()}
-            disabled={loading}
-            className="px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-xs font-black uppercase tracking-widest text-white hover:border-sky-500/50 transition-all flex items-center gap-3 group"
-          >
-            <RefreshCw className={cn("w-4 h-4 text-sky-500", loading && "animate-spin")} />
-            {loading ? 'Syncing...' : 'Refresh Stream'}
-          </button>
-        </div>
-      </div>
+      </ScrollReveal>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 sm:gap-3 pb-4 border-b border-[#262626]">
-        {[
-          { id: 'calendar', label: 'Economic Calendar', icon: Calendar, mobileLabel: 'Calendar' },
-          { id: 'futures', label: 'Futures Prices', icon: Activity, mobileLabel: 'Futures', hiddenOnMobile: true },
-          { id: 'headlines', label: 'Headline News', icon: Newspaper, mobileLabel: 'News' },
-          { id: 'crawler', label: 'AI News Crawler', icon: Code, mobileLabel: 'Crawler' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={cn(
-              "px-4 sm:px-6 py-2 sm:py-3 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group border",
-              activeTab === tab.id 
-                ? "bg-sky-500 text-black border-sky-400 shadow-xl shadow-sky-500/20 scale-105" 
-                : "bg-[#141414] text-neutral-500 hover:text-white border-[#262626] hover:border-neutral-700",
-              tab.hiddenOnMobile && "hidden md:flex"
-            )}
-          >
-            <tab.icon className="w-3 h-3 sm:w-4 sm:h-4 relative z-10" />
-            <span className="relative z-10 hidden sm:inline">{tab.label}</span>
-            <span className="relative z-10 sm:hidden">{tab.mobileLabel}</span>
-          </button>
-        ))}
-      </div>
+      <ScrollReveal delay={0.1}>
+        <div className="flex flex-wrap gap-2 sm:gap-3 pb-4 border-b border-[#262626]">
+          {[
+            { id: 'calendar', label: 'Economic Calendar', icon: Calendar, mobileLabel: 'Calendar' },
+            { id: 'futures', label: 'Futures Prices', icon: Activity, mobileLabel: 'Futures', hiddenOnMobile: true },
+            { id: 'headlines', label: 'Headline News', icon: Newspaper, mobileLabel: 'News' },
+            { id: 'crawler', label: 'AI News Crawler', icon: Code, mobileLabel: 'Crawler' },
+          ].map((tab) => (
+            <motion.button
+              key={tab.id}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={cn(
+                "px-4 sm:px-6 py-2 sm:py-3 rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group border",
+                activeTab === tab.id 
+                  ? "bg-sky-500 text-black border-sky-400 shadow-xl shadow-sky-500/20 scale-105" 
+                  : "bg-[#141414] text-neutral-500 hover:text-white border-[#262626] hover:border-neutral-700",
+                tab.hiddenOnMobile && "hidden md:flex"
+              )}
+            >
+              <tab.icon className="w-3 h-3 sm:w-4 sm:h-4 relative z-10" />
+              <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+              <span className="relative z-10 sm:hidden">{tab.mobileLabel}</span>
+            </motion.button>
+          ))}
+        </div>
+      </ScrollReveal>
 
       <AnimatePresence mode="wait">
         {activeTab === 'calendar' && (
           <motion.div key="calendar" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="h-[700px]">
-            <EconomicCalendar events={events} loading={loading} view={calendarView} setView={setCalendarView} />
+            <ScrollReveal>
+              <EconomicCalendar events={events} loading={loading} view={calendarView} setView={setCalendarView} />
+            </ScrollReveal>
           </motion.div>
         )}
 
         {activeTab === 'futures' && (
           <motion.div key="futures" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <FuturesPrices quotes={quotes} loading={loading} />
+            <ScrollReveal>
+              <FuturesPrices quotes={quotes} loading={loading} />
+            </ScrollReveal>
           </motion.div>
         )}
 
         {activeTab === 'headlines' && (
           <motion.div key="headlines" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="h-[700px]">
-            <HeadlineNews 
-              news={news} 
-              loading={loading} 
-              onSelect={(item) => {
-                setSelectedNews(item);
-                fetchArticleContent(item);
-              }} 
-            />
+            <ScrollReveal>
+              <HeadlineNews 
+                news={news} 
+                loading={loading} 
+                onSelect={(item) => {
+                  setSelectedNews(item);
+                  fetchArticleContent(item);
+                }} 
+              />
+            </ScrollReveal>
           </motion.div>
         )}
 
         {activeTab === 'crawler' && (
           <motion.div key="crawler" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <AICrawler callGeminiWithRetry={callGeminiWithRetry} updateQuotaError={updateQuotaError} />
+            <ScrollReveal>
+              <AICrawler callGeminiWithRetry={callGeminiWithRetry} updateQuotaError={updateQuotaError} />
+            </ScrollReveal>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1464,25 +1484,27 @@ export default function News() {
       </AnimatePresence>
 
       {/* Footer Info */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-[#262626]">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">CME Group Feed</span>
+      <ScrollReveal delay={0.2}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-[#262626]">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+              <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">CME Group Feed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+              <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Reuters News Stream</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+              <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Economic Bureau API</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Reuters News Stream</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Economic Bureau API</span>
-          </div>
+          <p className="text-[10px] font-bold text-neutral-600 italic">
+            Data provided for informational purposes only. Real-time accuracy verified via Google Search Grounding.
+          </p>
         </div>
-        <p className="text-[10px] font-bold text-neutral-600 italic">
-          Data provided for informational purposes only. Real-time accuracy verified via Google Search Grounding.
-        </p>
-      </div>
+      </ScrollReveal>
     </div>
   );
 }

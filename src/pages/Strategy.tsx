@@ -27,12 +27,14 @@ import { format } from 'date-fns';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 const ASSETS = ['MNQ', 'NQ', 'MES', 'ES', 'MGC', 'GC'];
 const TIMEFRAMES = ['1min', '5min', '15min', '1hr', '4hr', 'Daily', 'Weekly'];
 const STATUSES = ['Active', 'Archived', 'Under Review'];
 
 export default function StrategyPage() {
+  // ... existing state ...
   const { user } = useAuth();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -246,47 +248,49 @@ export default function StrategyPage() {
   return (
     <div className="space-y-10 pb-20">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-white">Strategy Vault</h1>
-          <p className="text-neutral-500 mt-2 font-medium">Define your edge, manage your exits, and master your mind.</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 sm:flex-none">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-            <input 
-              type="text"
-              placeholder="Search strategies..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-11 pr-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white focus:border-sky-500/50 focus:outline-none transition-all w-full sm:w-64"
-            />
+      <ScrollReveal>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-black tracking-tight text-white">Strategy Vault</h1>
+            <p className="text-neutral-500 mt-2 font-medium">Define your edge, manage your exits, and master your mind.</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
             <div className="relative flex-1 sm:flex-none">
-              <button 
-                onClick={() => setStatusFilter(statusFilter === 'All' ? 'Active' : statusFilter === 'Active' ? 'Archived' : statusFilter === 'Archived' ? 'Under Review' : 'All')}
-                className="w-full px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all flex items-center justify-center gap-3"
-              >
-                <Filter className="w-4 h-4 text-sky-500" />
-                {statusFilter}
-              </button>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+              <input 
+                type="text"
+                placeholder="Search strategies..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-11 pr-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white focus:border-sky-500/50 focus:outline-none transition-all w-full sm:w-64"
+              />
             </div>
 
-            <button 
-              onClick={() => {
-                resetForm();
-                setIsModalOpen(true);
-              }}
-              className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 shrink-0"
-            >
-              <Plus className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 sm:flex-none">
+                <button 
+                  onClick={() => setStatusFilter(statusFilter === 'All' ? 'Active' : statusFilter === 'Active' ? 'Archived' : statusFilter === 'Archived' ? 'Under Review' : 'All')}
+                  className="w-full px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl text-sm font-bold text-white hover:border-sky-500/50 transition-all flex items-center justify-center gap-3"
+                >
+                  <Filter className="w-4 h-4 text-sky-500" />
+                  {statusFilter}
+                </button>
+              </div>
+
+              <button 
+                onClick={() => {
+                  resetForm();
+                  setIsModalOpen(true);
+                }}
+                className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 shrink-0"
+              >
+                <Plus className="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </ScrollReveal>
 
       {loading ? (
         <div className="flex items-center justify-center h-[40vh]">
@@ -297,85 +301,86 @@ export default function StrategyPage() {
           {filteredStrategies.map((strategy, i) => {
             const stats = getStrategyStats(strategy.strategy_id);
             return (
-              <motion.div
-                key={strategy.strategy_id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="group relative bg-[#0a0a0a] border border-[#262626] rounded-[40px] p-8 hover:border-sky-500/30 transition-all"
-              >
-                <div className="flex items-start justify-between mb-8">
-                  <div className="w-14 h-14 bg-sky-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Brain className="w-7 h-7 text-sky-500" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                      strategy.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" :
-                      strategy.status === 'Archived' ? "bg-neutral-500/10 text-neutral-400" :
-                      "bg-orange-500/10 text-orange-400"
-                    )}>
-                      {strategy.status}
-                    </span>
-                    <div className="relative group/menu">
-                      <button className="p-2 text-neutral-500 hover:text-white transition-colors">
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                      <div className="absolute right-0 top-full mt-2 w-40 bg-[#1f1f1f] border border-[#262626] rounded-2xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-10 overflow-hidden">
-                        <button 
-                          onClick={() => handleEdit(strategy)}
-                          className="w-full px-4 py-3 text-left text-xs font-bold text-neutral-400 hover:text-white hover:bg-[#262626] flex items-center gap-3"
-                        >
-                          <Edit2 className="w-4 h-4" /> Edit
+              <ScrollReveal key={strategy.strategy_id} delay={i * 0.05}>
+                <motion.div
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="group relative bg-[#0a0a0a] border border-[#262626] rounded-[40px] p-8 hover:border-sky-500/30 transition-all h-full"
+                >
+                  <div className="flex items-start justify-between mb-8">
+                    <div className="w-14 h-14 bg-sky-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Brain className="w-7 h-7 text-sky-500" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                        strategy.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" :
+                        strategy.status === 'Archived' ? "bg-neutral-500/10 text-neutral-400" :
+                        "bg-orange-500/10 text-orange-400"
+                      )}>
+                        {strategy.status}
+                      </span>
+                      <div className="relative group/menu">
+                        <button className="p-2 text-neutral-500 hover:text-white transition-colors">
+                          <MoreVertical className="w-5 h-5" />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(strategy.strategy_id)}
-                          className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/5 flex items-center gap-3"
-                        >
-                          <Trash2 className="w-4 h-4" /> Delete
-                        </button>
+                        <div className="absolute right-0 top-full mt-2 w-40 bg-[#1f1f1f] border border-[#262626] rounded-2xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-10 overflow-hidden">
+                          <button 
+                            onClick={() => handleEdit(strategy)}
+                            className="w-full px-4 py-3 text-left text-xs font-bold text-neutral-400 hover:text-white hover:bg-[#262626] flex items-center gap-3"
+                          >
+                            <Edit2 className="w-4 h-4" /> Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(strategy.strategy_id)}
+                            className="w-full px-4 py-3 text-left text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/5 flex items-center gap-3"
+                          >
+                            <Trash2 className="w-4 h-4" /> Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <h3 className="text-2xl font-black text-white mb-4 line-clamp-1">{strategy.strategy_name}</h3>
-                <p className="text-neutral-500 font-medium leading-relaxed mb-8 line-clamp-2 h-12">
-                  {strategy.description || "No description provided."}
-                </p>
+                  <h3 className="text-2xl font-black text-white mb-4 line-clamp-1">{strategy.strategy_name}</h3>
+                  <p className="text-neutral-500 font-medium leading-relaxed mb-8 line-clamp-2 h-12">
+                    {strategy.description || "No description provided."}
+                  </p>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="p-4 bg-[#141414] rounded-2xl border border-[#262626]">
-                    <div className="text-xl font-black text-white">{stats.winRate.toFixed(1)}%</div>
-                    <div className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Win Rate</div>
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="p-4 bg-[#141414] rounded-2xl border border-[#262626]">
+                      <div className="text-xl font-black text-white">{stats.winRate.toFixed(1)}%</div>
+                      <div className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Win Rate</div>
+                    </div>
+                    <div className="p-4 bg-[#141414] rounded-2xl border border-[#262626]">
+                      <div className="text-xl font-black text-white">{stats.profitFactor.toFixed(2)}</div>
+                      <div className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Profit Factor</div>
+                    </div>
                   </div>
-                  <div className="p-4 bg-[#141414] rounded-2xl border border-[#262626]">
-                    <div className="text-xl font-black text-white">{stats.profitFactor.toFixed(2)}</div>
-                    <div className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Profit Factor</div>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-6 border-t border-[#262626]">
-                  <div className="flex items-center gap-2 text-neutral-500">
-                    <Clock className="w-4 h-4" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">
-                      {format(new Date(strategy.updated_at), 'MMM dd, yyyy')}
-                    </span>
+                  <div className="flex items-center justify-between pt-6 border-t border-[#262626]">
+                    <div className="flex items-center gap-2 text-neutral-500">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        {format(new Date(strategy.updated_at), 'MMM dd, yyyy')}
+                      </span>
+                    </div>
+                    <div className="text-xs font-black text-sky-500 uppercase tracking-widest">
+                      {stats.total} Trades
+                    </div>
                   </div>
-                  <div className="text-xs font-black text-sky-500 uppercase tracking-widest">
-                    {stats.total} Trades
-                  </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </ScrollReveal>
             );
           })}
 
           {filteredStrategies.length === 0 && (
-            <div className="col-span-full py-20 text-center bg-[#0a0a0a] border border-[#262626] rounded-[48px]">
-              <Brain className="w-16 h-16 text-neutral-800 mx-auto mb-6" />
-              <h3 className="text-2xl font-black text-white mb-2">No strategies found</h3>
-              <p className="text-neutral-500 font-medium">Start by creating your first trading strategy.</p>
-            </div>
+            <ScrollReveal className="col-span-full">
+              <div className="py-20 text-center bg-[#0a0a0a] border border-[#262626] rounded-[48px]">
+                <Brain className="w-16 h-16 text-neutral-800 mx-auto mb-6" />
+                <h3 className="text-2xl font-black text-white mb-2">No strategies found</h3>
+                <p className="text-neutral-500 font-medium">Start by creating your first trading strategy.</p>
+              </div>
+            </ScrollReveal>
           )}
         </div>
       )}

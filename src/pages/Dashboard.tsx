@@ -37,6 +37,7 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { ScrollReveal } from '../components/ScrollReveal';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -302,219 +303,246 @@ export default function Dashboard() {
   return (
     <div className="space-y-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard Overview</h1>
-          <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
+      <ScrollReveal>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard Overview</h1>
+            <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
+          </div>
         </div>
-      </div>
+      </ScrollReveal>
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <MetricCard 
-          title="Current Balance" 
-          value={formatCurrency(stats?.currentBalance || 0)} 
-          subtitle={`Initial: ${formatCurrency(stats?.initialBalance || 0)}`}
-          icon={Wallet}
-          color="text-sky-400"
-        />
-        <MetricCard 
-          title="Total PnL" 
-          value={formatCurrency(stats?.totalPnl || 0)} 
-          icon={BarChart3}
-          trend={stats?.totalPnl >= 0 ? 'up' : 'down'}
-          color={stats?.totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}
-        />
-        <MetricCard 
-          title="Win Rate" 
-          value={formatPercent(stats?.winRate || 0)} 
-          icon={Zap}
-          color="text-amber-400"
-        />
-        <MetricCard 
-          title="Profit Factor" 
-          value={(stats?.profitFactor || 0).toFixed(2)} 
-          icon={ShieldCheck}
-          color="text-indigo-400"
-        />
+        <ScrollReveal delay={0.1}>
+          <MetricCard 
+            title="Current Balance" 
+            value={formatCurrency(stats?.currentBalance || 0)} 
+            subtitle={`Initial: ${formatCurrency(stats?.initialBalance || 0)}`}
+            icon={Wallet}
+            color="text-sky-400"
+          />
+        </ScrollReveal>
+        <ScrollReveal delay={0.2}>
+          <MetricCard 
+            title="Total PnL" 
+            value={formatCurrency(stats?.totalPnl || 0)} 
+            icon={BarChart3}
+            trend={stats?.totalPnl >= 0 ? 'up' : 'down'}
+            color={stats?.totalPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}
+          />
+        </ScrollReveal>
+        <ScrollReveal delay={0.3}>
+          <MetricCard 
+            title="Win Rate" 
+            value={formatPercent(stats?.winRate || 0)} 
+            icon={Zap}
+            color="text-amber-400"
+          />
+        </ScrollReveal>
+        <ScrollReveal delay={0.4}>
+          <MetricCard 
+            title="Profit Factor" 
+            value={(stats?.profitFactor || 0).toFixed(2)} 
+            icon={ShieldCheck}
+            color="text-indigo-400"
+          />
+        </ScrollReveal>
       </div>
 
       {/* Secondary Stats & Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-[#141414] border border-[#262626] rounded-3xl p-8 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-white">Equity Curve</h3>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-sky-500 rounded-full" />
-                <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Growth</span>
+        <div className="lg:col-span-2">
+          <ScrollReveal delay={0.5}>
+            <motion.div 
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              className="bg-[#141414] border border-[#262626] rounded-3xl p-8 shadow-sm h-full"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-white">Equity Curve</h3>
+                <div className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-sky-500 rounded-full" />
+                    <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Growth</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
-                <XAxis 
-                  dataKey="date" 
-                  stroke="#525252" 
-                  fontSize={11} 
-                  fontWeight={700}
-                  tickLine={false} 
-                  axisLine={false} 
-                  dy={10}
-                />
-                <YAxis 
-                  stroke="#525252" 
-                  fontSize={11} 
-                  fontWeight={700}
-                  tickLine={false} 
-                  axisLine={false}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #262626', borderRadius: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                  itemStyle={{ color: '#0ea5e9', fontWeight: 700 }}
-                  labelStyle={{ color: '#737373', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="balance" 
-                  stroke="#0ea5e9" 
-                  fillOpacity={1} 
-                  fill="url(#colorPnl)" 
-                  strokeWidth={3}
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#525252" 
+                      fontSize={11} 
+                      fontWeight={700}
+                      tickLine={false} 
+                      axisLine={false} 
+                      dy={10}
+                    />
+                    <YAxis 
+                      stroke="#525252" 
+                      fontSize={11} 
+                      fontWeight={700}
+                      tickLine={false} 
+                      axisLine={false}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #262626', borderRadius: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
+                      itemStyle={{ color: '#0ea5e9', fontWeight: 700 }}
+                      labelStyle={{ color: '#737373', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="balance" 
+                      stroke="#0ea5e9" 
+                      fillOpacity={1} 
+                      fill="url(#colorPnl)" 
+                      strokeWidth={3}
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+          </ScrollReveal>
         </div>
 
         <div className="space-y-8">
           {/* Advanced Metrics & Edge Score */}
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8 space-y-8">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Edge Score</h3>
-              <div className="px-3 py-1 bg-sky-500/10 rounded-lg">
-                <span className="text-sm font-black text-sky-400">{(stats?.edgeScore || 0).toFixed(0)}</span>
-              </div>
-            </div>
-
-            <div className="h-[240px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={stats?.edgeData}>
-                  <PolarGrid stroke="#262626" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#737373', fontSize: 10, fontWeight: 700 }} />
-                  <Radar
-                    name="Edge"
-                    dataKey="A"
-                    stroke="#0ea5e9"
-                    fill="#0ea5e9"
-                    fillOpacity={0.3}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="space-y-6 pt-4 border-t border-[#262626]">
+          <ScrollReveal delay={0.6}>
+            <motion.div 
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              className="bg-[#141414] border border-[#262626] rounded-3xl p-8 space-y-8"
+            >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-5 h-5 text-sky-400" />
-                  <span className="text-sm font-bold text-neutral-400">Consistency</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
-                  <span className={cn(
-                    "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
-                    stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                  )}>
-                    {stats?.isConsistent ? 'Compliant' : 'Violated'}
-                  </span>
+                <h3 className="text-lg font-bold text-white">Edge Score</h3>
+                <div className="px-3 py-1 bg-sky-500/10 rounded-lg">
+                  <span className="text-sm font-black text-sky-400">{(stats?.edgeScore || 0).toFixed(0)}</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Target Profit</p>
-                    <p className="text-xl font-black text-white">{formatCurrency(stats?.amountLeft || 0)} Left</p>
-                  </div>
-                  <span className="text-xs font-bold text-sky-500">{stats?.targetProgress.toFixed(1)}%</span>
-                </div>
-                <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
-                  <div 
-                    className="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-1000" 
-                    style={{ width: `${stats?.targetProgress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
-                  <span>Progress</span>
-                  <span>Target {formatCurrency((stats?.initialBalance || 0) + (stats?.profitTarget || 0))}</span>
-                </div>
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={stats?.edgeData}>
+                    <PolarGrid stroke="#262626" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#737373', fontSize: 10, fontWeight: 700 }} />
+                    <Radar
+                      name="Edge"
+                      dataKey="A"
+                      stroke="#0ea5e9"
+                      fill="#0ea5e9"
+                      fillOpacity={0.3}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
               </div>
+              
+              <div className="space-y-6 pt-4 border-t border-[#262626]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-sky-400" />
+                    <span className="text-sm font-bold text-neutral-400">Consistency</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
+                    <span className={cn(
+                      "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
+                      stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                    )}>
+                      {stats?.isConsistent ? 'Compliant' : 'Violated'}
+                    </span>
+                  </div>
+                </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Drawdown Usage</p>
-                    <p className={cn("text-xl font-black", stats?.drawdownPercent > 80 ? "text-red-500" : "text-white")}>
-                      {formatCurrency(stats?.distanceToFloor || 0)} Safe
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Target Profit</p>
+                      <p className="text-xl font-black text-white">{formatCurrency(stats?.amountLeft || 0)} Left</p>
+                    </div>
+                    <span className="text-xs font-bold text-sky-500">{stats?.targetProgress.toFixed(1)}%</span>
                   </div>
-                  <span className={cn("text-xs font-bold", stats?.drawdownPercent > 80 ? "text-red-500" : "text-neutral-500")}>
-                    {stats?.drawdownPercent.toFixed(1)}%
-                  </span>
+                  <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
+                    <div 
+                      className="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-1000" 
+                      style={{ width: `${stats?.targetProgress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+                    <span>Progress</span>
+                    <span>Target {formatCurrency((stats?.initialBalance || 0) + (stats?.profitTarget || 0))}</span>
+                  </div>
                 </div>
-                <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
-                  <div 
-                    className={cn(
-                      "h-full transition-all duration-1000",
-                      stats?.drawdownPercent > 80 ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-neutral-500"
-                    )}
-                    style={{ width: `${Math.min(100, stats?.drawdownPercent)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
-                  <span>Risk Level</span>
-                  <span>Floor {formatCurrency(stats?.drawdownFloor || 0)}</span>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Drawdown Usage</p>
+                      <p className={cn("text-xl font-black", stats?.drawdownPercent > 80 ? "text-red-500" : "text-white")}>
+                        {formatCurrency(stats?.distanceToFloor || 0)} Safe
+                      </p>
+                    </div>
+                    <span className={cn("text-xs font-bold", stats?.drawdownPercent > 80 ? "text-red-500" : "text-neutral-500")}>
+                      {stats?.drawdownPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-1000",
+                        stats?.drawdownPercent > 80 ? "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" : "bg-neutral-500"
+                      )}
+                      style={{ width: `${Math.min(100, stats?.drawdownPercent)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+                    <span>Risk Level</span>
+                    <span>Floor {formatCurrency(stats?.drawdownFloor || 0)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </ScrollReveal>
 
           {/* Calendar Preview */}
-          <div className="bg-[#141414] border border-[#262626] rounded-3xl p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white">Performance Calendar</h3>
-              <Link to="/journal" className="text-xs font-bold text-sky-500 hover:text-sky-400 uppercase tracking-widest">View Full</Link>
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.slice(0, 28).map((day, i) => {
-                const pnl = getDayPnL(day);
-                const isTodayDate = isSameDay(day, new Date());
-                return (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "aspect-square rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110",
-                      isTodayDate ? "border-2 border-sky-500" : "border border-[#262626]",
-                      pnl > 0 ? "bg-sky-500/10 text-sky-400" : pnl < 0 ? "bg-red-500/10 text-red-400" : "bg-[#0a0a0a] text-neutral-600"
-                    )}
-                    title={pnl !== 0 ? formatCurrency(pnl) : 'No trades'}
-                  >
-                    {format(day, 'd')}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <ScrollReveal delay={0.7}>
+            <motion.div 
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              className="bg-[#141414] border border-[#262626] rounded-3xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-white">Performance Calendar</h3>
+                <Link to="/journal" className="text-xs font-bold text-sky-500 hover:text-sky-400 uppercase tracking-widest">View Full</Link>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {calendarDays.slice(0, 28).map((day, i) => {
+                  const pnl = getDayPnL(day);
+                  const isTodayDate = isSameDay(day, new Date());
+                  return (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "aspect-square rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110",
+                        isTodayDate ? "border-2 border-sky-500" : "border border-[#262626]",
+                        pnl > 0 ? "bg-sky-500/10 text-sky-400" : pnl < 0 ? "bg-red-500/10 text-red-400" : "bg-[#0a0a0a] text-neutral-600"
+                      )}
+                      title={pnl !== 0 ? formatCurrency(pnl) : 'No trades'}
+                    >
+                      {format(day, 'd')}
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </ScrollReveal>
         </div>
       </div>
     </div>
@@ -533,7 +561,10 @@ function MetricCard({ title, value, subtitle, icon: Icon, trend, color }: any) {
   };
 
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-2xl p-4 md:p-5 transition-all duration-300 hover:border-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/5 group">
+    <motion.div 
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className="bg-[#141414] border border-[#262626] rounded-2xl p-4 md:p-5 transition-all duration-300 hover:border-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/5 group h-full"
+    >
       <div className="flex items-center justify-between mb-3">
         <div className={cn(
           "w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110", 
@@ -554,6 +585,6 @@ function MetricCard({ title, value, subtitle, icon: Icon, trend, color }: any) {
       <p className="text-[9px] font-black text-neutral-500 uppercase tracking-[0.2em] mb-0.5">{title}</p>
       <p className={cn("text-xl font-black tracking-tighter", color)}>{value}</p>
       {subtitle && <p className="text-[9px] font-bold text-neutral-600 mt-1.5">{subtitle}</p>}
-    </div>
+    </motion.div>
   );
 }
