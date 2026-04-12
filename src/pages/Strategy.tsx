@@ -28,6 +28,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { ScrollReveal } from '../components/ScrollReveal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const ASSETS = ['MNQ', 'NQ', 'MES', 'ES', 'MGC', 'GC'];
 const TIMEFRAMES = ['1min', '5min', '15min', '1hr', '4hr', 'Daily', 'Weekly'];
@@ -42,6 +43,7 @@ export default function StrategyPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingStrategyId, setEditingStrategyId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -83,7 +85,7 @@ export default function StrategyPage() {
 
   useEffect(() => {
     if (user) {
-      fetchData();
+      fetchData().catch(err => console.error('Initial strategy data fetch error:', err));
     }
   }, [user]);
 
@@ -158,7 +160,7 @@ export default function StrategyPage() {
 
       setIsModalOpen(false);
       resetForm();
-      fetchData();
+      fetchData().catch(err => console.error('Refresh strategy data error:', err));
     } catch (error: any) {
       console.error('Error saving strategy:', error);
       toast.error(`Failed to save strategy: ${error.message}`);
@@ -209,19 +211,25 @@ export default function StrategyPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this strategy?')) return;
+    setConfirmDeleteId(id);
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
 
     try {
       const { error } = await supabase
         .from('strategies')
         .delete()
-        .eq('strategy_id', id);
+        .eq('strategy_id', confirmDeleteId);
       if (error) throw error;
       toast.success('Strategy deleted successfully');
-      fetchData();
+      fetchData().catch(err => console.error('Refresh strategy data error after delete:', err));
     } catch (error: any) {
       console.error('Error deleting strategy:', error);
       toast.error(`Failed to delete strategy: ${error.message}`);
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -803,6 +811,14 @@ export default function StrategyPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Delete Strategy"
+        message="Are you sure you want to delete this strategy? This action cannot be undone."
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

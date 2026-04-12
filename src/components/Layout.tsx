@@ -51,12 +51,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     link.href = logoUrl;
     link.type = 'image/jpeg';
     
-    document.title = "RTFT Dashboard";
+    document.title = "Economic calendar";
   }, []);
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
+      fetchProfile().catch(err => console.error('Initial layout profile fetch error:', err));
 
       const subscription = supabase
         .channel(`layout_profile_realtime_${user.id}`)
@@ -66,7 +66,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         }, () => {
-          fetchProfile();
+          fetchProfile().catch(err => console.error('Realtime layout profile fetch error:', err));
         })
         .subscribe();
 
@@ -92,16 +92,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hideAccountSelector = ['/campus', '/news', '/profile'].includes(location.pathname);
+  const hideAccountSelector = ['/campus', '/profile'].includes(location.pathname);
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Economic calendar', href: '/', icon: LayoutDashboard },
     { name: 'Account', href: '/accounts', icon: Wallet },
     { name: 'Journal', href: '/journal', icon: Book },
     { name: 'Strategy', href: '/strategy', icon: Brain },
     { name: 'AI Summary', href: '/ai-summary', icon: Sparkles },
     { name: 'Campus', href: '/campus', icon: GraduationCap },
-    { name: 'News', href: '/news', icon: Megaphone },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
@@ -187,7 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="w-9 h-9 bg-[#1f1f1f] rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-[#262626] group-hover:border-sky-500/50 transition-colors">
               <img 
                 src={logoUrl} 
-                alt="RTFT Logo" 
+                alt="Economic calendar Logo" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
@@ -228,7 +227,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="w-8 h-8 bg-[#1f1f1f] rounded-lg flex items-center justify-center overflow-hidden border border-[#262626]">
                     <img 
                       src={logoUrl} 
-                      alt="RTFT Logo" 
+                      alt="Economic calendar Logo" 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
@@ -236,7 +235,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       }}
                     />
                   </div>
-                  <span className="font-bold text-white tracking-tight">RTFT Dashboard</span>
+                  <span className="font-bold text-white tracking-tight">Economic calendar</span>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -294,7 +293,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Menu className="w-5 h-5" />
             </button>
             <h2 className="text-sm font-bold text-white hidden sm:block uppercase tracking-widest italic">
-              {navigation.find(item => item.href === location.pathname)?.name || 'Dashboard'}
+              {navigation.find(item => item.href === location.pathname)?.name || 'Economic calendar'}
             </h2>
           </div>
 
@@ -383,7 +382,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12">
+        <div className="w-full p-2 sm:p-4 md:p-8 lg:p-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

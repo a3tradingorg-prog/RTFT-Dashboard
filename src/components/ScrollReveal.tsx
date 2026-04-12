@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { cn } from '../lib/utils';
 
 interface ScrollRevealProps {
   children: React.ReactNode;
   width?: "fit-content" | "100%";
+  height?: "fit-content" | "100%";
   delay?: number;
   direction?: "up" | "down" | "left" | "right";
   distance?: number;
@@ -13,6 +15,7 @@ interface ScrollRevealProps {
 export const ScrollReveal = ({ 
   children, 
   width = "100%", 
+  height = "fit-content",
   delay = 0.2,
   direction = "up",
   distance = 40,
@@ -26,8 +29,9 @@ export const ScrollReveal = ({
   };
 
   return (
-    <div className={className} style={{ position: "relative", width, overflow: "visible" }}>
+    <div className={cn(className, height === "100%" && "h-full")} style={{ position: "relative", width, overflow: "visible" }}>
       <motion.div
+        className={cn(height === "100%" && "h-full")}
         variants={{
           hidden: { 
             opacity: 0, 

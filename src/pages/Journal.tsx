@@ -52,6 +52,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const multipliers: Record<string, number> = {
   'MNQ': 2, 'NQ': 20,
@@ -147,25 +148,30 @@ export default function Journal() {
 
   useEffect(() => {
     if (user) {
-      fetchStrategies();
+      fetchStrategies().catch(err => console.error('Initial strategies fetch error:', err));
     }
   }, [user]);
 
   const fetchStrategies = async () => {
-    const { data, error } = await supabase
-      .from('strategies')
-      .select('*')
-      .eq('user_id', user?.id)
-      .eq('status', 'Active');
+    try {
+      const { data, error } = await supabase
+        .from('strategies')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'Active');
 
-    if (!error && data) {
-      setStrategies(data);
+      if (error) throw error;
+      if (data) {
+        setStrategies(data);
+      }
+    } catch (err) {
+      console.error('Error fetching strategies:', err);
     }
   };
 
   useEffect(() => {
     if (selectedAccountId) {
-      fetchJournalData();
+      fetchJournalData().catch(err => console.error('Initial journal data fetch error:', err));
 
       const tradesSubscription = supabase
         .channel(`journal_trades_${selectedAccountId}`)
@@ -175,7 +181,7 @@ export default function Journal() {
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
-          fetchJournalData();
+          fetchJournalData().catch(err => console.error('Realtime trades fetch error:', err));
         })
         .subscribe();
 
@@ -188,7 +194,7 @@ export default function Journal() {
         }, () => {
           // Since we can't easily filter by account_id on the exit table directly without a join in the filter
           // we'll just refresh if any exit changes. For better performance, we could filter by trade_ids.
-          fetchJournalData();
+          fetchJournalData().catch(err => console.error('Realtime exit fetch error:', err));
         })
         .subscribe();
 
@@ -200,7 +206,7 @@ export default function Journal() {
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
-          fetchJournalData();
+          fetchJournalData().catch(err => console.error('Realtime pnl fetch error:', err));
         })
         .subscribe();
 
@@ -254,12 +260,19 @@ export default function Journal() {
   };
 
   const handleDeleteTrade = async (id: string) => {
-    const trade = trades.find(t => t.id === id);
-    if (!trade) return;
-    if (!confirm('Are you sure you want to delete this trade?')) return;
+    setConfirmDeleteId(id);
+  };
+
+  const executeDeleteTrade = async () => {
+    if (!confirmDeleteId) return;
+    const trade = trades.find(t => t.id === confirmDeleteId);
+    if (!trade) {
+      setConfirmDeleteId(null);
+      return;
+    }
 
     try {
-      const { error } = await supabase.from('trades').delete().eq('id', id);
+      const { error } = await supabase.from('trades').delete().eq('id', confirmDeleteId);
       
       if (error) throw error;
 
@@ -275,14 +288,17 @@ export default function Journal() {
       }
       
       toast.success('Trade deleted successfully');
-      fetchJournalData();
+      fetchJournalData().catch(err => console.error('Refresh journal data error after delete:', err));
     } catch (error: any) {
       console.error('Error deleting trade:', error);
       toast.error(`Failed to delete trade: ${error.message}`);
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleEditTrade = (trade: Trade) => {
     setEditingTradeId(trade.id);
@@ -449,7 +465,7 @@ export default function Journal() {
         resetForm();
         setEditingTradeId(null);
         toast.success('Trade updated successfully!');
-        fetchJournalData();
+        fetchJournalData().catch(err => console.error('Refresh journal data error after update:', err));
       } else {
         // Insert new trade
         const { data: trade, error: tradeError } = await supabase
@@ -479,7 +495,7 @@ export default function Journal() {
           setIsModalOpen(false);
           resetForm();
           toast.success('Trade logged successfully!');
-          fetchJournalData();
+          fetchJournalData().catch(err => console.error('Refresh journal data error after log:', err));
         }
       }
     } catch (error: any) {
@@ -1494,6 +1510,14 @@ export default function Journal() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Delete Trade"
+        message="Are you sure you want to delete this trade? This action cannot be undone."
+        onConfirm={executeDeleteTrade}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

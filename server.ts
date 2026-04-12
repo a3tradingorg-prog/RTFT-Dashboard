@@ -3,6 +3,10 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from '@supabase/supabase-js';
+import { GoogleGenAI } from "@google/genai";
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,12 +27,6 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Request logging middleware
-  app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    next();
-  });
-
   // API routes
   app.get("/api/news-proxy", async (req, res) => {
     try {
@@ -47,6 +45,91 @@ async function startServer() {
     } catch (error) {
       console.error("Proxy error:", error);
       res.status(500).json({ error: "Failed to fetch news" });
+    }
+  });
+
+  app.get("/api/yahoo-finance", async (req, res) => {
+    try {
+      const symbol = req.query.symbol as string;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+
+      console.log(`[Yahoo Finance] Fetching data for: ${symbol}`);
+      const result = await yahooFinance.quote(symbol);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Yahoo Finance error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch Yahoo Finance data" });
+    }
+  });
+
+  app.get("/api/forex-calendar", async (req, res) => {
+    try {
+      const url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json";
+      console.log(`[Forex Calendar] Fetching from: ${url}`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Forex Factory API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Forex Calendar error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch Forex Factory calendar" });
+    }
+  });
+
+  app.get("/api/finnhub", async (req, res) => {
+    try {
+      const endpoint = req.query.endpoint as string;
+      const params = req.query.params as string;
+      const finnhubKey = process.env.VITE_FINNHUB_API_KEY;
+
+      if (!finnhubKey) {
+        return res.status(500).json({ error: "Finnhub API Key is missing on server" });
+      }
+
+      if (!endpoint) {
+        return res.status(400).json({ error: "Endpoint is required" });
+      }
+
+      const url = new URL(`https://finnhub.io/api/v1/${endpoint}`);
+      url.searchParams.append("token", finnhubKey);
+      
+      if (params) {
+        try {
+          const parsedParams = JSON.parse(params);
+          for (const [key, value] of Object.entries(parsedParams)) {
+            url.searchParams.append(key, String(value));
+          }
+        } catch (e) {
+          console.warn("Failed to parse Finnhub params:", params);
+        }
+      }
+
+      console.log(`[Finnhub] Fetching: ${url.origin}${url.pathname}?token=***${url.search.split('token=')[1]?.substring(5) || ''}`);
+      
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Finnhub] API Error (${response.status}):`, errorText);
+        return res.status(response.status).json({ error: `Finnhub API Error: ${errorText}` });
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Finnhub proxy error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch from Finnhub" });
     }
   });
 
@@ -168,22 +251,21 @@ async function startServer() {
 
   // Gemini API Proxy with Model Rotation
   app.post("/api/gemini", async (req, res) => {
+    console.log(`[Server Gemini] Received request for prompt: ${req.body.prompt?.substring(0, 50)}...`);
     const { prompt, config } = req.body;
     const keysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
     const allKeys = keysStr.split(",").map(k => k.trim()).filter(k => k !== "");
     
     if (allKeys.length === 0) {
+      console.error("[Server Gemini] No API keys found in environment.");
       return res.status(500).json({ error: "Gemini API Key is missing on server." });
     }
 
     const MODELS = [
-      "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
-      "gemini-2.0-flash-exp",
-      "gemini-1.5-pro",
       "gemini-3-flash-preview",
       "gemini-3.1-pro-preview",
-      "gemini-3.1-flash-lite-preview"
+      "gemini-flash-latest",
+      "gemini-2.0-flash"
     ];
 
     let lastError: any = null;
@@ -193,25 +275,46 @@ async function startServer() {
       
       for (const apiKey of shuffledKeys) {
         try {
-          const { GoogleGenAI } = await import("@google/genai");
-          const ai = new GoogleGenAI({ apiKey });
+          console.log(`[Server Gemini] Attempting with model: ${modelName}`);
+          const ai = new GoogleGenAI({ apiKey: apiKey });
           
           const result = await ai.models.generateContent({
             model: modelName,
-            contents: prompt,
-            config
+            contents: prompt
           });
           
-          return res.json(result);
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!text) {
+            console.error(`[Server Gemini] Empty response from ${modelName}:`, JSON.stringify(result));
+            throw new Error("Invalid response structure from Gemini");
+          }
+          
+          console.log(`[Server Gemini] Success with model: ${modelName}`);
+          return res.json({
+            text: text,
+            candidates: result.candidates,
+            usageMetadata: result.usageMetadata
+          });
         } catch (err: any) {
           lastError = err;
+          console.error(`[Server Gemini] Error with model ${modelName}:`, err?.message || err);
           const isQuotaError = err?.message?.includes('429') || 
                              err?.status === 429 || 
                              JSON.stringify(err).includes('429') ||
                              err?.message?.toLowerCase().includes('quota');
           
+          const isInvalidKey = err?.message?.includes('API key not valid') || 
+                               err?.status === 400 || 
+                               JSON.stringify(err).includes('API_KEY_INVALID');
+          
           if (isQuotaError) {
             console.warn(`[Server Gemini] Key exhausted for ${modelName}. Trying next key...`);
+            continue;
+          }
+
+          if (isInvalidKey) {
+            console.warn(`[Server Gemini] Invalid API key detected for ${modelName}. Trying next key...`);
             continue;
           }
           
@@ -222,6 +325,7 @@ async function startServer() {
       console.warn(`[Server Gemini] All keys exhausted for ${modelName}. Trying next model...`);
     }
 
+    console.error("[Server Gemini] All attempts failed.");
     const isQuotaError = lastError?.message?.includes('429') || 
                        lastError?.status === 429 || 
                        JSON.stringify(lastError).includes('429');
@@ -232,13 +336,31 @@ async function startServer() {
     });
   });
 
+  // Request logging middleware (only for non-API requests that fall through to Vite/Static)
+  app.use((req, res, next) => {
+    // Skip logging for common Vite/HMR/Asset requests to reduce noise
+    const isViteInternal = 
+      req.url.includes('@vite') || 
+      req.url.includes('@id') || 
+      req.url.includes('node_modules') ||
+      req.url.startsWith('/src/') ||
+      req.url.match(/\.(tsx|ts|jsx|js|css|scss|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/);
+
+    if (!isViteInternal && req.url !== '/') {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    }
+    next();
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("[Server] Initializing Vite middleware...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+    console.log("[Server] Vite middleware initialized.");
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

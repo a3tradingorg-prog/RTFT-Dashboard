@@ -33,7 +33,8 @@ const getApiKeys = () => {
 const MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.1-pro-preview",
-  "gemini-3.1-flash-lite-preview"
+  "gemini-flash-latest",
+  "gemini-2.0-flash"
 ];
 
 export const callGeminiWithRetry = async (
@@ -58,12 +59,20 @@ export const callGeminiWithRetry = async (
       return data;
     }
 
+    let errorData: any = {};
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      errorData = await response.json().catch(() => ({}));
+    } else {
+      const text = await response.text().catch(() => "");
+      errorData = { error: text || response.statusText };
+    }
+
     if (response.status === 429) {
       backendRateLimited = true;
       console.warn("[Gemini] Backend rate limited (429). Falling back to client-side rotation.");
       if (toastId) toast.loading("Backend busy, switching to direct client-side connection...", { id: toastId });
     } else {
-      const errorData = await response.json().catch(() => ({}));
       console.error("[Gemini] Backend error:", errorData);
     }
   } catch (err) {
@@ -91,17 +100,27 @@ export const callGeminiWithRetry = async (
     
     for (let i = 0; i < shuffledKeys.length; i++) {
       const apiKey = shuffledKeys[i];
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       
       try {
         const result = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
-          config
+          config: config
         });
-        return result;
+        
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!text) {
+          console.error(`[Gemini] Empty response from ${modelName}:`, JSON.stringify(result));
+          throw new Error("Invalid response structure from Gemini");
+        }
+        
+        return { text };
       } catch (err: any) {
         lastError = err;
+        console.error(`[Gemini] Error with model ${modelName} and key ${apiKey.substring(0, 8)}...:`, err?.message || err);
+        
         const isQuotaError = err?.message?.includes('429') || 
                            err?.status === 429 || 
                            JSON.stringify(err).includes('429') ||
@@ -110,6 +129,15 @@ export const callGeminiWithRetry = async (
         if (isQuotaError) {
           console.warn(`[Gemini] Key ${apiKey.substring(0, 8)}... exhausted for ${modelName}. Trying next key...`);
           continue; 
+        }
+
+        const isInvalidKey = err?.message?.includes('API key not valid') || 
+                            err?.status === 400 || 
+                            JSON.stringify(err).includes('API_KEY_INVALID');
+        
+        if (isInvalidKey) {
+          console.warn(`[Gemini] Invalid API key detected for ${modelName}. Trying next key...`);
+          continue;
         }
         
         console.error(`[Gemini] Error with model ${modelName} and key ${apiKey.substring(0, 8)}...:`, err);

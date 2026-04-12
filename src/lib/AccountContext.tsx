@@ -32,27 +32,34 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user.id);
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user.id);
 
-    if (!error && data) {
-      const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values());
-      setAccounts(uniqueAccounts as TradingAccount[]);
-      if (uniqueAccounts.length > 0) {
-        const savedId = localStorage.getItem('selectedAccountId');
-        const exists = uniqueAccounts.some(a => a.id === savedId);
-        if (!savedId || !exists) {
-          setSelectedAccountId(uniqueAccounts[0].id);
+      if (error) throw error;
+      
+      if (data) {
+        const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values());
+        setAccounts(uniqueAccounts as TradingAccount[]);
+        if (uniqueAccounts.length > 0) {
+          const savedId = localStorage.getItem('selectedAccountId');
+          const exists = uniqueAccounts.some(a => a.id === savedId);
+          if (!savedId || !exists) {
+            setSelectedAccountId(uniqueAccounts[0].id);
+          }
         }
       }
+    } catch (err) {
+      console.error('Error fetching accounts in context:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    fetchAccounts();
+    fetchAccounts().catch(err => console.error('Initial context accounts fetch error:', err));
 
     if (user) {
       const subscription = supabase
@@ -63,7 +70,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           table: 'accounts',
           filter: `user_id=eq.${user.id}`
         }, () => {
-          fetchAccounts();
+          fetchAccounts().catch(err => console.error('Realtime context accounts fetch error:', err));
         })
         .subscribe();
 

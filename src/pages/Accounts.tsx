@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { useAccount } from '../lib/AccountContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { ScrollReveal } from '../components/ScrollReveal';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const ASSET_COMMISSIONS: Record<string, number> = {
   'MNQ': 0.50,
@@ -45,6 +46,7 @@ export default function Accounts() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<TradingAccount | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   // ... existing form state ...
   const [name, setName] = useState('');
@@ -72,7 +74,7 @@ export default function Accounts() {
 
   useEffect(() => {
     if (user) {
-      fetchAccounts();
+      fetchAccounts().catch(err => console.error('Initial accounts fetch error:', err));
 
       // Subscribe to realtime changes for accounts
       const subscription = supabase
@@ -83,7 +85,7 @@ export default function Accounts() {
           table: 'accounts',
           filter: `user_id=eq.${user.id}`
         }, () => {
-          fetchAccounts();
+          fetchAccounts().catch(err => console.error('Realtime accounts fetch error:', err));
         })
         .subscribe();
 
@@ -176,46 +178,65 @@ export default function Accounts() {
       user_id: user?.id
     };
 
-    let error;
-    if (editingAccount) {
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update(accountData)
-        .eq('id', editingAccount.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from('accounts')
-        .insert([accountData]);
-      error = insertError;
-    }
+    try {
+      let error;
+      if (editingAccount) {
+        const { error: updateError } = await supabase
+          .from('accounts')
+          .update(accountData)
+          .eq('id', editingAccount.id);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('accounts')
+          .insert([accountData]);
+        error = insertError;
+      }
 
-    if (error) {
-      setFormError(error.message);
-      toast.error(`Failed to ${editingAccount ? 'update' : 'create'} account: ${error.message}`);
-    } else {
-      toast.success(`Account ${editingAccount ? 'updated' : 'created'} successfully!`);
-      setIsModalOpen(false);
-      resetForm();
-      fetchAccounts();
-      refreshGlobalAccounts();
+      if (error) {
+        setFormError(error.message);
+        toast.error(`Failed to ${editingAccount ? 'update' : 'create'} account: ${error.message}`);
+      } else {
+        toast.success(`Account ${editingAccount ? 'updated' : 'created'} successfully!`);
+        setIsModalOpen(false);
+        resetForm();
+        fetchAccounts().catch(err => console.error('Refresh accounts error:', err));
+        refreshGlobalAccounts().catch(err => console.error('Refresh global accounts error:', err));
+      }
+    } catch (err: any) {
+      console.error('Error submitting account:', err);
+      setFormError(err.message || 'An unexpected error occurred');
+      toast.error(`An unexpected error occurred: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this account? This will also delete all associated trades.')) return;
-    
-    const { error } = await supabase
-      .from('accounts')
-      .delete()
-      .eq('id', id);
+    setConfirmDeleteId(id);
+  };
 
-    if (error) {
-      toast.error(`Failed to delete account: ${error.message}`);
-    } else {
-      toast.success('Account deleted successfully');
-      fetchAccounts();
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('accounts')
+        .delete()
+        .eq('id', confirmDeleteId);
+
+      if (error) {
+        toast.error(`Failed to delete account: ${error.message}`);
+      } else {
+        toast.success('Account deleted successfully');
+        fetchAccounts().catch(err => console.error('Refresh accounts error after delete:', err));
+        refreshGlobalAccounts().catch(err => console.error('Refresh global accounts error after delete:', err));
+      }
+    } catch (err: any) {
+      console.error('Error deleting account:', err);
+      toast.error(`An unexpected error occurred while deleting: ${err.message}`);
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -608,6 +629,14 @@ export default function Accounts() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Delete Account"
+        message="Are you sure you want to delete this account? All associated trades and data will be permanently removed. This action cannot be undone."
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

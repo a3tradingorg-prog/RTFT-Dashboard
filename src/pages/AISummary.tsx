@@ -76,7 +76,7 @@ export default function AISummary() {
 
   useEffect(() => {
     if (user) {
-      fetchInitialData();
+      fetchInitialData().catch(err => console.error('Initial data fetch error:', err));
 
       // Subscribe to user profile changes (for language preferences)
       const profileSub = supabase
@@ -87,7 +87,7 @@ export default function AISummary() {
           table: 'user_profiles',
           filter: `user_id=eq.${user.id}`
         }, () => {
-          fetchInitialData();
+          fetchInitialData().catch(err => console.error('Realtime profile fetch error:', err));
         })
         .subscribe();
 
@@ -127,7 +127,7 @@ export default function AISummary() {
 
   useEffect(() => {
     if (selectedAccountId) {
-      fetchAccountData();
+      fetchAccountData().catch(err => console.error('Account data fetch error:', err));
 
       // Subscribe to realtime changes for AI summaries
       const summarySub = supabase
@@ -138,7 +138,7 @@ export default function AISummary() {
           table: 'ai_summaries_cache',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
-          fetchAccountData();
+          fetchAccountData().catch(err => console.error('Realtime summary fetch error:', err));
         })
         .subscribe();
 

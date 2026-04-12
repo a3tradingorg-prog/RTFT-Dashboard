@@ -15,9 +15,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const MODELS = [
-    "gemini-3-flash-preview",
-    "gemini-3.1-pro-preview",
-    "gemini-3.1-flash-lite-preview"
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-1.5-pro"
   ];
 
   let lastError: any = null;
@@ -27,17 +28,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     for (const apiKey of shuffledKeys) {
       try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
         
         const result = await ai.models.generateContent({
           model: modelName,
-          contents: prompt,
-          config
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: config
         });
         
-        return res.status(200).json(result);
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!text) {
+          console.error(`[Vercel Gemini] Empty response from ${modelName}:`, JSON.stringify(result));
+        }
+
+        return res.status(200).json({
+          text: text,
+          candidates: result.candidates,
+          usageMetadata: result.usageMetadata
+        });
       } catch (err: any) {
         lastError = err;
+        console.error(`[Vercel Gemini] Error with model ${modelName}:`, err?.message || err);
         const isQuotaError = err?.message?.includes('429') || 
                            err?.status === 429 || 
                            JSON.stringify(err).includes('429') ||
@@ -45,6 +57,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         if (isQuotaError) {
           console.warn(`[Vercel Gemini] Key exhausted for ${modelName}. Trying next key...`);
+          continue;
+        }
+
+        const isInvalidKey = err?.message?.includes('API key not valid') || 
+                            err?.status === 400 || 
+                            JSON.stringify(err).includes('API_KEY_INVALID');
+        
+        if (isInvalidKey) {
+          console.warn(`[Vercel Gemini] Invalid API key detected for ${modelName}. Trying next key...`);
           continue;
         }
         

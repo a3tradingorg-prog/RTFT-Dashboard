@@ -78,7 +78,7 @@ export default function Login() {
           >
             <img 
               src={logoUrl} 
-              alt="RTFT Secondary Logo" 
+              alt="Economic calendar Logo" 
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               referrerPolicy="no-referrer"
               onError={(e) => {
@@ -92,7 +92,7 @@ export default function Login() {
             transition={{ delay: 0.3 }}
             className="text-3xl font-black tracking-tighter text-white uppercase italic"
           >
-            RTFT <span className="text-orange-500">Dashboard</span>
+            Economic <span className="text-orange-500">calendar</span>
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0 }}

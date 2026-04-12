@@ -14,7 +14,8 @@ import {
   X,
   Check,
   Calendar,
-  Wallet
+  Wallet,
+  AlertCircle
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -22,6 +23,9 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ScrollReveal } from '../components/ScrollReveal';
 import { motion, AnimatePresence } from 'motion/react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { PromptDialog } from '../components/PromptDialog';
+import { toast } from 'sonner';
 
 export default function Trades() {
   const { user } = useAuth();
@@ -30,6 +34,10 @@ export default function Trades() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Dialog States
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [promptCloseTrade, setPromptCloseTrade] = useState<Trade | null>(null);
 
   // Form State
   const [newTrade, setNewTrade] = useState({
@@ -44,8 +52,8 @@ export default function Trades() {
 
   useEffect(() => {
     if (!user) return;
-    fetchTrades();
-    fetchAccounts();
+    fetchTrades().catch(err => console.error('Initial trades fetch error:', err));
+    fetchAccounts().catch(err => console.error('Initial accounts fetch error in trades:', err));
 
     // Subscribe to realtime changes for trades
     const channel = supabase
@@ -56,7 +64,7 @@ export default function Trades() {
         table: 'trades',
         filter: `user_id=eq.${user.id}`
       }, () => {
-        fetchTrades();
+        fetchTrades().catch(err => console.error('Realtime trades fetch error:', err));
       })
       .subscribe();
 
@@ -66,16 +74,21 @@ export default function Trades() {
   }, [user]);
 
   const fetchAccounts = async () => {
-    const { data, error } = await supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', user?.id);
-    
-    if (!error && data) {
-      setAccounts(data);
-      if (data.length > 0) {
-        setNewTrade(prev => ({ ...prev, account_id: data[0].id }));
+    try {
+      const { data, error } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', user?.id);
+      
+      if (error) throw error;
+      if (data) {
+        setAccounts(data);
+        if (data.length > 0) {
+          setNewTrade(prev => ({ ...prev, account_id: data[0].id }));
+        }
       }
+    } catch (err) {
+      console.error('Error fetching accounts in trades:', err);
     }
   };
 
@@ -130,51 +143,81 @@ export default function Trades() {
         entry_date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         notes: ''
       });
-      fetchTrades();
+      fetchTrades().catch(err => console.error('Refresh trades error:', err));
     } catch (error) {
       console.error('Error adding trade:', error);
     }
   };
 
   const handleCloseTrade = async (trade: Trade) => {
-    const exitPrice = window.prompt('Enter exit price:');
-    if (!exitPrice) return;
+    setPromptCloseTrade(trade);
+  };
 
-    const price = parseFloat(exitPrice);
-    const multipliers: Record<string, number> = {
-      'MNQ': 2, 'NQ': 20,
-      'MES': 5, 'ES': 50,
-      'MGC': 10, 'GC': 100
-    };
-    const multiplier = multipliers[trade.asset] || 1;
-
-    const pnl = trade.type === 'LONG' 
-      ? (price - trade.entry_price) * trade.contract_size * multiplier
-      : (trade.entry_price - price) * trade.contract_size * multiplier;
+  const executeCloseTrade = async (exitPrice: string) => {
+    if (!promptCloseTrade) return;
     
-    const pnlPercent = trade.type === 'LONG'
-      ? ((price - trade.entry_price) / trade.entry_price) * 100
-      : ((trade.entry_price - price) / trade.entry_price) * 100;
+    try {
+      const price = parseFloat(exitPrice);
+      if (isNaN(price)) {
+        toast.error('Invalid exit price');
+        return;
+      }
 
-    const { error } = await supabase
-      .from('trades')
-      .update({
-        exit_price: price,
-        exit_date: new Date().toISOString(),
-        status: 'CLOSED',
-        pnl,
-        pnl_percent: pnlPercent
-      })
-      .eq('id', trade.id);
+      const multipliers: Record<string, number> = {
+        'MNQ': 2, 'NQ': 20,
+        'MES': 5, 'ES': 50,
+        'MGC': 10, 'GC': 100
+      };
+      const multiplier = multipliers[promptCloseTrade.asset] || 1;
 
-    if (!error) {
-      fetchTrades();
+      const pnl = promptCloseTrade.type === 'LONG' 
+        ? (price - promptCloseTrade.entry_price) * promptCloseTrade.contract_size * multiplier
+        : (promptCloseTrade.entry_price - price) * promptCloseTrade.contract_size * multiplier;
+      
+      const pnlPercent = promptCloseTrade.type === 'LONG'
+        ? ((price - promptCloseTrade.entry_price) / promptCloseTrade.entry_price) * 100
+        : ((promptCloseTrade.entry_price - price) / promptCloseTrade.entry_price) * 100;
+
+      const { error } = await supabase
+        .from('trades')
+        .update({
+          exit_price: price,
+          exit_date: new Date().toISOString(),
+          status: 'CLOSED',
+          pnl,
+          pnl_percent: pnlPercent
+        })
+        .eq('id', promptCloseTrade.id);
+
+      if (error) throw error;
+      toast.success('Trade closed successfully');
+      fetchTrades().catch(err => console.error('Refresh trades error after close:', err));
+    } catch (error: any) {
+      console.error('Error closing trade:', error);
+      toast.error(`Failed to close trade: ${error.message}`);
+    } finally {
+      setPromptCloseTrade(null);
     }
   };
 
   const handleDeleteTrade = async (id: string) => {
-    const { error } = await supabase.from('trades').delete().eq('id', id);
-    if (!error) fetchTrades();
+    setConfirmDeleteId(id);
+  };
+
+  const executeDeleteTrade = async () => {
+    if (!confirmDeleteId) return;
+
+    try {
+      const { error } = await supabase.from('trades').delete().eq('id', confirmDeleteId);
+      if (error) throw error;
+      toast.success('Trade deleted successfully');
+      fetchTrades().catch(err => console.error('Refresh trades error after delete:', err));
+    } catch (error: any) {
+      console.error('Error deleting trade:', error);
+      toast.error(`Failed to delete trade: ${error.message}`);
+    } finally {
+      setConfirmDeleteId(null);
+    }
   };
 
   const filteredTrades = trades.filter(t => 
@@ -467,6 +510,24 @@ export default function Trades() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={!!confirmDeleteId}
+        title="Delete Trade"
+        message="Are you sure you want to delete this trade? This action cannot be undone."
+        onConfirm={executeDeleteTrade}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
+
+      <PromptDialog
+        isOpen={!!promptCloseTrade}
+        title="Close Trade"
+        message={`Enter exit price for ${promptCloseTrade?.asset}:`}
+        type="number"
+        placeholder="0.00"
+        onConfirm={executeCloseTrade}
+        onCancel={() => setPromptCloseTrade(null)}
+      />
     </div>
   );
 }

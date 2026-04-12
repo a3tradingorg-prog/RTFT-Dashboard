@@ -43,7 +43,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
+      fetchProfile().catch(err => console.error('Initial profile fetch error:', err));
 
       // Subscribe to realtime changes for profile
       const subscription = supabase
@@ -54,7 +54,7 @@ export default function Profile() {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         }, () => {
-          fetchProfile();
+          fetchProfile().catch(err => console.error('Realtime profile fetch error:', err));
         })
         .subscribe();
 
@@ -150,7 +150,7 @@ export default function Profile() {
       if (updateError) throw updateError;
 
       toast.success('Profile picture updated successfully!', { id: toastId });
-      fetchProfile();
+      fetchProfile().catch(err => console.error('Refresh profile error after upload:', err));
     } catch (error: any) {
       console.error('Upload error details:', error);
       toast.error(`Upload failed: ${error.message || 'Please ensure the "profiles" bucket exists and RLS policies are set.'}`, { 
@@ -195,7 +195,7 @@ export default function Profile() {
 
       if (error) throw error;
       toast.success('Username updated successfully!');
-      fetchProfile();
+      fetchProfile().catch(err => console.error('Refresh profile error after username update:', err));
     } catch (error: any) {
       toast.error(`Failed to update username: ${error.message}`);
     } finally {

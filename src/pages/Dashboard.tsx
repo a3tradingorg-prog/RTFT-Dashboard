@@ -65,7 +65,7 @@ export default function Dashboard() {
       }
     };
 
-    loadData();
+    loadData().catch(err => console.error('Dashboard loadData error:', err));
 
     if (selectedAccountId) {
       const tradesSubscription = supabase
@@ -76,7 +76,7 @@ export default function Dashboard() {
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
-          fetchDashboardData();
+          fetchDashboardData().catch(err => console.error('Realtime trades fetch error:', err));
         })
         .subscribe();
 
@@ -88,7 +88,7 @@ export default function Dashboard() {
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
-          fetchDashboardData();
+          fetchDashboardData().catch(err => console.error('Realtime daily_pnl fetch error:', err));
         })
         .subscribe();
 
@@ -256,7 +256,7 @@ export default function Dashboard() {
           <p className="text-neutral-500">{error}</p>
         </div>
         <button 
-          onClick={() => fetchDashboardData()}
+          onClick={() => fetchDashboardData().catch(err => console.error('Manual dashboard refresh error:', err))}
           className="px-6 py-3 bg-[#141414] border border-[#262626] text-white font-bold rounded-xl hover:bg-[#1f1f1f] transition-all"
         >
           Try Again
@@ -306,7 +306,7 @@ export default function Dashboard() {
       <ScrollReveal>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard Overview</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Economic calendar Overview</h1>
             <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
           </div>
         </div>

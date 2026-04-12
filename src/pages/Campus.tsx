@@ -336,18 +336,24 @@ export default function Campus() {
 
   useEffect(() => {
     const fetchResources = async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('resources')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setResources(data);
+        if (error) throw error;
+        if (data) {
+          setResources(data);
+        }
+      } catch (err) {
+        console.error('Error fetching resources:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    fetchResources();
+    fetchResources().catch(err => console.error('Initial resources fetch error:', err));
   }, []);
 
   const categories = [

@@ -1,4 +1,5 @@
 import React from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
@@ -12,7 +13,6 @@ import Journal from './pages/Journal';
 import Strategy from './pages/Strategy';
 import AISummary from './pages/AISummary';
 import Campus from './pages/Campus';
-import News from './pages/News';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 
@@ -64,30 +64,31 @@ function ProtectedLayout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AccountProvider>
-        <Toaster position="top-right" theme="dark" closeButton />
-        <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/journal" element={<Journal />} />
-            <Route path="/strategy" element={<Strategy />} />
-            <Route path="/ai-summary" element={<AISummary />} />
-            <Route path="/campus" element={<Campus />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AccountProvider>
+          <Toaster position="top-right" theme="dark" closeButton />
+          <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/accounts" element={<Accounts />} />
+              <Route path="/journal" element={<Journal />} />
+              <Route path="/strategy" element={<Strategy />} />
+              <Route path="/ai-summary" element={<AISummary />} />
+              <Route path="/campus" element={<Campus />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Router>
-      </AccountProvider>
-    </AuthProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+        </AccountProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
