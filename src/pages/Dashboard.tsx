@@ -306,7 +306,7 @@ export default function Dashboard() {
       <ScrollReveal>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Economic calendar Overview</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard</h1>
             <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
           </div>
         </div>

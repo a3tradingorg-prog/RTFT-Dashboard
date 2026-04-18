@@ -51,7 +51,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     link.href = logoUrl;
     link.type = 'image/jpeg';
     
-    document.title = "Economic calendar";
+    document.title = "RTFT";
   }, []);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const hideAccountSelector = ['/campus', '/profile'].includes(location.pathname);
 
   const navigation = [
-    { name: 'Economic calendar', href: '/', icon: LayoutDashboard },
+    { name: 'DASHBOARD', href: '/', icon: LayoutDashboard },
     { name: 'Account', href: '/accounts', icon: Wallet },
     { name: 'Journal', href: '/journal', icon: Book },
     { name: 'Strategy', href: '/strategy', icon: Brain },
@@ -186,7 +186,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="w-9 h-9 bg-[#1f1f1f] rounded-xl flex items-center justify-center shadow-lg overflow-hidden border border-[#262626] group-hover:border-sky-500/50 transition-colors">
               <img 
                 src={logoUrl} 
-                alt="Economic calendar Logo" 
+                alt="RTFT Logo" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
@@ -227,7 +227,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="w-8 h-8 bg-[#1f1f1f] rounded-lg flex items-center justify-center overflow-hidden border border-[#262626]">
                     <img 
                       src={logoUrl} 
-                      alt="Economic calendar Logo" 
+                      alt="RTFT Logo" 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
@@ -235,7 +235,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       }}
                     />
                   </div>
-                  <span className="font-bold text-white tracking-tight">Economic calendar</span>
+                  <span className="font-bold text-white tracking-tight">RTFT</span>
                 </div>
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -293,7 +293,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Menu className="w-5 h-5" />
             </button>
             <h2 className="text-sm font-bold text-white hidden sm:block uppercase tracking-widest italic">
-              {navigation.find(item => item.href === location.pathname)?.name || 'Economic calendar'}
+              {navigation.find(item => item.href === location.pathname)?.name || 'RTFT'}
             </h2>
           </div>
 
