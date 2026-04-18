@@ -202,12 +202,13 @@ export default function AISummary() {
 
   const updatePreferences = async (language: string) => {
     try {
-      await supabase.from('user_profiles').upsert({
+      const { error } = await supabase.from('user_profiles').upsert({
         user_id: user?.id,
         preferred_ai_agent: 'Gemini',
         preferred_ai_language: language,
         updated_at: new Date().toISOString()
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating preferences:', error);
     }
@@ -343,7 +344,7 @@ export default function AISummary() {
       setSummary(generatedText);
 
       // Save to cache
-      await supabase.from('analysis_cache').upsert({
+      const { error: upsertError } = await supabase.from('analysis_cache').upsert({
         account_id: selectedAccountId,
         analysis_date: today,
         data_hash: dataHash,
@@ -351,6 +352,10 @@ export default function AISummary() {
         analysis_result: generatedText,
         created_at: new Date().toISOString()
       }, { onConflict: 'account_id, data_hash, language' });
+
+      if (upsertError) {
+        console.warn('Failed to cache analysis:', upsertError);
+      }
 
       toast.success('Analysis complete and cached.', { id: toastId });
     } catch (err: any) {

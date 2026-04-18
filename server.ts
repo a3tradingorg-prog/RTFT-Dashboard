@@ -276,11 +276,12 @@ async function startServer() {
       for (const apiKey of shuffledKeys) {
         try {
           console.log(`[Server Gemini] Attempting with model: ${modelName}`);
-          const ai = new GoogleGenAI({ apiKey: apiKey });
+          const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
           
           const result = await ai.models.generateContent({
             model: modelName,
-            contents: prompt
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: config
           });
           
           const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -292,9 +293,7 @@ async function startServer() {
           
           console.log(`[Server Gemini] Success with model: ${modelName}`);
           return res.json({
-            text: text,
-            candidates: result.candidates,
-            usageMetadata: result.usageMetadata
+            text: text
           });
         } catch (err: any) {
           lastError = err;

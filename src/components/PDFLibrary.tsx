@@ -21,27 +21,70 @@ interface PDFFile {
   path: string;
   size?: string;
   category: string;
+  thumbnail?: string;
 }
 
 const PDF_FILES: PDFFile[] = [
-  { name: 'Trading Psychology 2.0', path: 'Trading_Psychology_2_0_From_Best.pdf', category: 'Psychology' },
-  { name: 'Trading Order Flow eBook', path: 'Trading_Order_Flow_ebook.pdf', category: 'Order Flow' },
-  { name: 'The PlayBook', path: 'The_PlayBook__An_Inside_Look_at_How_to_Think_Like_a_Professional_Trader_.pdf', category: 'Strategy' },
-  { name: 'Alchemist SnR', path: 'Alchemist SnR.pdf', category: 'Technical Analysis' },
-  { name: 'Trading For A Living', path: 'Elder Alexander - Trading For A Living.pdf', category: 'Psychology' },
-  { name: 'Long-Term Secrets to Short-Term Trading', path: 'larry-williams-long-term-secrets-to-short-term-trading.pdf', category: 'Strategy' },
-  { name: 'Malaysian SNR Emperor', path: 'Malaysian SNR Emperor.pdf', category: 'Technical Analysis' },
-  { name: 'Malaysian SNR Theory', path: 'malaysian-snr-theory.pdf', category: 'Technical Analysis' },
-  { name: 'MSNR SL 10 PIPS', path: 'MSNR SL 10 PIPS-1.pdf', category: 'Technical Analysis' },
-  { name: 'MSNR Trendliniya', path: 'msnr-Trendliniya.pdf', category: 'Technical Analysis' },
-  { name: 'MSNR x SMC x ICT The Alchemist', path: 'msnr-x-smc-x-ict-the-alchemist-yanu-emmanuel_compress.pdf', category: 'Technical Analysis' },
-  { name: 'My Rare SNR Course', path: 'My Rare SNR Course.pdf', category: 'Technical Analysis' },
-  { name: 'Psychology of Trading', path: 'Psychology of trading.pdf', category: 'Psychology' },
-  { name: 'Quarterly Theory', path: 'Quarterly Theory.pdf', category: 'Time & Price' },
-  { name: 'The Trading Game', path: 'ryan-jones-the-trading-gamepdf.pdf', category: 'Strategy' },
-  { name: 'Secret Of 411', path: 'Secret Of 411.pdf', category: 'Technical Analysis' },
-  { name: 'SNR Malaysia', path: 'SNR Malaysia.pdf', category: 'Technical Analysis' },
-  { name: 'The Handbook of Portfolio Mathematics', path: 'The handbook of portfolio mathematics.pdf', category: 'Risk Management' }
+  { 
+    name: 'Street Smarts (Laurence Connors)', 
+    path: 'Street_Smarts_Laurence_Connors.pdf', 
+    category: 'Strategy',
+    thumbnail: 'https://picsum.photos/seed/street/400/600'
+  },
+  { 
+    name: 'Statistics Made Easy', 
+    path: 'Statistics_made_easy_1.1-081w8s.pdf', 
+    category: 'Statistics',
+    thumbnail: 'https://picsum.photos/seed/stats/400/600'
+  },
+  { 
+    name: 'Cointime Economics', 
+    path: 'Cointime_Economics_DIGITAL_SINGLE.pdf', 
+    category: 'Economics',
+    thumbnail: 'https://picsum.photos/seed/crypto/400/600'
+  },
+  { 
+    name: 'Advances in Active Portfolio Management', 
+    path: 'Advances-in-active-portfolio-management-new-developments-in-quantitative-investing.pdf', 
+    category: 'Portfolio Management',
+    thumbnail: 'https://picsum.photos/seed/portfolio/400/600'
+  },
+  { 
+    name: 'Computational Macroeconomics', 
+    path: 'an-introduction-to-computational-macroeconomics-economic-methodology-illustrated-1622739434-9781622739431_compress.pdf', 
+    category: 'Economics',
+    thumbnail: 'https://picsum.photos/seed/macro/400/600'
+  },
+  { 
+    name: 'The Economics of Money, Banking and Financial Markets', 
+    path: 'The Economics of Money, Banking and finicial Markets.pdf', 
+    category: 'Economics',
+    thumbnail: 'https://picsum.photos/seed/banking/400/600'
+  },
+  { 
+    name: 'Entry and Exit Confessions', 
+    path: 'daveyentry-and-exit-confessions-of-a-champion-trader-52-waysrasaboursecom.pdf', 
+    category: 'Strategy',
+    thumbnail: 'https://picsum.photos/seed/trading/400/600'
+  },
+  { name: 'Trading Psychology 2.0', path: 'Trading_Psychology_2_0_From_Best.pdf', category: 'Psychology', thumbnail: 'https://picsum.photos/seed/psych2/400/600' },
+  { name: 'Trading Order Flow eBook', path: 'Trading_Order_Flow_ebook.pdf', category: 'Order Flow', thumbnail: 'https://picsum.photos/seed/orderflow/400/600' },
+  { name: 'The PlayBook', path: 'The_PlayBook__An_Inside_Look_at_How_to_Think_Like_a_Professional_Trader_.pdf', category: 'Strategy', thumbnail: 'https://picsum.photos/seed/playbook/400/600' },
+  { name: 'Alchemist SnR', path: 'Alchemist SnR.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/alchemist/400/600' },
+  { name: 'Trading For A Living', path: 'Elder Alexander - Trading For A Living.pdf', category: 'Psychology', thumbnail: 'https://picsum.photos/seed/living/400/600' },
+  { name: 'Long-Term Secrets to Short-Term Trading', path: 'larry-williams-long-term-secrets-to-short-term-trading.pdf', category: 'Strategy', thumbnail: 'https://picsum.photos/seed/lw/400/600' },
+  { name: 'Malaysian SNR Emperor', path: 'Malaysian SNR Emperor.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/msnr/400/600' },
+  { name: 'Malaysian SNR Theory', path: 'malaysian-snr-theory.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/theory/400/600' },
+  { name: 'MSNR SL 10 PIPS', path: 'MSNR SL 10 PIPS-1.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/pips/400/600' },
+  { name: 'MSNR Trendliniya', path: 'msnr-Trendliniya.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/trend/400/600' },
+  { name: 'MSNR x SMC x ICT The Alchemist', path: 'msnr-x-smc-x-ict-the-alchemist-yanu-emmanuel_compress.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/smc/400/600' },
+  { name: 'My Rare SNR Course', path: 'My Rare SNR Course.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/rare/400/600' },
+  { name: 'Psychology of Trading', path: 'Psychology of trading.pdf', category: 'Psychology', thumbnail: 'https://picsum.photos/seed/psych/400/600' },
+  { name: 'Quarterly Theory', path: 'Quarterly Theory.pdf', category: 'Time & Price', thumbnail: 'https://picsum.photos/seed/quarter/400/600' },
+  { name: 'The Trading Game', path: 'ryan-jones-the-trading-gamepdf.pdf', category: 'Strategy', thumbnail: 'https://picsum.photos/seed/game/400/600' },
+  { name: 'Secret Of 411', path: 'Secret Of 411.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/411/400/600' },
+  { name: 'SNR Malaysia', path: 'SNR Malaysia.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/malaysia/400/600' },
+  { name: 'The Handbook of Portfolio Mathematics', path: 'The handbook of portfolio mathematics.pdf', category: 'Risk Management', thumbnail: 'https://picsum.photos/seed/math/400/600' }
 ];
 
 export default function PDFLibrary() {
@@ -174,7 +217,7 @@ export default function PDFLibrary() {
         </ScrollReveal>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         <AnimatePresence mode="popLayout">
           {filteredFiles.map((file, index) => (
             <ScrollReveal key={file.path} delay={0.1 + (index * 0.05)}>
@@ -184,45 +227,59 @@ export default function PDFLibrary() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 whileHover={{ y: -5 }}
-                className="bg-[#141414] border border-[#262626] rounded-2xl p-6 flex flex-col gap-6 hover:border-sky-500/30 transition-all group shadow-sm hover:shadow-xl hover:shadow-sky-500/5"
+                className="bg-[#141414] border border-[#262626] rounded-2xl overflow-hidden hover:border-sky-500/30 transition-all group flex flex-col shadow-sm hover:shadow-xl hover:shadow-sky-500/5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="w-12 h-12 bg-sky-500/10 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-sky-500 group-hover:text-black transition-all duration-500">
-                    <Book className="w-6 h-6" />
-                  </div>
-                  <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-[9px] font-black text-neutral-500 uppercase tracking-widest">
-                    {file.category}
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-white line-clamp-2 group-hover:text-sky-400 transition-colors">{file.name}</h3>
-                  <p className="text-[10px] text-neutral-500 font-medium uppercase tracking-widest">PDF Document</p>
-                </div>
-
-                <button
-                  onClick={() => handleDownload(file)}
-                  disabled={downloading === file.path || !user}
-                  className={cn(
-                    "w-full py-3 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                    !user 
-                      ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
-                      : "bg-[#0a0a0a] border border-[#262626] text-white hover:bg-sky-500 hover:text-black hover:border-sky-500"
+                {/* Book Cover */}
+                <div className="relative aspect-[3/4] overflow-hidden bg-[#0a0a0a]">
+                  {file.thumbnail ? (
+                    <img 
+                      src={file.thumbnail} 
+                      alt={file.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-neutral-800">
+                      <Book className="w-10 h-10" />
+                    </div>
                   )}
-                >
+                  
+                  {/* Category Badge on Cover */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className="px-2 py-0.5 bg-black/80 backdrop-blur-md rounded-md text-[8px] font-black uppercase tracking-widest text-sky-400 border border-sky-500/20">
+                      {file.category}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="space-y-1 mb-4 flex-1">
+                    <h3 className="text-[11px] font-bold text-white line-clamp-2 group-hover:text-sky-400 transition-colors uppercase tracking-tight leading-tight">{file.name}</h3>
+                  </div>
+
+                  <button
+                    onClick={() => handleDownload(file)}
+                    disabled={downloading === file.path || !user}
+                    className={cn(
+                      "w-full py-2 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all",
+                      !user 
+                        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                        : "bg-[#0a0a0a] border border-[#262626] text-white hover:bg-sky-500 hover:text-black hover:border-sky-500"
+                    )}
+                  >
                   {downloading === file.path ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Downloading...
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
-                      Download PDF
+                      <Download className="w-3 h-3" />
+                      Download
                     </>
                   )}
                 </button>
-              </motion.div>
+              </div>
+            </motion.div>
             </ScrollReveal>
           ))}
         </AnimatePresence>

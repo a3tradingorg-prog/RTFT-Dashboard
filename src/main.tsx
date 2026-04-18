@@ -10,7 +10,13 @@ window.onerror = function(message, source, lineno, colno, error) {
 };
 
 window.onunhandledrejection = function(event) {
-  console.error("Unhandled Promise Rejection:", event.reason);
+  console.error("Critical: Unhandled Promise Rejection:", {
+    reason: event.reason,
+    promise: event.promise
+  });
+  
+  // Optionally show a user-friendly error toast if sonner was available globally, 
+  // but better to just log accurately for now.
 };
 
 createRoot(document.getElementById('root')!).render(

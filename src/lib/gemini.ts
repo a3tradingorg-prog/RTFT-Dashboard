@@ -100,12 +100,12 @@ export const callGeminiWithRetry = async (
     
     for (let i = 0; i < shuffledKeys.length; i++) {
       const apiKey = shuffledKeys[i];
-      const ai = new GoogleGenAI({ apiKey: apiKey });
+      const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
       
       try {
         const result = await ai.models.generateContent({
           model: modelName,
-          contents: prompt,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
           config: config
         });
         
