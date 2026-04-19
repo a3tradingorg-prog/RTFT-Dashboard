@@ -12,6 +12,18 @@ export type TradingAccount = {
   commission: number;
   initial_balance: number;
   current_balance: number;
+  payout_threshold?: number; // Minimum balance to be eligible for payout
+  created_at: string;
+};
+
+export type Payout = {
+  id: string;
+  account_id: string;
+  user_id: string;
+  amount: number;
+  payout_date: string;
+  month: string; // e.g., "2026-04"
+  status: 'Pending' | 'Completed' | 'Rejected';
   created_at: string;
 };
 
