@@ -47,12 +47,20 @@ export default function QA() {
 
           <button
             onClick={toggleLang}
-            className="flex items-center gap-3 px-6 py-3 bg-[#141414] border border-[#262626] rounded-2xl hover:border-sky-500/50 transition-all group"
+            className="flex items-center gap-4 px-5 py-3 bg-[#141414] border border-[#262626] rounded-2xl hover:border-sky-500/50 transition-all group shrink-0"
           >
-            <Languages className="w-5 h-5 text-sky-500 group-hover:rotate-12 transition-transform" />
-            <span className="text-sm font-black text-white uppercase tracking-widest leading-none">
-              {lang === 'en' ? 'မြန်မာဘာသာ သို့ပြောင်းရန်' : 'Switch to English'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "text-xs font-black transition-colors px-1.5 py-0.5 rounded",
+                lang === 'en' ? "text-sky-500 bg-sky-500/10" : "text-neutral-600"
+              )}>EN</span>
+              <div className="w-[1px] h-3 bg-[#262626]" />
+              <span className={cn(
+                "text-xs font-black transition-colors px-1.5 py-0.5 rounded",
+                lang === 'mm' ? "text-sky-500 bg-sky-500/10" : "text-neutral-600"
+              )}>MM</span>
+            </div>
+            <Languages className="w-4 h-4 text-neutral-500 group-hover:text-sky-500 transition-colors" />
           </button>
         </div>
       </ScrollReveal>
