@@ -15,7 +15,7 @@ export function formatCurrency(value: number) {
 export function formatPercent(value: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'percent',
-    minimumFractionDigits: 2,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value / 100);
 }

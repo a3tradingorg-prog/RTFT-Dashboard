@@ -28,6 +28,9 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
   Radar,
   RadarChart,
   PolarGrid,
@@ -149,6 +152,15 @@ export default function Dashboard() {
     const avgLoss = losses.length > 0 ? grossLoss / losses.length : 0;
     const winLossRatio = avgLoss === 0 ? (avgWin > 0 ? 9.99 : 0) : Math.min(9.99, avgWin / avgLoss);
 
+    // Day win % calculation
+    const profitableDays = dailyPnls.filter(p => p.pnl > 0).length;
+    const losingDays = dailyPnls.filter(p => p.pnl < 0).length;
+    const totalDaysWithTrades = profitableDays + losingDays;
+    const dayWinRate = totalDaysWithTrades > 0 ? (profitableDays / totalDaysWithTrades) * 100 : 0;
+
+    const winCount = wins.length;
+    const lossCount = losses.length;
+
     // Edge Score Data
     const edgeData = [
       { subject: 'Win %', A: winRate, fullMark: 100 },
@@ -187,6 +199,14 @@ export default function Dashboard() {
       totalPnl, 
       winRate, 
       profitFactor,
+      winLossRatio,
+      dayWinRate,
+      winCount,
+      lossCount,
+      profitableDays,
+      losingDays,
+      grossProfit,
+      grossLoss,
       edgeScore,
       edgeData,
       isConsistent,
@@ -311,6 +331,55 @@ export default function Dashboard() {
           </div>
         </div>
       </ScrollReveal>
+
+      {/* Performance Section */}
+      <div className="space-y-6">
+        <ScrollReveal delay={0.05}>
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-5 h-5 text-emerald-500" />
+            <h3 className="text-lg font-bold text-white uppercase tracking-tighter italic">Performance</h3>
+          </div>
+        </ScrollReveal>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <ScrollReveal delay={0.1}>
+            <PerformanceGauge 
+              value={formatPercent(stats?.winRate || 0)}
+              subLabel="Trade win %"
+              redLabel={stats?.lossCount || 0}
+              greenLabel={stats?.winCount || 0}
+              percent={stats?.winRate || 0}
+            />
+          </ScrollReveal>
+          <ScrollReveal delay={0.2}>
+            <PerformanceGauge 
+              value={(stats?.profitFactor || 0).toFixed(2)}
+              subLabel="Profit Factor"
+              redLabel={formatCurrency(stats?.grossLoss || 0)}
+              greenLabel={formatCurrency(stats?.grossProfit || 0)}
+              percent={Math.min(100, ((stats?.profitFactor || 0) / 3) * 100)}
+            />
+          </ScrollReveal>
+          <ScrollReveal delay={0.3}>
+            <PerformanceGauge 
+              value={(stats?.winLossRatio || 0).toFixed(2)}
+              subLabel="Win/Loss Ratio"
+              redLabel="Loss"
+              greenLabel="Win"
+              percent={Math.min(100, ((stats?.winLossRatio || 0) / 2) * 100)}
+            />
+          </ScrollReveal>
+          <ScrollReveal delay={0.4}>
+            <PerformanceGauge 
+              value={formatPercent(stats?.dayWinRate || 0)}
+              subLabel="Day win %"
+              redLabel={stats?.losingDays || 0}
+              greenLabel={stats?.profitableDays || 0}
+              percent={stats?.dayWinRate || 0}
+            />
+          </ScrollReveal>
+        </div>
+      </div>
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -543,6 +612,61 @@ export default function Dashboard() {
               </div>
             </motion.div>
           </ScrollReveal>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percent }: any) {
+  const data = [
+    { name: 'Red', value: 100 - percent },
+    { name: 'Green', value: percent },
+  ];
+
+  return (
+    <div className="bg-[#101010] border border-[#202020] rounded-2xl p-6 flex flex-col items-center justify-between h-full group transition-all hover:border-emerald-500/20">
+      <div className="relative w-full h-[140px] flex items-center justify-center">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="80%"
+              startAngle={180}
+              endAngle={0}
+              innerRadius={55}
+              outerRadius={75}
+              paddingAngle={2}
+              dataKey="value"
+              stroke="none"
+              animationDuration={1500}
+            >
+              <Cell fill="#ef4444" className="opacity-80" />
+              <Cell fill="#10b981" className="opacity-90 shadow-[0_0_20px_rgba(16,185,129,0.2)]" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        
+        <div className="absolute top-[62%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-full px-2">
+          <p className={cn(
+            "font-black text-white tracking-tighter leading-none",
+            value.length > 6 ? "text-lg" : "text-xl"
+          )}>
+            {value}
+          </p>
+          <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest mt-1 opacity-70">
+            {subLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="w-full flex justify-between items-center mt-2 gap-2">
+        <div className="px-2 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full shrink-0 max-w-[45%] overflow-hidden">
+          <span className="text-[9px] font-black text-rose-500 block truncate">{redLabel}</span>
+        </div>
+        <div className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0 max-w-[45%] overflow-hidden">
+          <span className="text-[9px] font-black text-emerald-500 block truncate">{greenLabel}</span>
         </div>
       </div>
     </div>
