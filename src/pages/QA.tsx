@@ -13,6 +13,7 @@ import {
 import { QA_TRANSLATIONS, UI_TRANSLATIONS, Language } from '../lib/translations';
 import { cn } from '../lib/utils';
 import { ScrollReveal } from '../components/ScrollReveal';
+import { Ripple } from '../components/Ripple';
 
 export default function QA() {
   const [lang, setLang] = useState<Language>('mm');
@@ -47,9 +48,10 @@ export default function QA() {
 
           <button
             onClick={toggleLang}
-            className="flex items-center gap-4 px-5 py-3 bg-[#141414] border border-[#262626] rounded-2xl hover:border-sky-500/50 transition-all group shrink-0"
+            className="flex items-center gap-4 px-5 py-3 bg-[#141414] border border-[#262626] rounded-2xl hover:border-sky-500/50 transition-all group shrink-0 relative overflow-hidden"
           >
-            <div className="flex items-center gap-2">
+            <Ripple />
+            <div className="flex items-center gap-2 relative z-10 pointer-events-none">
               <span className={cn(
                 "text-xs font-black transition-colors px-1.5 py-0.5 rounded",
                 lang === 'en' ? "text-sky-500 bg-sky-500/10" : "text-neutral-600"
@@ -87,15 +89,16 @@ export default function QA() {
               <ScrollReveal key={item.id} delay={0.1 + index * 0.05}>
                 <div 
                   className={cn(
-                    "group bg-[#141414] border border-[#262626] rounded-[24px] overflow-hidden transition-all duration-300",
+                    "group bg-[#141414] border border-[#262626] rounded-[24px] overflow-hidden transition-all duration-300 relative",
                     openId === item.id ? "border-sky-500/30 ring-1 ring-sky-500/10" : "hover:border-[#363636]"
                   )}
                 >
                   <button
                     onClick={() => setOpenId(openId === item.id ? null : item.id)}
-                    className="w-full px-8 py-7 flex items-center justify-between text-left group"
+                    className="w-full px-8 py-7 flex items-center justify-between text-left group relative overflow-hidden"
                   >
-                    <div className="flex items-center gap-6">
+                    <Ripple />
+                    <div className="flex items-center gap-6 relative z-10 pointer-events-none">
                       <div className={cn(
                         "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors",
                         openId === item.id ? "bg-sky-500/10 text-sky-500" : "bg-[#1a1a1a] text-neutral-600 group-hover:text-neutral-400"
@@ -164,9 +167,12 @@ export default function QA() {
                   : 'Market mechanics များကို ကျွမ်းကျင်ပိုင်နိုင်စေရန်နှင့် သင်၏ funded account စွမ်းဆောင်ရည်ကို မြှင့်တင်ရန် ကျွန်ုပ်တို့၏ mentorship တွင် ပါဝင်လိုက်ပါ။'}
               </p>
               
-              <Link to="/campus" className="inline-flex items-center gap-3 px-6 py-4 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-neutral-900 transition-all group/btn">
-                {lang === 'en' ? 'Access Campus' : 'Campus သို့သွားရန်'}
-                <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+              <Link to="/campus" className="inline-flex items-center gap-3 px-6 py-4 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-neutral-900 transition-all group/btn relative overflow-hidden">
+                <Ripple color="rgba(255, 255, 255, 0.2)" />
+                <span className="relative z-10 flex items-center gap-3">
+                  {lang === 'en' ? 'Access Campus' : 'Campus သို့သွားရန်'}
+                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                </span>
               </Link>
             </div>
           </ScrollReveal>

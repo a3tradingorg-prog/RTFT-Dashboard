@@ -5,6 +5,7 @@ import { AlertCircle } from 'lucide-react';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import { AccountProvider } from './lib/AccountContext';
 import { Toaster } from 'sonner';
+import { GlobalClickEffect } from './components/GlobalClickEffect';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -68,6 +69,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AccountProvider>
+          <GlobalClickEffect />
           <Toaster position="top-right" theme="dark" closeButton />
           <Router>
           <Routes>

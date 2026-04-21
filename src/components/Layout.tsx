@@ -22,6 +22,7 @@ import {
   X as CloseIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Ripple } from './Ripple';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
@@ -145,7 +146,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               : "text-neutral-500 hover:text-neutral-200 hover:bg-[#1f1f1f]"
           )}
         >
-          <item.icon className="w-4 h-4 relative z-10" />
+          <Ripple />
+          <item.icon className="w-4 h-4 relative z-10 pointer-events-none" />
           {isActive && (
             <motion.div 
               layoutId="active-pill"
