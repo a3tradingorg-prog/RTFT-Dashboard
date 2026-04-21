@@ -10,6 +10,7 @@ import {
   Sparkles, 
   GraduationCap, 
   Brain,
+  HelpCircle,
   Search, 
   User,
   LogOut,
@@ -92,7 +93,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hideAccountSelector = ['/campus', '/profile'].includes(location.pathname);
+  const hideAccountSelector = ['/campus', '/qa', '/profile'].includes(location.pathname);
 
   const navigation = [
     { name: 'DASHBOARD', href: '/', icon: LayoutDashboard },
@@ -101,6 +102,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Strategy', href: '/strategy', icon: Brain },
     { name: 'AI Summary', href: '/ai-summary', icon: Sparkles },
     { name: 'Campus', href: '/campus', icon: GraduationCap },
+    { name: 'Q&A', href: '/qa', icon: HelpCircle },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 
