@@ -17,7 +17,9 @@ import {
   TrendingUp,
   Activity,
   ShieldCheck,
-  Zap
+  Zap,
+  GraduationCap,
+  User
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import { 
@@ -50,85 +52,92 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        if (selectedAccountId) {
-          setTrades([]);
-          setDailyPnls([]);
-          setLoading(true);
-          setError(null);
-          await fetchDashboardData();
-        } else if (!accountsLoading) {
-          setLoading(false);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard data');
-        setLoading(false);
-      }
-    };
-
-    loadData().catch(err => console.error('Dashboard loadData error:', err));
-
-    if (selectedAccountId) {
-      const tradesSubscription = supabase
-        .channel(`trades_${selectedAccountId}`)
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'trades',
-          filter: `account_id=eq.${selectedAccountId}`
-        }, () => {
-          fetchDashboardData().catch(err => console.error('Realtime trades fetch error:', err));
-        })
-        .subscribe();
-
-      const dailyPnLSubscription = supabase
-        .channel(`daily_pnl_${selectedAccountId}`)
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'daily_pnl',
-          filter: `account_id=eq.${selectedAccountId}`
-        }, () => {
-          fetchDashboardData().catch(err => console.error('Realtime daily_pnl fetch error:', err));
-        })
-        .subscribe();
-
-      return () => {
-        tradesSubscription.unsubscribe();
-        dailyPnLSubscription.unsubscribe();
-      };
-    }
-  }, [selectedAccountId, accountsLoading, accounts.length]);
-
-  const fetchDashboardData = async () => {
-    if (!selectedAccountId) return;
+  const fetchDashboardData = async (accId: string) => {
+    if (!accId) return;
     
     try {
+      // Use specific columns to reduce data transfer size
       const [tradesRes, dailyPnlsRes] = await Promise.all([
-        supabase.from('trades').select('*').eq('account_id', selectedAccountId).order('entry_date', { ascending: true }),
-        supabase.from('daily_pnl').select('*').eq('account_id', selectedAccountId)
+        supabase
+          .from('trades')
+          .select('id, pnl, status, exit_date, entry_date, asset, type, contract_size, entry_price, exit_price, take_profit, stop_loss')
+          .eq('account_id', accId)
+          .order('entry_date', { ascending: true }),
+        supabase
+          .from('daily_pnl')
+          .select('id, date, pnl')
+          .eq('account_id', accId)
       ]);
 
       if (tradesRes.error) throw tradesRes.error;
       if (dailyPnlsRes.error) throw dailyPnlsRes.error;
 
       if (tradesRes.data) {
-        const uniqueTrades = Array.from(new Map(tradesRes.data.map((t: any) => [t.id, t])).values());
-        setTrades(uniqueTrades as Trade[]);
+        setTrades(tradesRes.data as Trade[]);
       }
       if (dailyPnlsRes.data) {
-        const uniquePnls = Array.from(new Map(dailyPnlsRes.data.map((p: any) => [p.id, p])).values());
-        setDailyPnls(uniquePnls as DailyPnL[]);
+        setDailyPnls(dailyPnlsRes.data as DailyPnL[]);
       }
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
-      throw err;
+      setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadData = async () => {
+      if (!selectedAccountId) {
+        if (!accountsLoading) setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        await fetchDashboardData(selectedAccountId);
+      } catch (err: any) {
+        if (isActive) setError(err.message || 'Failed to load dashboard data');
+      }
+    };
+
+    loadData();
+
+    if (selectedAccountId) {
+      const tradesSubscription = supabase
+        .channel(`trades_dash_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trades',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          if (isActive) fetchDashboardData(selectedAccountId);
+        })
+        .subscribe();
+
+      const dailyPnLSubscription = supabase
+        .channel(`daily_pnl_dash_${selectedAccountId}`)
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'daily_pnl',
+          filter: `account_id=eq.${selectedAccountId}`
+        }, () => {
+          if (isActive) fetchDashboardData(selectedAccountId);
+        })
+        .subscribe();
+
+      return () => {
+        isActive = false;
+        tradesSubscription.unsubscribe();
+        dailyPnLSubscription.unsubscribe();
+      };
+    }
+  }, [selectedAccountId, accountsLoading]);
 
   const stats = React.useMemo(() => {
     if (!selectedAccount) return null;
@@ -276,7 +285,7 @@ export default function Dashboard() {
           <p className="text-neutral-500">{error}</p>
         </div>
         <button 
-          onClick={() => fetchDashboardData().catch(err => console.error('Manual dashboard refresh error:', err))}
+          onClick={() => selectedAccountId && fetchDashboardData(selectedAccountId).catch(err => console.error('Manual dashboard refresh error:', err))}
           className="px-6 py-3 bg-[#141414] border border-[#262626] text-white font-bold rounded-xl hover:bg-[#1f1f1f] transition-all"
         >
           Try Again
@@ -301,21 +310,80 @@ export default function Dashboard() {
 
   if (accounts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-6">
-        <div className="w-24 h-24 bg-[#141414] border border-[#262626] rounded-3xl flex items-center justify-center shadow-2xl">
-          <Wallet className="w-10 h-10 text-neutral-600" />
+      <div className="flex flex-col items-center justify-center min-h-[75vh] py-12 px-4">
+        <ScrollReveal>
+          <div className="text-center space-y-4 mb-16">
+            <div className="w-20 h-20 bg-sky-500/10 border border-sky-500/20 rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-sky-500/10">
+              <Zap className="w-10 h-10 text-sky-500 animate-pulse" />
+            </div>
+            <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase">Welcome to RTFT</h2>
+            <p className="text-neutral-500 max-w-lg mx-auto text-lg">
+              Unlock your edge in the markets. Follow these steps to get started with your professional trading journal.
+            </p>
+          </div>
+        </ScrollReveal>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full">
+          <ScrollReveal delay={0.1}>
+            <Link to="/accounts" className="group">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-sky-500/30 hover:bg-[#121212] relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <Plus className="w-24 h-24 text-sky-500" />
+                </div>
+                <div className="w-16 h-16 bg-sky-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-sky-500/20 group-hover:scale-110 transition-transform">
+                  <Plus className="w-8 h-8 text-black" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Create Account</h3>
+                <p className="text-neutral-500 text-sm leading-relaxed">
+                  Setup your first Challenge or Funded account to start tracking your performance metrics.
+                </p>
+                <div className="mt-8 px-6 py-2 bg-sky-500/10 text-sky-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-sky-500 group-hover:text-black transition-all">
+                  Get Started
+                </div>
+              </div>
+            </Link>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.2}>
+            <Link to="/campus" className="group">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-emerald-500/30 hover:bg-[#121212] relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <GraduationCap className="w-24 h-24 text-emerald-500" />
+                </div>
+                <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                  <GraduationCap className="w-8 h-8 text-black" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Explore Campus</h3>
+                <p className="text-neutral-500 text-sm leading-relaxed">
+                  Access tutorials, strategy guides, and resources to help you master Future trading and propfirm rules.
+                </p>
+                <div className="mt-8 px-6 py-2 bg-emerald-500/10 text-emerald-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                  Start Learning
+                </div>
+              </div>
+            </Link>
+          </ScrollReveal>
+
+          <ScrollReveal delay={0.3}>
+            <Link to="/profile" className="group">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-amber-500/30 hover:bg-[#121212] relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <User className="w-24 h-24 text-amber-500" />
+                </div>
+                <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                  <User className="w-8 h-8 text-black" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Setup Profile</h3>
+                <p className="text-neutral-500 text-sm leading-relaxed">
+                  Customize your personal profile and preferences to make the journal truly yours.
+                </p>
+                <div className="mt-8 px-6 py-2 bg-amber-500/10 text-amber-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-amber-500 group-hover:text-black transition-all">
+                  Go to Profile
+                </div>
+              </div>
+            </Link>
+          </ScrollReveal>
         </div>
-        <div className="max-w-md space-y-2">
-          <h2 className="text-2xl font-bold text-white">No Trading Accounts</h2>
-          <p className="text-neutral-500">You haven't created any trading accounts yet. Create your first account to start tracking your performance.</p>
-        </div>
-        <Link 
-          to="/accounts" 
-          className="inline-flex items-center gap-2 px-8 py-4 bg-sky-500 text-black font-bold rounded-2xl hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          Create First Account
-        </Link>
       </div>
     );
   }
@@ -336,48 +404,81 @@ export default function Dashboard() {
       <div className="space-y-6">
         <ScrollReveal delay={0.05}>
           <div className="flex items-center gap-3">
-            <TrendingUp className="w-5 h-5 text-emerald-500" />
-            <h3 className="text-lg font-bold text-white uppercase tracking-tighter italic">Performance</h3>
+            <div className="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
+              <TrendingUp className="w-5 h-5 text-sky-400" />
+            </div>
+            <h3 className="text-xl font-black text-white uppercase tracking-[0.2em] italic">Performance Overview</h3>
           </div>
         </ScrollReveal>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <ScrollReveal delay={0.1}>
-            <PerformanceGauge 
-              value={formatPercent(stats?.winRate || 0)}
-              subLabel="Trade win %"
-              redLabel={stats?.lossCount || 0}
-              greenLabel={stats?.winCount || 0}
-              percent={stats?.winRate || 0}
-            />
-          </ScrollReveal>
-          <ScrollReveal delay={0.2}>
-            <PerformanceGauge 
-              value={(stats?.profitFactor || 0).toFixed(2)}
-              subLabel="Profit Factor"
-              redLabel={formatCurrency(stats?.grossLoss || 0)}
-              greenLabel={formatCurrency(stats?.grossProfit || 0)}
-              percent={Math.min(100, ((stats?.profitFactor || 0) / 3) * 100)}
-            />
-          </ScrollReveal>
-          <ScrollReveal delay={0.3}>
-            <PerformanceGauge 
-              value={(stats?.winLossRatio || 0).toFixed(2)}
-              subLabel="Win/Loss Ratio"
-              redLabel="Loss"
-              greenLabel="Win"
-              percent={Math.min(100, ((stats?.winLossRatio || 0) / 2) * 100)}
-            />
-          </ScrollReveal>
-          <ScrollReveal delay={0.4}>
-            <PerformanceGauge 
-              value={formatPercent(stats?.dayWinRate || 0)}
-              subLabel="Day win %"
-              redLabel={stats?.losingDays || 0}
-              greenLabel={stats?.profitableDays || 0}
-              percent={stats?.dayWinRate || 0}
-            />
-          </ScrollReveal>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* Gauges Grid - Dynamic span based on account type */}
+          <div className={cn(
+            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5",
+            selectedAccount?.account_type === 'Challenge' ? "xl:col-span-9" : "xl:col-span-12"
+          )}>
+            <ScrollReveal delay={0.1}>
+              <PerformanceGauge 
+                value={formatPercent(stats?.winRate || 0)}
+                subLabel="Trade win %"
+                redLabel={stats?.lossCount || 0}
+                greenLabel={stats?.winCount || 0}
+                percent={stats?.winRate || 0}
+                details={[
+                  { label: "Wins", value: stats?.winCount || 0, color: "text-sky-400" },
+                  { label: "Losses", value: stats?.lossCount || 0, color: "text-rose-400" }
+                ]}
+              />
+            </ScrollReveal>
+            <ScrollReveal delay={0.2}>
+              <PerformanceGauge 
+                value={(stats?.profitFactor || 0).toFixed(2)}
+                subLabel="Profit Factor"
+                redLabel={formatCurrency(stats?.grossLoss || 0).replace('$','').replace('.00','')}
+                greenLabel={formatCurrency(stats?.grossProfit || 0).replace('$','').replace('.00','')}
+                percent={Math.min(100, ((stats?.profitFactor || 0) / 3) * 100)}
+                details={[
+                  { label: "Gross Profit", value: formatCurrency(stats?.grossProfit || 0), color: "text-sky-400" },
+                  { label: "Gross Loss", value: formatCurrency(stats?.grossLoss || 0), color: "text-rose-400" }
+                ]}
+              />
+            </ScrollReveal>
+            <ScrollReveal delay={0.3}>
+              <PerformanceGauge 
+                value={(stats?.winLossRatio || 0).toFixed(2)}
+                subLabel="Win/Loss Ratio"
+                redLabel={formatCurrency(stats?.grossLoss / (stats?.lossCount || 1) || 0).replace('$','').replace('.00','')}
+                greenLabel={formatCurrency(stats?.grossProfit / (stats?.winCount || 1) || 0).replace('$','').replace('.00','')}
+                percent={Math.min(100, ((stats?.winLossRatio || 0) / 2) * 100)}
+                details={[
+                  { label: "Avg Win", value: formatCurrency(stats?.grossProfit / (stats?.winCount || 1) || 0), color: "text-sky-400" },
+                  { label: "Avg Loss", value: formatCurrency(stats?.grossLoss / (stats?.lossCount || 1) || 0), color: "text-rose-400" }
+                ]}
+              />
+            </ScrollReveal>
+            <ScrollReveal delay={0.4}>
+              <PerformanceGauge 
+                value={formatPercent(stats?.dayWinRate || 0)}
+                subLabel="Day win %"
+                redLabel={stats?.losingDays || 0}
+                greenLabel={stats?.profitableDays || 0}
+                percent={stats?.dayWinRate || 0}
+                details={[
+                  { label: "Profit Days", value: stats?.profitableDays || 0, color: "text-sky-400" },
+                  { label: "Loss Days", value: stats?.losingDays || 0, color: "text-rose-400" }
+                ]}
+              />
+            </ScrollReveal>
+          </div>
+
+          {/* Profit Target Visual - Only for Challenge accounts */}
+          {selectedAccount?.account_type === 'Challenge' && (
+            <div className="xl:col-span-3">
+              <ScrollReveal delay={0.5}>
+                <ProfitTargetVisual stats={stats} />
+              </ScrollReveal>
+            </div>
+          )}
         </div>
       </div>
 
@@ -618,14 +719,51 @@ export default function Dashboard() {
   );
 }
 
-function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percent }: any) {
+function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percent, details }: any) {
+  const [hoveredBadge, setHoveredBadge] = useState<'red' | 'green' | null>(null);
+
   const data = [
     { name: 'Red', value: 100 - percent },
     { name: 'Green', value: percent },
   ];
 
+  const greenDetail = details?.find((d: any) => d.color.includes('sky') || d.label.toLowerCase().includes('win') || d.label.toLowerCase().includes('profit'));
+  const redDetail = details?.find((d: any) => d.color.includes('rose') || d.label.toLowerCase().includes('loss'));
+
   return (
-    <div className="bg-[#101010] border border-[#202020] rounded-2xl p-6 flex flex-col items-center justify-between h-full group transition-all hover:border-emerald-500/20">
+    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-5 flex flex-col items-center justify-between h-full transition-all duration-300 hover:border-sky-500/20 hover:bg-[#121212] relative group">
+      {/* Individual Tooltips */}
+      <AnimatePresence>
+        {hoveredBadge && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            className={cn(
+              "absolute bottom-[80px] z-50 pointer-events-none",
+              hoveredBadge === 'red' ? "left-4" : "right-4"
+            )}
+          >
+            <div className="bg-[#1a1a1a] border border-[#262626] px-3 py-2 rounded-xl shadow-[0_15px_30px_rgba(0,0,0,0.5)] min-w-[130px] flex justify-between items-center gap-4">
+              <span className="text-[9px] text-neutral-500 font-bold uppercase tracking-[0.1em]">
+                {hoveredBadge === 'red' ? redDetail?.label : greenDetail?.label}
+              </span>
+              <span className={cn(
+                "text-[11px] font-black",
+                hoveredBadge === 'red' ? "text-rose-500" : "text-sky-400"
+              )}>
+                {hoveredBadge === 'red' ? redDetail?.value : greenDetail?.value}
+              </span>
+            </div>
+            {/* Tooltip caret */}
+            <div className={cn(
+              "w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-[#262626] mx-auto -mt-[1px]",
+              hoveredBadge === 'red' ? "ml-4" : "mr-4"
+            )} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative w-full h-[140px] flex items-center justify-center">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -635,38 +773,131 @@ function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percen
               cy="80%"
               startAngle={180}
               endAngle={0}
-              innerRadius={55}
-              outerRadius={75}
-              paddingAngle={2}
+              innerRadius={62}
+              outerRadius={76}
+              paddingAngle={0}
               dataKey="value"
               stroke="none"
               animationDuration={1500}
             >
-              <Cell fill="#ef4444" className="opacity-80" />
-              <Cell fill="#10b981" className="opacity-90 shadow-[0_0_20px_rgba(16,185,129,0.2)]" />
+              <Cell 
+                fill="#1a1a1a" 
+                className="cursor-crosshair"
+              />
+              <Cell 
+                fill="#0ea5e9" 
+                className="cursor-help transition-all duration-300 hover:opacity-100 opacity-90 drop-shadow-[0_0_12px_rgba(14,165,233,0.2)]" 
+                onMouseEnter={() => setHoveredBadge('green')}
+                onMouseLeave={() => setHoveredBadge(null)}
+              />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
         
-        <div className="absolute top-[62%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-full px-2">
+        <div className="absolute top-[70%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-full px-2">
           <p className={cn(
-            "font-black text-white tracking-tighter leading-none",
-            value.length > 6 ? "text-lg" : "text-xl"
+            "font-black text-white uppercase italic leading-none tracking-tight",
+            value.length > 5 ? "text-lg" : "text-xl"
           )}>
             {value}
           </p>
-          <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest mt-1 opacity-70">
+          <p className="text-[8px] font-black text-neutral-600 uppercase tracking-[0.2em] mt-1.5 italic">
             {subLabel}
           </p>
         </div>
       </div>
 
-      <div className="w-full flex justify-between items-center mt-2 gap-2">
-        <div className="px-2 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full shrink-0 max-w-[45%] overflow-hidden">
-          <span className="text-[9px] font-black text-rose-500 block truncate">{redLabel}</span>
+      <div className="w-full flex justify-between items-center mt-2.5 gap-2 px-1">
+        <div 
+          onMouseEnter={() => setHoveredBadge('red')}
+          onMouseLeave={() => setHoveredBadge(null)}
+          className="flex items-center gap-2 px-2 py-1 bg-rose-500/[0.03] border border-rose-500/10 rounded-lg shrink-0 cursor-help transition-all hover:bg-rose-500/10"
+        >
+          <div className="w-1 h-1 rounded-full bg-rose-500" />
+          <span className="text-[9px] font-black text-rose-500/80">{redLabel}</span>
         </div>
-        <div className="px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0 max-w-[45%] overflow-hidden">
-          <span className="text-[9px] font-black text-emerald-500 block truncate">{greenLabel}</span>
+        <div 
+          onMouseEnter={() => setHoveredBadge('green')}
+          onMouseLeave={() => setHoveredBadge(null)}
+          className="flex items-center gap-2 px-2 py-1 bg-sky-500/[0.03] border border-sky-500/10 rounded-lg shrink-0 cursor-help transition-all hover:bg-sky-500/10"
+        >
+          <div className="w-1 h-1 rounded-full bg-sky-500" />
+          <span className="text-[9px] font-black text-sky-500/80">{greenLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfitTargetVisual({ stats }: { stats: any }) {
+  if (!stats) return null;
+  
+  const targetEquity = stats.initialBalance + stats.profitTarget;
+  
+  return (
+    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-6 flex flex-col justify-between h-full group hover:border-sky-500/20 transition-all relative overflow-hidden">
+      {/* Abstract Background Decoration */}
+      <div className="absolute -top-16 -right-16 w-32 h-32 bg-sky-500/[0.02] blur-[60px] rounded-full group-hover:bg-sky-500/5 transition-colors" />
+      
+      <div className="space-y-1 relative z-10">
+        <p className="text-[9px] font-black text-neutral-500 uppercase tracking-[0.15em] opacity-60 italic">Goal Tracking</p>
+        <h3 className="text-3xl font-black text-white tracking-tighter italic flex items-baseline gap-2">
+          {formatCurrency(stats.profitTarget)}
+          <span className="text-[9px] font-black text-neutral-600 not-italic uppercase tracking-widest leading-none opacity-40">Target</span>
+        </h3>
+      </div>
+
+      <div className="space-y-6 mt-6 relative z-10">
+        <div className="flex justify-between items-end">
+          <div className="space-y-0.5">
+            <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Equity Level</p>
+            <p className="text-sm font-black text-white/80">{formatCurrency(targetEquity)}</p>
+          </div>
+          <div className="text-right space-y-0.5">
+            <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Remains</p>
+            <p className="text-sm font-black text-sky-500">{formatCurrency(stats.amountLeft)}</p>
+          </div>
+        </div>
+
+        <div className="relative pt-1 pb-6">
+          {/* Track */}
+          <div className="h-2 w-full bg-white/[0.02] rounded-full border border-white/[0.05]">
+            {/* Fill */}
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${stats.targetProgress}%` }}
+              transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
+              className="h-full bg-gradient-to-r from-sky-600/80 to-sky-400/80 rounded-full shadow-[0_0_15px_rgba(14,165,233,0.2)] relative"
+            >
+              <div className="absolute inset-0 bg-white/5 rounded-full" />
+            </motion.div>
+          </div>
+
+          {/* Indicator/Thumb */}
+          <motion.div 
+            initial={{ left: 0 }}
+            animate={{ left: `${stats.targetProgress}%` }}
+            transition={{ duration: 1.5, ease: [0.34, 1.56, 0.64, 1] }}
+            className="absolute top-0.5 -mt-2 w-6 h-6 flex items-center justify-center -ml-3 z-20"
+          >
+            <div className="w-4 h-4 bg-black border border-sky-400/50 rounded-full shadow-[0_0_10px_rgba(14,165,233,0.3)] flex items-center justify-center relative">
+              <div className="w-1 h-1 bg-sky-500 rounded-full" />
+            </div>
+            
+            {/* Tooltip Label */}
+            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 scale-75 origin-top">
+              <div className="bg-sky-500/90 px-2 py-0.5 rounded-md shadow-lg">
+                <p className="text-[10px] font-black text-black whitespace-nowrap">{formatCurrency(stats.totalPnl)}</p>
+              </div>
+              <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[4px] border-b-sky-500/90 mx-auto -mt-[18px]" />
+            </div>
+          </motion.div>
+
+          <div className="flex justify-between items-center text-[8px] font-black text-neutral-600 mt-5 uppercase tracking-[0.2em] opacity-50">
+            <span>START</span>
+            <span>{formatPercent(stats.targetProgress)}</span>
+            <span>PASS</span>
+          </div>
         </div>
       </div>
     </div>

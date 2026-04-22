@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { TradingAccount } from '../types';
@@ -42,9 +43,7 @@ const ASSET_COMMISSIONS: Record<string, number> = {
 
 export default function Accounts() {
   const { user } = useAuth();
-  const { refreshAccounts: refreshGlobalAccounts } = useAccount();
-  const [accounts, setAccounts] = useState<TradingAccount[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { accounts, loading: contextLoading, refreshAccounts } = useAccount();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<TradingAccount | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -75,29 +74,6 @@ export default function Accounts() {
 
   const typeRef = useClickOutside(() => setIsTypeDropdownOpen(false));
 
-  useEffect(() => {
-    if (user) {
-      fetchAccounts().catch(err => console.error('Initial accounts fetch error:', err));
-
-      // Subscribe to realtime changes for accounts
-      const subscription = supabase
-        .channel('accounts_realtime')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'accounts',
-          filter: `user_id=eq.${user.id}`
-        }, () => {
-          fetchAccounts().catch(err => console.error('Realtime accounts fetch error:', err));
-        })
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [user]);
-
   // Update input when asset changes
   useEffect(() => {
     setCommission(assetCommissions[asset]);
@@ -118,24 +94,6 @@ export default function Accounts() {
     if (asset === 'GC') newComms['MGC'] = (num / 6).toFixed(2);
     
     setAssetCommissions(newComms);
-  };
-
-  const fetchAccounts = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      if (data) setAccounts(data);
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const summary = useMemo(() => {
@@ -233,8 +191,7 @@ export default function Accounts() {
         toast.success(`Account ${editingAccount ? 'updated' : 'created'} successfully!`);
         setIsModalOpen(false);
         resetForm();
-        fetchAccounts().catch(err => console.error('Refresh accounts error:', err));
-        refreshGlobalAccounts().catch(err => console.error('Refresh global accounts error:', err));
+        refreshAccounts().catch(err => console.error('Refresh global accounts error:', err));
       }
     } catch (err: any) {
       console.error('Error submitting account:', err);
@@ -253,17 +210,25 @@ export default function Accounts() {
     if (!confirmDeleteId) return;
     
     try {
+      // First, we should attempt to delete all related records if foreign keys aren't set to cascade
+      // Supabase usually has constraints, so we delete in order if cascade isn't available
+      // But we'll try the direct delete first as most schemas in this env use CASCADE
+      
       const { error } = await supabase
         .from('accounts')
         .delete()
         .eq('id', confirmDeleteId);
 
       if (error) {
-        toast.error(`Failed to delete account: ${error.message}`);
+        // If it fails due to foreign key, we show a better error
+        if (error.code === '23503') {
+          toast.error("Cannot delete account. Please delete all trades associated with this account first.");
+        } else {
+          toast.error(`Failed to delete account: ${error.message}`);
+        }
       } else {
         toast.success('Account deleted successfully');
-        fetchAccounts().catch(err => console.error('Refresh accounts error after delete:', err));
-        refreshGlobalAccounts().catch(err => console.error('Refresh global accounts error after delete:', err));
+        refreshAccounts().catch(err => console.error('Refresh global accounts error after delete:', err));
       }
     } catch (err: any) {
       console.error('Error deleting account:', err);
@@ -385,7 +350,7 @@ export default function Accounts() {
         </ScrollReveal>
       </div>
 
-      {loading ? (
+      {contextLoading ? (
         <div className="flex items-center justify-center h-[40vh]">
           <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
@@ -430,31 +395,58 @@ export default function Accounts() {
                     isBreached && "bg-red-500"
                   )} />
 
-                  {/* Status Indicator */}
-                  {!isBreached && (
-                    <div className="absolute top-8 right-8 flex items-center gap-2">
-                      <div className="relative flex h-3 w-3">
+                  {/* Top-Right Actions */}
+                  <div className="absolute top-6 right-6 flex items-center gap-2 z-30">
+                    <div className="flex gap-1 items-center">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openEditModal(account);
+                        }}
+                        className="w-10 h-10 flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+                        title="Edit Account"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDelete(account.id);
+                        }}
+                        className="w-10 h-10 flex items-center justify-center text-neutral-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                        title="Delete Account"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {!isBreached && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/5">
+                        <div className="relative flex h-2 w-2">
+                          <span className={cn(
+                            "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                            isFunded ? "bg-emerald-400" : "bg-amber-400"
+                          )}></span>
+                          <span className={cn(
+                            "relative inline-flex rounded-full h-2 w-2",
+                            isFunded ? "bg-emerald-500" : "bg-amber-500"
+                          )}></span>
+                        </div>
                         <span className={cn(
-                          "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-                          isFunded ? "bg-emerald-400" : "bg-amber-400"
-                        )}></span>
-                        <span className={cn(
-                          "relative inline-flex rounded-full h-3 w-3",
-                          isFunded ? "bg-emerald-500" : "bg-amber-500"
-                        )}></span>
+                          "text-[9px] font-black uppercase tracking-widest",
+                          isFunded ? "text-emerald-500" : "text-amber-500"
+                        )}>Live</span>
                       </div>
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-widest",
-                        isFunded ? "text-emerald-500" : "text-amber-500"
-                      )}>Live</span>
-                    </div>
-                  )}
-                  {isBreached && (
-                    <div className="absolute top-8 right-8 flex items-center gap-2">
-                      <Skull className="w-4 h-4 text-red-500" />
-                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Breached</span>
-                    </div>
-                  )}
+                    )}
+                    {isBreached && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
+                        <Skull className="w-3 h-3 text-red-500" />
+                        <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Breached</span>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-between mb-8">
                     <div className={cn(
@@ -466,20 +458,6 @@ export default function Accounts() {
                       {isFunded ? <TrendingUp className="w-7 h-7" /> : 
                        isChallenge ? <Zap className="w-7 h-7" /> : 
                        <Ban className="w-7 h-7" />}
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => openEditModal(account)}
-                        className="p-2.5 text-neutral-500 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-                      >
-                        <Edit2 className="w-4.5 h-4.5" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(account.id)}
-                        className="p-2.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                      >
-                        <Trash2 className="w-4.5 h-4.5" />
-                      </button>
                     </div>
                   </div>
 
@@ -533,7 +511,7 @@ export default function Accounts() {
                       >
                         <FundedAccountManager 
                           account={account} 
-                          onUpdate={() => fetchAccounts()} 
+                          onUpdate={() => refreshAccounts()} 
                         />
                       </motion.div>
                     )}
@@ -755,13 +733,16 @@ export default function Accounts() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog
-        isOpen={!!confirmDeleteId}
-        title="Delete Account"
-        message="Are you sure you want to delete this account? All associated trades and data will be permanently removed. This action cannot be undone."
-        onConfirm={executeDelete}
-        onCancel={() => setConfirmDeleteId(null)}
-      />
+      {confirmDeleteId && createPortal(
+        <ConfirmDialog
+          isOpen={!!confirmDeleteId}
+          title="Delete Account"
+          message="Are you sure you want to delete this account? All associated trades and data will be permanently removed. This action cannot be undone."
+          onConfirm={executeDelete}
+          onCancel={() => setConfirmDeleteId(null)}
+        />,
+        document.body
+      )}
     </div>
   );
 }
