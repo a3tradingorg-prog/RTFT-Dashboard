@@ -83,6 +83,19 @@ const VIP2_VIDEOS = [
   { id: 'v2dt5', title: 'Day Trading 2024: Lesson 5', url: 'https://youtu.be/X-Sbwqb5xRE', description: '2024 course summary.' },
 ];
 
+const THAI_LANGUAGE_VIDEOS = [
+  { id: 'th1', title: 'သင်ခန်းစာ ၁ ဝေါဟာရ များ', url: 'https://youtu.be/oGMaZ527OZ0', description: 'နိဒါန်းနှင့် အခြေခံ ဝေါဟာရများ' },
+  { id: 'th2', title: 'သင်ခန်းစာ ၂ ကြိယာ အချင်းချင်း ပေါင်းစပ်ခြင်း', url: 'https://youtu.be/_1O8ri69z0w', description: 'ကြိယာများ အသုံးပြုပုံနှင့် ပေါင်းစပ်ပုံ' },
+  { id: 'th3', title: 'သင်ခန်းစာ ၃ နာမ်စား အခေါ်အဝေါ် များ', url: 'https://youtu.be/L7Le0AYVLOs', description: 'နာမ်စားများနှင့် အခေါ်အဝေါ်များ' },
+  { id: 'th4', title: 'သင်ခန်းစာ ၄ မိသားစု အခေါ်အဝေါ်များ', url: 'https://youtu.be/1fLxa7y4keI', description: 'မိသားစုဝင်များ အခေါ်အဝေါ်များ' },
+  { id: 'th5', title: 'သင်ခန်းစာ ၅ အခြေခံ ဝါကျ တည်ဆောက်ပုံ', url: 'https://youtu.be/db6XUxOG3Gw', description: 'အခြေခံ ဝါကျ တည်ဆောက်ပုံများ' },
+  { id: 'th6', title: 'သင်ခန်းစာ ၆ အကူကြိယာနှင့် ဝါကျ တည်ဆောက်နည်း', url: 'https://youtu.be/QClgTMabo_c', description: 'အကူကြိယာများ အသုံးပြု၍ ဝါကျ တည်ဆောက်ပုံ' },
+  { id: 'th7', title: 'သင်ခန်းစာ ၇ အငြင်းစကားလုံးနှင့် အကူကြိယာ ပေါင်းစပ်ခြင်း', url: 'https://youtu.be/4_dizmZO0TM', description: 'အငြင်းစကားလုံးများနှင့် အကူကြိယာများ ပေါင်းစပ်အသုံးပြုပုံ' },
+  { id: 'th8', title: 'သင်ခန်းစာ ၈ တားမြစ်စကားလုံးနှင့် အငြင်း စကားလုံးများ', url: 'https://youtu.be/Wu28U7cvXwo', description: 'တားမြစ်စကားလုံးများနှင့် အငြင်းစကားလုံးများ' },
+  { id: 'th9', title: 'သင်ခန်းစာ ၉ စကားစပ်များ', url: 'https://youtu.be/mZnaLlm3Ug4', description: 'စကားစပ်များ အသုံးပြုပုံ' },
+  { id: 'th10', title: 'သင်ခန်းစာ ၁၀ ရက်လနှစ် အခေါ်အဝေါ် များ', url: 'https://youtu.be/0xgVTCVtkn8', description: 'ရက်၊ လ၊ နှစ် အခေါ်အဝေါ်များ' },
+];
+
 const FUTURE_MENTORSHIP_VIDEOS = [
   { id: 'fm1', title: '15 FEB 2026', url: 'https://youtu.be/odwT5WJlAjA', description: 'Mentorship session recorded on Feb 15.' },
   { id: 'fm2', title: '16 FEB 2026', url: 'https://youtu.be/TClbTF6NB1Y', description: 'Mentorship session recorded on Feb 16.' },
@@ -365,6 +378,7 @@ export default function Campus() {
     'Day Trading Strategy', 
     'Introduction about Crypto',
     'Fundamental',
+    'Learn Thai',
     'ICT Notes',
     'PDF'
   ];
@@ -662,6 +676,41 @@ export default function Campus() {
               onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
             />
           ))}
+        </div>
+      ) : filter === 'Learn Thai' ? (
+        <div className="max-w-5xl space-y-12">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent border border-emerald-500/20 p-8 md:p-12 text-center"
+          >
+            <div className="relative z-10 mx-auto max-w-2xl">
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 uppercase tracking-tighter italic">Learn Thai Language</h2>
+              <p className="text-lg text-neutral-400 mb-0 leading-relaxed font-medium">
+                မြန်မာနိုင်ငံသားများအတွက် မြန်မာဘာသာဖြင့် ထိုင်းဘာသာစကားကို အလွယ်တကူ လေ့လာသင်ယူနိုင်ရန် ဖော်ပြပေးထားသော နေရာဖြစ်ပါသည်။
+              </p>
+            </div>
+            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
+          </motion.div>
+
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-white flex items-center gap-3">
+              <PlayCircle className="w-6 h-6 text-emerald-500" />
+              Video Lessons
+            </h3>
+            <div className="grid grid-cols-1 gap-4">
+              {THAI_LANGUAGE_VIDEOS.map((video) => (
+                <AccordionItem 
+                  key={video.id}
+                  title={video.title}
+                  description={video.description}
+                  url={video.url}
+                  isOpen={openVideoId === video.id}
+                  onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <>
