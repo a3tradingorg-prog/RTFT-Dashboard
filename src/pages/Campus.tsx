@@ -112,6 +112,7 @@ const FUTURE_MENTORSHIP_VIDEOS = [
   { id: 'fm13', title: 'Future Mentorship 2026: Power of Three', url: 'https://youtu.be/8_yZ8fjeL7s', description: 'Lecture episode about the "Power of Three" concept.' },
   { id: 'fm14', title: '5 April 2026 (Time, fresh liquidity and how to apply in real market)', url: 'https://youtu.be/MQw2i2xzRIY', description: 'Latest mentorship session for the 2026 program.' },
   { id: 'fm15', title: '20 April 2026 Weekly Recap', url: 'https://youtu.be/2cLeAEIdLJ4', description: 'Comprehensive session covering new market dynamics and strategies.' },
+  { id: 'fm16', title: '22 April 2026 - Liquidity explanation', url: 'https://youtu.be/YHKqbaZawIY', description: 'Deep dive into liquidity concepts and market structure.' },
 ];
 
 const TTT_BASIC = [
