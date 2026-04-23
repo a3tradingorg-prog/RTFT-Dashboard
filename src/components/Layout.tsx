@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ChevronDown,
   Menu,
-  X as CloseIcon
+  X as CloseIcon,
+  ArrowUp
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Ripple } from './Ripple';
@@ -36,6 +37,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     // Dynamically set favicon and title
@@ -386,7 +401,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="w-full p-2 sm:p-4 md:p-8 lg:p-12">
+        <div className="w-full p-2 sm:p-4 md:p-8 lg:p-12 min-h-[calc(100vh-80px)]">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -399,6 +414,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Footer */}
+        <footer className="w-full px-6 py-12 border-t border-[#262626] bg-[#0a0a0a]">
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
+            <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
+              © 2026 RTFT Ownership
+            </p>
+            <p className="text-[10px] text-neutral-600 font-medium text-center">
+              All rights reserved. Professional Trading Analytics & Education.
+            </p>
+          </div>
+        </footer>
+
+        {/* Scroll To Top Button */}
+        <AnimatePresence>
+          {showScrollTop && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={scrollToTop}
+              className="fixed bottom-8 right-8 z-50 p-3 rounded-xl bg-sky-500 text-white shadow-[0_10px_20px_rgba(14,165,233,0.3)] hover:bg-sky-400 transition-colors group"
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="w-5 h-5 transition-transform group-hover:-translate-y-1" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
