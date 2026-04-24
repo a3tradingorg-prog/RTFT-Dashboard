@@ -37,7 +37,8 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
-  PolarRadiusAxis
+  PolarRadiusAxis,
+  ReferenceLine
 } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -179,18 +180,17 @@ export default function Dashboard() {
     ];
     const edgeScore = (winRate * 0.4) + (Math.min(100, (profitFactor / 2) * 100) * 0.3) + (Math.min(100, (winLossRatio / 2) * 100) * 0.3);
 
-    // Propfirm Consistency
+    // Propfirm Consistency - Rule: (Highest Day Profit / Absolute Total Profit) * 100
     const consistencyRules = selectedAccount.consistency_rules;
     const hasConsistencyRule = consistencyRules !== 'No Consistency';
-    const consistencyPercent = hasConsistencyRule ? (parseFloat(consistencyRules) || 50) / 100 : 0;
-    const profitTarget = selectedAccount.profit_target || (selectedAccount.initial_balance * 0.1);
+    const consistencyLimit = hasConsistencyRule ? (parseFloat(consistencyRules) || 50) : 0;
     const maxDayProfit = Math.max(...dailyPnls.map(p => p.pnl), 0);
     
-    // Consistency rule: No single day profit > consistency % of profit target
-    const currentConsistencyRatio = profitTarget > 0 ? (maxDayProfit / profitTarget) : 0;
-    const isConsistent = !hasConsistencyRule || currentConsistencyRatio <= consistencyPercent;
+    const currentConsistencyRatio = totalPnl > 0 ? (maxDayProfit / totalPnl) : 0;
+    const isConsistent = !hasConsistencyRule || (currentConsistencyRatio * 100) <= consistencyLimit;
 
     // Profit Target
+    const profitTarget = selectedAccount.profit_target || (selectedAccount.initial_balance * 0.1);
     const targetProgress = Math.min(100, Math.max(0, (totalPnl / profitTarget) * 100));
     const amountLeft = Math.max(0, profitTarget - totalPnl);
 
@@ -233,7 +233,7 @@ export default function Dashboard() {
       drawdownPercent,
       initialBalance: selectedAccount.initial_balance,
       currentBalance,
-      consistencyPercent,
+      consistencyLimit,
       currentConsistencyRatio
     };
   }, [trades, selectedAccount, dailyPnls]);
@@ -419,7 +419,7 @@ export default function Dashboard() {
             <ScrollReveal delay={0.1}>
               <PerformanceGauge 
                 value={formatPercent(stats?.winRate || 0)}
-                subLabel="Trade win %"
+                title="Trade Win %"
                 redLabel={stats?.lossCount || 0}
                 greenLabel={stats?.winCount || 0}
                 percent={stats?.winRate || 0}
@@ -432,7 +432,7 @@ export default function Dashboard() {
             <ScrollReveal delay={0.2}>
               <PerformanceGauge 
                 value={(stats?.profitFactor || 0).toFixed(2)}
-                subLabel="Profit Factor"
+                title="Profit Factor"
                 redLabel={formatCurrency(stats?.grossLoss || 0).replace('$','').replace('.00','')}
                 greenLabel={formatCurrency(stats?.grossProfit || 0).replace('$','').replace('.00','')}
                 percent={Math.min(100, ((stats?.profitFactor || 0) / 3) * 100)}
@@ -445,7 +445,7 @@ export default function Dashboard() {
             <ScrollReveal delay={0.3}>
               <PerformanceGauge 
                 value={(stats?.winLossRatio || 0).toFixed(2)}
-                subLabel="Win/Loss Ratio"
+                title="Win/Loss Ratio"
                 redLabel={formatCurrency(stats?.grossLoss / (stats?.lossCount || 1) || 0).replace('$','').replace('.00','')}
                 greenLabel={formatCurrency(stats?.grossProfit / (stats?.winCount || 1) || 0).replace('$','').replace('.00','')}
                 percent={Math.min(100, ((stats?.winLossRatio || 0) / 2) * 100)}
@@ -458,7 +458,7 @@ export default function Dashboard() {
             <ScrollReveal delay={0.4}>
               <PerformanceGauge 
                 value={formatPercent(stats?.dayWinRate || 0)}
-                subLabel="Day win %"
+                title="Day Win %"
                 redLabel={stats?.losingDays || 0}
                 greenLabel={stats?.profitableDays || 0}
                 percent={stats?.dayWinRate || 0}
@@ -577,6 +577,20 @@ export default function Dashboard() {
                       strokeWidth={3}
                       animationDuration={1500}
                     />
+                    {selectedAccount?.account_type === 'Challenge' && stats?.profitTarget && (
+                      <ReferenceLine 
+                        y={stats.initialBalance + stats.profitTarget} 
+                        stroke="#0ea5e9" 
+                        strokeDasharray="5 5" 
+                        label={{ 
+                          value: `Target: ${formatCurrency(stats.initialBalance + stats.profitTarget)}`, 
+                          position: 'right', 
+                          fill: '#0ea5e9', 
+                          fontSize: 10,
+                          fontWeight: 'bold'
+                        }} 
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -616,13 +630,12 @@ export default function Dashboard() {
               
               <div className="space-y-6 pt-4 border-t border-[#262626]">
                 {stats?.hasConsistencyRule && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <ShieldCheck className="w-5 h-5 text-sky-400" />
-                      <span className="text-sm font-bold text-neutral-400">Consistency</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-5 h-5 text-sky-400" />
+                        <span className="text-sm font-bold text-neutral-400">Consistency</span>
+                      </div>
                       <span className={cn(
                         "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
                         stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
@@ -630,28 +643,44 @@ export default function Dashboard() {
                         {stats?.isConsistent ? 'Compliant' : 'Violated'}
                       </span>
                     </div>
+                    
+                    <div className="flex flex-col items-center py-4 bg-[#0a0a0a] rounded-2xl border border-white/[0.02]">
+                      <div className="relative w-32 h-32 flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={[
+                                { value: 100 - (stats?.currentConsistencyRatio * 100) },
+                                { value: stats?.currentConsistencyRatio * 100 }
+                              ]}
+                              cx="50%"
+                              cy="50%"
+                              startAngle={90}
+                              endAngle={-270}
+                              innerRadius={30}
+                              outerRadius={45}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              <Cell fill="#1a1a1a" />
+                              <Cell fill={stats?.isConsistent ? "#0ea5e9" : "#ef4444"} />
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={cn(
+                            "text-2xl font-black italic tracking-tighter",
+                            stats?.isConsistent ? "text-sky-400" : "text-rose-400"
+                          )}>
+                            {(stats?.currentConsistencyRatio * 100).toFixed(0)}
+                          </span>
+                          <span className="text-[10px] font-black text-neutral-600 uppercase tracking-widest mt-1">%</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mt-2 italic">Consistency</p>
+                    </div>
                   </div>
                 )}
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Target Profit</p>
-                      <p className="text-xl font-black text-white">{formatCurrency(stats?.amountLeft || 0)} Left</p>
-                    </div>
-                    <span className="text-xs font-bold text-sky-500">{stats?.targetProgress.toFixed(1)}%</span>
-                  </div>
-                  <div className="h-3 bg-[#0a0a0a] rounded-full overflow-hidden border border-[#262626]">
-                    <div 
-                      className="h-full bg-sky-500 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-1000" 
-                      style={{ width: `${stats?.targetProgress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
-                    <span>Progress</span>
-                    <span>Target {formatCurrency((stats?.initialBalance || 0) + (stats?.profitTarget || 0))}</span>
-                  </div>
-                </div>
 
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
@@ -682,45 +711,13 @@ export default function Dashboard() {
               </div>
             </motion.div>
           </ScrollReveal>
-
-          {/* Calendar Preview */}
-          <ScrollReveal delay={0.7}>
-            <motion.div 
-              whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="bg-[#141414] border border-[#262626] rounded-3xl p-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-white">Performance Calendar</h3>
-                <Link to="/journal" className="text-xs font-bold text-sky-500 hover:text-sky-400 uppercase tracking-widest">View Full</Link>
-              </div>
-              <div className="grid grid-cols-7 gap-2">
-                {calendarDays.slice(0, 28).map((day, i) => {
-                  const pnl = getDayPnL(day);
-                  const isTodayDate = isSameDay(day, new Date());
-                  return (
-                    <div 
-                      key={i} 
-                      className={cn(
-                        "aspect-square rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer hover:scale-110",
-                        isTodayDate ? "border-2 border-sky-500" : "border border-[#262626]",
-                        pnl > 0 ? "bg-sky-500/10 text-sky-400" : pnl < 0 ? "bg-red-500/10 text-red-400" : "bg-[#0a0a0a] text-neutral-600"
-                      )}
-                      title={pnl !== 0 ? formatCurrency(pnl) : 'No trades'}
-                    >
-                      {format(day, 'd')}
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </ScrollReveal>
         </div>
       </div>
     </div>
   );
 }
 
-function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percent, details }: any) {
+function PerformanceGauge({ title, value, redLabel, greenLabel, percent, details }: any) {
   const [hoveredBadge, setHoveredBadge] = useState<'red' | 'green' | null>(null);
 
   const data = [
@@ -732,7 +729,13 @@ function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percen
   const redDetail = details?.find((d: any) => d.color.includes('rose') || d.label.toLowerCase().includes('loss'));
 
   return (
-    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-5 flex flex-col items-center justify-between h-full transition-all duration-300 hover:border-sky-500/20 hover:bg-[#121212] relative group">
+    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-5 flex flex-col items-center h-full transition-all duration-300 hover:border-sky-500/20 hover:bg-[#121212] relative group">
+      <div className="w-full text-center mb-1">
+        <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] italic opacity-80 group-hover:text-sky-400 transition-colors">
+          {title}
+        </p>
+      </div>
+
       {/* Individual Tooltips */}
       <AnimatePresence>
         {hoveredBadge && (
@@ -765,17 +768,17 @@ function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percen
         )}
       </AnimatePresence>
 
-      <div className="relative w-full h-[140px] flex items-center justify-center">
+      <div className="relative w-full h-[120px] flex items-center justify-center overflow-hidden">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
-              cy="80%"
+              cy="85%"
               startAngle={180}
               endAngle={0}
-              innerRadius={62}
-              outerRadius={76}
+              innerRadius={65}
+              outerRadius={80}
               paddingAngle={0}
               dataKey="value"
               stroke="none"
@@ -795,20 +798,17 @@ function PerformanceGauge({ label, value, subLabel, redLabel, greenLabel, percen
           </PieChart>
         </ResponsiveContainer>
         
-        <div className="absolute top-[70%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-full px-2">
+        <div className="absolute top-[65%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none w-full px-2">
           <p className={cn(
-            "font-black text-white uppercase italic leading-none tracking-tight",
-            value.length > 5 ? "text-lg" : "text-xl"
+            "font-black text-white italic leading-none tracking-tight",
+            value.length > 5 ? "text-xl" : "text-2xl"
           )}>
             {value}
-          </p>
-          <p className="text-[8px] font-black text-neutral-600 uppercase tracking-[0.2em] mt-1.5 italic">
-            {subLabel}
           </p>
         </div>
       </div>
 
-      <div className="w-full flex justify-between items-center mt-2.5 gap-2 px-1">
+      <div className="w-full flex justify-between items-center mt-2 gap-2 px-1">
         <div 
           onMouseEnter={() => setHoveredBadge('red')}
           onMouseLeave={() => setHoveredBadge(null)}

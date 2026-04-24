@@ -64,7 +64,7 @@ const multipliers: Record<string, number> = {
 
 export default function Journal() {
   const { user } = useAuth();
-  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount, loading: accountsLoading } = useAccount();
+  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount, refreshAccounts, loading: accountsLoading } = useAccount();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
@@ -139,6 +139,196 @@ export default function Journal() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false);
   const [openExitDropdown, setOpenExitDropdown] = useState<{ index: number, type: 'status' | 'reason' } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const accountRef = useClickOutside(() => setIsAccountDropdownOpen(false));
+
+  const handleImportLogs = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Please upload a valid CSV file');
+      return;
+    }
+
+    if (!selectedAccountId || !user) {
+      toast.error('Please select an account first');
+      return;
+    }
+
+    setIsImporting(true);
+    const toastId = toast.loading('Importing trade logs...');
+
+    try {
+      const text = await file.text();
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) {
+        throw new Error('CSV file is empty or missing data');
+      }
+
+      // Check header
+      const header = lines[0].toLowerCase();
+      if (!header.includes('entry') || !header.includes('price')) {
+        throw new Error('Invalid CSV format. Please ensure the file has correct headers.');
+      }
+
+      const groupedTrades: any = {};
+      let firstAccountName = '';
+
+      lines.slice(1).forEach(line => {
+        const parts = line.split(';');
+        if (parts.length < 11) return;
+
+        const [accountName, symbol, contract, entryDate, entryPrice, exitDate, exitPrice, side, qty, grossPnl, netPnl] = parts;
+        if (!firstAccountName) firstAccountName = accountName;
+        
+        const key = `${accountName}-${symbol}-${entryDate}`;
+        
+        if (!groupedTrades[key]) {
+          groupedTrades[key] = {
+            accountName,
+            asset: symbol.includes('NQ') ? 'MNQ' : symbol.includes('ES') ? 'MES' : symbol.includes('GC') ? 'MGC' : symbol,
+            entry_date: entryDate,
+            entry_price: parseFloat(entryPrice),
+            type: side.toUpperCase().includes('BUY') ? 'LONG' : 'SHORT',
+            contract_size: 0,
+            total_pnl: 0,
+            exits: []
+          };
+        }
+        
+        const exitQty = Math.abs(parseFloat(qty));
+        groupedTrades[key].contract_size += exitQty;
+        groupedTrades[key].total_pnl += parseFloat(netPnl.replace(',', '')) || 0;
+        groupedTrades[key].exits.push({
+          exit_price: parseFloat(exitPrice),
+          closed_contract: exitQty,
+          exit_date: exitDate
+        });
+      });
+
+      const tradesToInsert = Object.values(groupedTrades);
+      if (tradesToInsert.length === 0) {
+        throw new Error('No valid trades found in CSV');
+      }
+
+      // 1. Resolve Account
+      let targetAccountId = selectedAccountId;
+      
+      // If none selected or we want to match by CSV account name
+      if (firstAccountName) {
+        const existingAcc = accounts.find(a => a.name === firstAccountName);
+        if (existingAcc) {
+          targetAccountId = existingAcc.id;
+        } else {
+          // Create the account if it doesn't exist
+          const { data: newAcc, error: accError } = await supabase
+            .from('accounts')
+            .insert([{
+              user_id: user.id,
+              name: firstAccountName,
+              propfirm: 'Imported',
+              account_size: '50K',
+              account_type: 'Funded',
+              initial_balance: 50000,
+              current_balance: 50000,
+              asset: 'MNQ'
+            }])
+            .select()
+            .single();
+          
+          if (accError) throw new Error(`Failed to create account: ${accError.message}`);
+          targetAccountId = newAcc.id;
+          await refreshAccounts(); // Update context
+        }
+      }
+
+      if (!targetAccountId) {
+        throw new Error('Please select or create an account first');
+      }
+
+      // 2. Insert Trades
+      let totalPnLForImport = 0;
+      const dailyPnlsToUpdate: Record<string, number> = {};
+
+      for (const t of tradesToInsert as any[]) {
+        const { data: trade, error: tradeError } = await supabase
+          .from('trades')
+          .insert([{
+            account_id: targetAccountId,
+            user_id: user.id,
+            asset: t.asset,
+            type: t.type,
+            entry_date: new Date(t.entry_date).toISOString(),
+            exit_date: new Date(t.exits[t.exits.length - 1].exit_date).toISOString(),
+            contract_size: t.contract_size,
+            entry_price: t.entry_price,
+            exit_price: t.exits[t.exits.length - 1].exit_price,
+            pnl: t.total_pnl,
+            status: 'CLOSED',
+            created_at: new Date(t.entry_date).toISOString()
+          }])
+          .select()
+          .single();
+
+        if (tradeError) {
+          console.error('Trade insert error:', tradeError);
+          throw new Error(`Failed to insert trade: ${tradeError.message}`);
+        }
+        
+        totalPnLForImport += t.total_pnl;
+
+        // Track daily PnL
+        const dateStr = format(new Date(t.entry_date), 'yyyy-MM-dd');
+        dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + t.total_pnl;
+
+        if (trade) {
+          const exitRecords = t.exits.map((e: any) => ({
+            trade_id: trade.id,
+            closed_contract: e.closed_contract,
+            exit_price: e.exit_price,
+            exit_status: 'TP',
+            created_at: new Date(e.exit_date).toISOString()
+          }));
+          const { error: exitsError } = await supabase.from('trade_exits').insert(exitRecords);
+          if (exitsError) console.warn('Exits insert warning:', exitsError);
+        }
+      }
+
+      // 3. Update account balance
+      const currentAcc = accounts.find(a => a.id === targetAccountId);
+      const newBalance = (currentAcc?.current_balance || 50000) + totalPnLForImport;
+      await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', targetAccountId);
+
+      // 4. Update daily PnLs
+      for (const [date, pnl] of Object.entries(dailyPnlsToUpdate)) {
+        const { data: existing } = await supabase
+          .from('daily_pnl')
+          .select('*')
+          .eq('account_id', targetAccountId)
+          .eq('date', date)
+          .single();
+
+        if (existing) {
+          await supabase.from('daily_pnl').update({ pnl: Number(existing.pnl) + pnl }).eq('id', existing.id);
+        } else {
+          await supabase.from('daily_pnl').insert([{ account_id: targetAccountId, user_id: user.id, date, pnl }]);
+        }
+      }
+
+      setSelectedAccountId(targetAccountId!);
+      toast.success(`Successfully imported ${tradesToInsert.length} trades!`, { id: toastId });
+      fetchJournalData(true);
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast.error(`Import failed: ${error.message}`, { id: toastId });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const closeAllDropdowns = () => {
     setIsAssetDropdownOpen(false);
@@ -195,7 +385,7 @@ export default function Journal() {
         .on('postgres_changes', { 
           event: '*', 
           schema: 'public', 
-          table: 'trade_exit_records'
+          table: 'trade_exits'
         }, () => {
           // Since we can't easily filter by account_id on the exit table directly without a join in the filter
           // we'll just refresh if any exit changes. For better performance, we could filter by trade_ids.
@@ -223,16 +413,16 @@ export default function Journal() {
     }
   }, [selectedAccountId]);
 
-  const fetchJournalData = async () => {
-    setLoading(true);
+  const fetchJournalData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [tradesRes, dailyPnlsRes] = await Promise.all([
         supabase
           .from('trades')
-          .select('*, trade_exit_records(*), strategies(*)')
+          .select('*, trade_exits(*), strategies(*)')
           .eq('account_id', selectedAccountId)
           .order('entry_date', { ascending: false })
-          .order('exit_timestamp', { foreignTable: 'trade_exit_records', ascending: false }),
+          .order('created_at', { foreignTable: 'trade_exits', ascending: false }),
         supabase
           .from('daily_pnl')
           .select('*')
@@ -243,10 +433,9 @@ export default function Journal() {
       if (dailyPnlsRes.error) throw dailyPnlsRes.error;
 
       if (tradesRes.data) {
-        // Map trade_exit_records to trade_exits and strategies to strategy for compatibility
+        // Map strategies to strategy for compatibility
         const mappedTrades = tradesRes.data.map((t: any) => ({
           ...t,
-          trade_exits: t.trade_exit_records,
           strategy: t.strategies
         }));
         
@@ -437,12 +626,12 @@ export default function Journal() {
         if (tradeError) throw tradeError;
         
         // Delete old exits and insert new ones
-        const { error: deleteError } = await supabase.from('trade_exit_records').delete().eq('trade_id', editingTradeId);
+        const { error: deleteError } = await supabase.from('trade_exits').delete().eq('trade_id', editingTradeId);
         if (deleteError) throw deleteError;
         
         if (processedExits.length > 0) {
           const exitsWithId = processedExits.map(e => ({ ...e, trade_id: editingTradeId }));
-          const { error: insertError } = await supabase.from('trade_exit_records').insert(exitsWithId);
+          const { error: insertError } = await supabase.from('trade_exits').insert(exitsWithId);
           if (insertError) throw insertError;
         }
         
@@ -497,7 +686,7 @@ export default function Journal() {
         if (trade) {
           if (processedExits.length > 0) {
             const exitsWithId = processedExits.map(e => ({ ...e, trade_id: trade.id }));
-            const { error: insertError } = await supabase.from('trade_exit_records').insert(exitsWithId);
+            const { error: insertError } = await supabase.from('trade_exits').insert(exitsWithId);
             if (insertError) throw insertError;
           }
 
@@ -672,16 +861,33 @@ export default function Journal() {
           </div>
 
           {selectedAccount?.account_type !== 'Passed' && (
-            <button 
-              onClick={() => {
-                resetForm();
-                setEditingTradeId(null);
-                setIsModalOpen(true);
-              }}
-              className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
+            <div className="flex gap-2">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleImportLogs}
+                accept=".csv"
+                className="hidden"
+              />
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                title="Import Trade Logs (CSV)"
+                className="w-10 h-10 bg-neutral-800 text-neutral-400 rounded-xl flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-all border border-[#262626] disabled:opacity-50"
+              >
+                <Upload className={cn("w-5 h-5", isImporting && "animate-pulse")} />
+              </button>
+              <button 
+                onClick={() => {
+                  resetForm();
+                  setEditingTradeId(null);
+                  setIsModalOpen(true);
+                }}
+                className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -730,87 +936,104 @@ export default function Journal() {
               </div>
             </div>
 
-            <div className="grid grid-cols-7 border-b border-[#262626]">
+            <div className="grid grid-cols-8 border-b border-[#262626]">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <div key={day} className="py-4 text-center text-[10px] font-black text-neutral-500 uppercase tracking-widest border-r border-[#262626] last:border-r-0">
                   <span className="hidden sm:inline">{day}</span>
                   <span className="sm:hidden">{day[0]}</span>
                 </div>
               ))}
+              <div className="py-4 text-center text-[10px] font-black text-sky-500/50 uppercase tracking-widest bg-sky-500/[0.02]">
+                <span className="hidden sm:inline">Weekly PnL</span>
+                <span className="sm:hidden">Total</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-7">
-              {calendarDays.map((day, i) => {
-                const pnl = getDayPnL(day);
-                const dayTrades = getDayTrades(day);
-                const isCurrentMonth = format(day, 'M') === format(currentMonth, 'M');
-                const isFirstDayOfWeek = i % 7 === 0;
-                const weeklyPnL = isFirstDayOfWeek ? getWeeklyPnL(day) : 0;
+            <div className="grid grid-cols-8">
+              {(() => {
+                const weeks = [];
+                for (let i = 0; i < calendarDays.length; i += 7) {
+                  weeks.push(calendarDays.slice(i, i + 7));
+                }
                 
-                return (
-                  <div 
-                    key={day.toString()} 
-                    onClick={() => {
-                      setSelectedDate(day);
-                      if (dayTrades.length > 0) setViewingDayDetails(day);
-                    }}
-                    className={cn(
-                      "min-h-[100px] sm:min-h-[160px] p-2 sm:p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative cursor-pointer",
-                      !isCurrentMonth && "opacity-20 grayscale",
-                      selectedDate && isSameDay(day, selectedDate) && "bg-sky-500/5",
-                      (i + 1) % 7 === 0 && "border-r-0"
-                    )}
-                  >
-                    {isFirstDayOfWeek && isCurrentMonth && (
-                      <div className="absolute -left-1 sm:left-auto sm:-right-1 top-1/2 -translate-y-1/2 rotate-[-90deg] sm:rotate-90 origin-center z-10">
-                        <div className={cn(
-                          "px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border backdrop-blur-md",
-                          weeklyPnL >= 0 ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                        )}>
-                           W: {formatCurrency(weeklyPnL)}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-start mb-1 sm:mb-4">
-                      <span className={cn(
-                        "text-[10px] sm:text-xs font-black",
-                        isToday(day) ? "w-5 h-5 sm:w-6 sm:h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
-                      )}>
-                        {format(day, 'd')}
-                      </span>
-                      {pnl !== 0 && (
-                        <span className={cn(
-                          "text-[8px] sm:text-[10px] font-black tracking-tighter",
-                          pnl > 0 ? "text-sky-400" : "text-rose-400"
-                        )}>
-                          {pnl > 0 ? '+' : ''}<span className="hidden sm:inline">{formatCurrency(pnl)}</span>
-                          <span className="sm:hidden">{pnl > 0 ? 'W' : 'L'}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5 sm:space-y-1">
-                      {dayTrades.slice(0, 2).map(trade => (
+                return weeks.map((week, weekIndex) => (
+                  <React.Fragment key={`week-${weekIndex}`}>
+                    {week.map((day, i) => {
+                      const pnl = getDayPnL(day);
+                      const dayTrades = getDayTrades(day);
+                      const isCurrentMonth = format(day, 'M') === format(currentMonth, 'M');
+                      
+                      return (
                         <div 
-                          key={`calendar-${trade.id}`}
+                          key={day.toString()} 
+                          onClick={() => {
+                            setSelectedDate(day);
+                            if (dayTrades.length > 0) {
+                              setViewingDayDetails(day);
+                            } else if (isCurrentMonth) {
+                              toast.error("No positions found", {
+                                description: format(day, "PPPP"),
+                                duration: 2000,
+                              });
+                            }
+                          }}
                           className={cn(
-                            "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
-                            trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
+                            "min-h-[100px] sm:min-h-[160px] p-2 sm:p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative cursor-pointer",
+                            !isCurrentMonth && "opacity-20 grayscale",
+                            selectedDate && isSameDay(day, selectedDate) && "bg-sky-500/5"
                           )}
                         >
-                          {trade.asset}
+                          <div className="flex justify-between items-start mb-1 sm:mb-4">
+                            <span className={cn(
+                              "text-[10px] sm:text-xs font-black",
+                              isToday(day) ? "w-5 h-5 sm:w-6 sm:h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
+                            )}>
+                              {format(day, 'd')}
+                            </span>
+                            {pnl !== 0 && (
+                              <span className={cn(
+                                "text-[8px] sm:text-[10px] font-black tracking-tighter",
+                                pnl > 0 ? "text-sky-400" : "text-rose-400"
+                              )}>
+                                {pnl > 0 ? '+' : ''}<span className="hidden sm:inline">{formatCurrency(pnl)}</span>
+                                <span className="sm:hidden">{pnl > 0 ? 'W' : 'L'}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-0.5 sm:space-y-1">
+                            {dayTrades.slice(0, 2).map(trade => (
+                              <div 
+                                key={`calendar-${trade.id}`}
+                                className={cn(
+                                  "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
+                                  trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
+                                )}
+                              >
+                                {trade.asset}
+                              </div>
+                            ))}
+                            {dayTrades.length > 2 && (
+                              <div className="text-[7px] sm:text-[9px] font-bold text-neutral-600 pl-1">
+                                + {dayTrades.length - 2}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      ))}
-                      {dayTrades.length > 2 && (
-                        <div className="text-[7px] sm:text-[9px] font-bold text-neutral-600 pl-1">
-                          + {dayTrades.length - 2}
-                        </div>
-                      )}
+                      );
+                    })}
+                    {/* Weekly Total Column Cell */}
+                    <div className="min-h-[100px] sm:min-h-[160px] p-2 sm:p-4 border-b border-[#262626] bg-sky-500/[0.02] flex flex-col justify-center items-center">
+                      <div className={cn(
+                        "px-2 py-1 rounded-lg text-[9px] sm:text-xs font-black border tracking-tight",
+                        getWeeklyPnL(week[0]) >= 0 ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                      )}>
+                        {getWeeklyPnL(week[0]) >= 0 ? '+' : ''}{formatCurrency(getWeeklyPnL(week[0]))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  </React.Fragment>
+                ));
+              })()}
             </div>
           </motion.div>
         </div>
@@ -819,7 +1042,10 @@ export default function Journal() {
       {/* Daily Details Modal */}
       <AnimatePresence>
         {viewingDayDetails && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div 
+            className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md"
+            onClick={() => setViewingDayDetails(null)}
+          >
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
