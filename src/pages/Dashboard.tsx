@@ -53,6 +53,8 @@ export default function Dashboard() {
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   const fetchDashboardData = async (accId: string) => {
     if (!accId) return;
@@ -116,7 +118,7 @@ export default function Dashboard() {
           schema: 'public', 
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
-        }, () => {
+        }, (payload: any) => {
           if (isActive) fetchDashboardData(selectedAccountId);
         })
         .subscribe();
@@ -128,7 +130,7 @@ export default function Dashboard() {
           schema: 'public', 
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
-        }, () => {
+        }, (payload: any) => {
           if (isActive) fetchDashboardData(selectedAccountId);
         })
         .subscribe();
@@ -140,6 +142,23 @@ export default function Dashboard() {
       };
     }
   }, [selectedAccountId, accountsLoading]);
+
+  // Set initial date range when trades change
+  useEffect(() => {
+    if (trades.length > 0 && !startDate && !endDate) {
+      const dates = trades
+        .filter(t => t.status === 'CLOSED')
+        .map(t => new Date(t.exit_date || t.entry_date).getTime())
+        .filter(d => !isNaN(d));
+
+      if (dates.length > 0) {
+        const minDate = new Date(Math.min(...dates));
+        const maxDate = new Date(Math.max(...dates));
+        setStartDate(format(minDate, 'yyyy-MM-dd'));
+        setEndDate(format(maxDate, 'yyyy-MM-dd'));
+      }
+    }
+  }, [trades]);
 
   const stats = React.useMemo(() => {
     if (!selectedAccount) return null;
@@ -240,23 +259,46 @@ export default function Dashboard() {
 
   const chartData = React.useMemo(() => {
     if (!selectedAccount) return [];
+    
     let currentBalance = selectedAccount.initial_balance;
-    const data = [{
+    let peakBalance = selectedAccount.initial_balance;
+    const maxDrawdown = selectedAccount.max_drawdown || selectedAccount.initial_balance * 0.05;
+    
+    const allPoints = [{
+      timestamp: 0,
       date: 'Start',
-      balance: currentBalance
+      balance: currentBalance,
+      floor: currentBalance - maxDrawdown,
+      target: selectedAccount.initial_balance + (selectedAccount.profit_target || 0)
     }];
     
-    trades
+    const sortedTrades = [...trades]
       .filter(t => t.status === 'CLOSED')
-      .forEach(t => {
-        currentBalance += (Number(t.pnl) || 0);
-        data.push({
-          date: format(new Date(t.exit_date || t.entry_date), 'MMM dd'),
-          balance: currentBalance
-        });
+      .sort((a, b) => new Date(a.exit_date || a.entry_date).getTime() - new Date(b.exit_date || b.entry_date).getTime());
+
+    sortedTrades.forEach(t => {
+      currentBalance += (Number(t.pnl) || 0);
+      if (currentBalance > peakBalance) peakBalance = currentBalance;
+      
+      const tradeDate = new Date(t.exit_date || t.entry_date);
+      allPoints.push({
+        timestamp: tradeDate.getTime(),
+        date: format(tradeDate, 'MMM dd'),
+        balance: currentBalance,
+        floor: peakBalance - maxDrawdown,
+        target: selectedAccount.initial_balance + (selectedAccount.profit_target || 0)
       });
-    return data;
-  }, [trades, selectedAccount]);
+    });
+
+    // Filter by date
+    if (startDate && endDate) {
+      const start = new Date(startDate).getTime();
+      const end = new Date(endDate).getTime();
+      return allPoints.filter((p, i) => i === 0 || (p.timestamp >= start && p.timestamp <= end + 86400000));
+    }
+
+    return allPoints;
+  }, [trades, selectedAccount, startDate, endDate]);
 
   const calendarDays = React.useMemo(() => {
     const today = new Date();
@@ -525,70 +567,144 @@ export default function Dashboard() {
           <ScrollReveal delay={0.5}>
             <motion.div 
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="bg-[#141414] border border-[#262626] rounded-3xl p-8 shadow-sm h-full"
+              className="bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 shadow-sm h-full"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-bold text-white">Equity Curve</h3>
-                <div className="flex gap-4">
+              <div className="flex flex-col space-y-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  {/* Left: Balance Info */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center">
+                      <Wallet className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Balance</p>
+                      <h3 className="text-3xl font-black text-white italic tracking-tighter">
+                        {formatCurrency(stats?.currentBalance || 0)}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Right: Date Selectors */}
+                  <div className="flex items-center gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest pl-1">Start Date</p>
+                      <div className="relative group">
+                        <input 
+                          type="date" 
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="bg-[#141414] border border-[#262626] rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest pl-1">End Date</p>
+                      <div className="relative group">
+                        <input 
+                          type="date" 
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="bg-[#141414] border border-[#262626] rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-6 pt-4">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-sky-500 rounded-full" />
-                    <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Growth</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-sky-500 ring-4 ring-sky-500/10" />
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Account Balance</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5 border-t-2 border-dashed border-emerald-500" />
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Profit Target</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-0.5 border-t-2 border-dashed border-rose-500" />
+                    <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Maximum Loss Limit</span>
                   </div>
                 </div>
               </div>
+
               <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
+                  <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorPnl" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+                      <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1}/>
                         <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} opacity={0.5} />
                     <XAxis 
                       dataKey="date" 
-                      stroke="#525252" 
-                      fontSize={11} 
-                      fontWeight={700}
+                      stroke="#404040" 
+                      fontSize={10} 
+                      fontWeight={800}
                       tickLine={false} 
                       axisLine={false} 
-                      dy={10}
+                      dy={15}
+                      className="uppercase tracking-widest"
                     />
                     <YAxis 
-                      stroke="#525252" 
-                      fontSize={11} 
-                      fontWeight={700}
+                      stroke="#404040" 
+                      fontSize={10} 
+                      fontWeight={800}
                       tickLine={false} 
                       axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                      dx={-10}
                     />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #262626', borderRadius: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
-                      itemStyle={{ color: '#0ea5e9', fontWeight: 700 }}
-                      labelStyle={{ color: '#737373', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase' }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-[#141414] border border-[#262626] p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-3">{label}</p>
+                              <div className="space-y-2">
+                                {payload.map((entry: any, index: number) => (
+                                  <div key={index} className="flex items-center justify-between gap-8">
+                                    <span className="text-[10px] font-bold text-neutral-400 uppercase">{entry.name}</span>
+                                    <span className="text-sm font-black" style={{ color: entry.color }}>
+                                      {formatCurrency(entry.value)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
                     />
                     <Area 
                       type="monotone" 
+                      name="Account Balance"
                       dataKey="balance" 
                       stroke="#0ea5e9" 
                       fillOpacity={1} 
-                      fill="url(#colorPnl)" 
+                      fill="url(#colorBalance)" 
                       strokeWidth={3}
+                      animationDuration={1500}
+                    />
+                    <Area 
+                      type="stepAfter" 
+                      name="Maximum Loss Limit"
+                      dataKey="floor" 
+                      stroke="#ef4444" 
+                      fill="transparent"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
                       animationDuration={1500}
                     />
                     {selectedAccount?.account_type === 'Challenge' && stats?.profitTarget && (
                       <ReferenceLine 
                         y={stats.initialBalance + stats.profitTarget} 
-                        stroke="#0ea5e9" 
+                        stroke="#10b981" 
                         strokeDasharray="5 5" 
-                        label={{ 
-                          value: `Target: ${formatCurrency(stats.initialBalance + stats.profitTarget)}`, 
-                          position: 'right', 
-                          fill: '#0ea5e9', 
-                          fontSize: 10,
-                          fontWeight: 'bold'
-                        }} 
+                        strokeWidth={2}
                       />
                     )}
                   </AreaChart>
