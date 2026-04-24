@@ -265,7 +265,7 @@ async function startServer() {
       "gemini-3-flash-preview",
       "gemini-3.1-pro-preview",
       "gemini-flash-latest",
-      "gemini-2.0-flash"
+      "gemini-2.0-flash-exp"
     ];
 
     let lastError: any = null;
@@ -276,18 +276,24 @@ async function startServer() {
       for (const apiKey of shuffledKeys) {
         try {
           console.log(`[Server Gemini] Attempting with model: ${modelName}`);
-          const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+          const ai = new GoogleGenAI({ apiKey });
           
-          const result = await ai.models.generateContent({
+          const response = await ai.models.generateContent({
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: config
+            config: {
+              ...(config?.systemInstruction ? { systemInstruction: config.systemInstruction } : {}),
+              temperature: config.temperature || 0.7,
+              topP: config.topP || 0.95,
+              topK: config.topK || 40,
+              responseMimeType: config.responseMimeType
+            }
           });
           
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          const text = response.text;
           
           if (!text) {
-            console.error(`[Server Gemini] Empty response from ${modelName}:`, JSON.stringify(result));
+            console.error(`[Server Gemini] Empty response from ${modelName}:`, JSON.stringify(response));
             throw new Error("Invalid response structure from Gemini");
           }
           
@@ -317,7 +323,6 @@ async function startServer() {
             continue;
           }
           
-          console.error(`[Server Gemini] Error with model ${modelName}:`, err);
           continue;
         }
       }

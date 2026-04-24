@@ -233,9 +233,11 @@ export default function AISummary() {
     const cachedQuotaError = localStorage.getItem('last_quota_error');
     const lastErrorTime = cachedQuotaError ? parseInt(cachedQuotaError) : null;
     
-    // If we hit a quota error recently (within 5 mins), warn the user
-    if (lastErrorTime && Date.now() - lastErrorTime < 300000) {
-      setError("Daily AI Quota Reached. Please wait a few minutes or try again tomorrow.");
+    // If we hit a quota error recently, warn the user
+    // We differentiate between a 1-minute RPM limit and a 24-hour RPD limit if possible,
+    // but default to a 2-minute "cool down" for better UX.
+    if (lastErrorTime && Date.now() - lastErrorTime < 120000) {
+      setError("AI Engine is currently cooling down due to rate limits. Most free tier quotas reset within 1-2 minutes. Please wait a moment.");
       return;
     }
 
@@ -436,15 +438,24 @@ export default function AISummary() {
                           setIsAccountDropdownOpen(false);
                         }}
                         className={cn(
-                          "w-full flex items-center justify-between p-4 rounded-xl transition-all group",
+                          "w-full flex items-center justify-between p-4 rounded-xl transition-all group gap-4",
                           selectedAccountId === account.id ? "bg-sky-500/10 text-sky-400" : "text-neutral-400 hover:bg-[#262626] hover:text-white"
                         )}
                       >
-                        <div className="flex flex-col items-start">
-                          <span className="font-bold text-sm">{account.name}</span>
+                        <div className="flex flex-col items-start min-w-0">
+                          <span className="font-bold text-sm truncate w-full">{account.name}</span>
                           <span className="text-[10px] opacity-50 uppercase tracking-widest">{account.propfirm}</span>
                         </div>
-                        {selectedAccountId === account.id && <Check className="w-4 h-4" />}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-tighter",
+                            account.account_type === 'Passed' ? "text-emerald-500" : 
+                            account.account_type === 'Fail/Breached' ? "text-rose-500" : "text-sky-500"
+                          )}>
+                            {account.account_type || 'Challenge'}
+                          </span>
+                          {selectedAccountId === account.id && <Check className="w-4 h-4" />}
+                        </div>
                       </button>
                     ))}
                   </motion.div>
@@ -622,12 +633,26 @@ export default function AISummary() {
                     <h3 className="text-lg font-bold text-white">Analysis Failed</h3>
                     <p className="text-sm text-neutral-500 max-w-sm">{error}</p>
                   </div>
-                  <button 
-                    onClick={generateSummary}
-                    className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all"
-                  >
-                    Try Again
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={generateSummary}
+                      className="px-8 py-3 bg-sky-500 text-black text-xs font-black uppercase tracking-widest rounded-xl hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20"
+                    >
+                      Try Again
+                    </button>
+                    {error?.includes("quota") && (
+                      <button 
+                        onClick={() => {
+                          localStorage.removeItem('last_quota_error');
+                          setLastQuotaError(null);
+                          setError(null);
+                        }}
+                        className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        Reset Cooldown
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
               </ScrollReveal>
             ) : summarizing ? (

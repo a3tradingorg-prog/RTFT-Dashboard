@@ -34,7 +34,7 @@ const MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.1-pro-preview",
   "gemini-flash-latest",
-  "gemini-2.0-flash"
+  "gemini-2.0-flash-exp"
 ];
 
 export const callGeminiWithRetry = async (
@@ -100,19 +100,25 @@ export const callGeminiWithRetry = async (
     
     for (let i = 0; i < shuffledKeys.length; i++) {
       const apiKey = shuffledKeys[i];
-      const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+      const ai = new GoogleGenAI({ apiKey });
       
       try {
-        const result = await ai.models.generateContent({
+        const response = await ai.models.generateContent({
           model: modelName,
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: config
+          config: {
+            ...(config?.systemInstruction ? { systemInstruction: config.systemInstruction } : {}),
+            temperature: config.temperature || 0.7,
+            topP: config.topP || 0.95,
+            topK: config.topK || 40,
+            responseMimeType: config.responseMimeType
+          }
         });
         
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = response.text;
         
         if (!text) {
-          console.error(`[Gemini] Empty response from ${modelName}:`, JSON.stringify(result));
+          console.error(`[Gemini] Empty response from ${modelName}:`, JSON.stringify(response));
           throw new Error("Invalid response structure from Gemini");
         }
         
@@ -140,7 +146,6 @@ export const callGeminiWithRetry = async (
           continue;
         }
         
-        console.error(`[Gemini] Error with model ${modelName} and key ${apiKey.substring(0, 8)}...:`, err);
         continue;
       }
     }

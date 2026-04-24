@@ -353,14 +353,33 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[75vh] py-12 px-4">
         <ScrollReveal>
-          <div className="text-center space-y-4 mb-16">
+          <div className="text-center space-y-4 mb-12">
             <div className="w-20 h-20 bg-sky-500/10 border border-sky-500/20 rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-sky-500/10">
               <Zap className="w-10 h-10 text-sky-500 animate-pulse" />
             </div>
             <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase">Welcome to RTFT</h2>
-            <p className="text-neutral-500 max-w-lg mx-auto text-lg">
-              Unlock your edge in the markets. Follow these steps to get started with your professional trading journal.
+            <p className="text-neutral-500 max-w-lg mx-auto text-lg font-medium">
+              Unlock your edge in the markets. Watch our quick tour to master the platform and scale your trading career.
             </p>
+          </div>
+        </ScrollReveal>
+
+        <ScrollReveal delay={0.05}>
+          <div className="w-full max-w-3xl mx-auto mb-16 relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 to-emerald-500/20 rounded-[33px] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="relative aspect-video rounded-[32px] overflow-hidden border border-white/[0.05] bg-black shadow-2xl">
+              <iframe 
+                src="https://www.youtube.com/embed/vPj-nAgqEik" 
+                title="RTFT Website Tour"
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowFullScreen
+              ></iframe>
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-2">
+               <div className="w-1.5 h-1.5 bg-sky-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(14,165,233,0.5)]"></div>
+               <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest italic tracking-tighter">Fast-Track Onboarding Video</span>
+            </div>
           </div>
         </ScrollReveal>
 

@@ -348,12 +348,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                               setIsAccountDropdownOpen(false);
                             }}
                             className={cn(
-                              "w-full px-4 py-2.5 text-left hover:bg-[#1f1f1f] transition-all flex items-center justify-between",
+                              "w-full px-4 py-2.5 text-left hover:bg-[#1f1f1f] transition-all flex items-center justify-between gap-3",
                               selectedAccountId === account.id && "bg-sky-500/5 text-sky-400"
                             )}
                           >
-                            <span className="text-[11px] font-bold">{account.name}</span>
-                            {selectedAccountId === account.id && <div className="w-1 h-1 bg-sky-500 rounded-full" />}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-bold truncate">{account.name}</span>
+                              <span className={cn(
+                                "text-[8px] font-black uppercase tracking-tighter",
+                                account.account_type === 'Passed' ? "text-emerald-500" : 
+                                account.account_type === 'Fail/Breached' ? "text-rose-500" : "text-sky-500"
+                              )}>
+                                {account.account_type || 'Challenge'}
+                              </span>
+                            </div>
+                            {selectedAccountId === account.id && <div className="w-1.5 h-1.5 bg-sky-500 rounded-full shrink-0 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />}
                           </button>
                         ))}
                       </div>

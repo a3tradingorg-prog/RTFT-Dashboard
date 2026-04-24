@@ -548,8 +548,8 @@ export default function Journal() {
     setIsSubmitting(true);
     setFormError('');
 
-    if (selectedAccount?.account_type === 'Passed') {
-      setFormError('Trade logging is disabled for passed accounts.');
+    if (selectedAccount?.account_type === 'Passed' || selectedAccount?.account_type === 'Fail/Breached') {
+      setFormError(`Trade logging is disabled for ${selectedAccount.account_type.toLowerCase()} accounts.`);
       setIsSubmitting(false);
       return;
     }
@@ -871,8 +871,8 @@ export default function Journal() {
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-                title="Import Trade Logs (CSV)"
+                disabled={isImporting || selectedAccount?.account_type === 'Fail/Breached'}
+                title={selectedAccount?.account_type === 'Fail/Breached' ? "Import disabled for breached accounts" : "Import Trade Logs (CSV)"}
                 className="w-10 h-10 bg-neutral-800 text-neutral-400 rounded-xl flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-all border border-[#262626] disabled:opacity-50"
               >
                 <Upload className={cn("w-5 h-5", isImporting && "animate-pulse")} />
@@ -883,7 +883,13 @@ export default function Journal() {
                   setEditingTradeId(null);
                   setIsModalOpen(true);
                 }}
-                className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20"
+                disabled={selectedAccount?.account_type === 'Fail/Breached'}
+                className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-lg",
+                  selectedAccount?.account_type === 'Fail/Breached'
+                    ? "bg-neutral-800 text-neutral-600 border border-[#262626] cursor-not-allowed opacity-50 shadow-none hover:bg-neutral-800"
+                    : "bg-sky-400 text-black hover:bg-sky-300 shadow-sky-400/20"
+                )}
               >
                 <Plus className="w-5 h-5" />
               </button>
