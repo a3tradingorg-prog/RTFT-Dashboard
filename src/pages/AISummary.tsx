@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -722,16 +723,44 @@ export default function AISummary() {
 
                   {/* Report Content */}
                   <div className="p-8 lg:p-12">
-                    <div className="prose prose-invert max-w-none 
-                      prose-p:text-neutral-400 prose-p:leading-[1.8] prose-p:text-[15px]
-                      prose-headings:text-white prose-headings:font-bold prose-headings:tracking-tight
-                      prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl
-                      prose-strong:text-sky-400 prose-strong:font-bold
-                      prose-ul:text-neutral-400 prose-li:my-2
-                      prose-blockquote:border-l-sky-500 prose-blockquote:bg-sky-500/5 prose-blockquote:py-2 prose-blockquote:rounded-r-xl
-                      prose-code:text-sky-300 prose-code:bg-sky-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-                    ">
-                      <Markdown>{summary}</Markdown>
+                    <div className={cn(
+                      "max-w-none text-neutral-400 leading-[1.8] text-[15px]",
+                      selectedLanguage === 'Myanmar' ? "leading-[2.2]" : "leading-[1.8]"
+                    )}>
+                      <Markdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          table: ({node, ...props}) => (
+                            <div className="overflow-x-auto my-8 rounded-2xl border border-white/5 bg-[#0a0a0a] shadow-inner">
+                              <table className="w-full text-sm border-collapse" {...props} />
+                            </div>
+                          ),
+                          thead: ({node, ...props}) => <thead className="bg-white/5 text-sky-400" {...props} />,
+                          th: ({node, ...props}) => <th className="p-4 text-left font-black uppercase tracking-widest text-[10px] border-b border-white/5" {...props} />,
+                          td: ({node, ...props}) => <td className="p-4 border-b border-white/[0.02] text-neutral-300 font-medium" {...props} />,
+                          p: ({node, ...props}) => <p className="mb-5 last:mb-0" {...props} />,
+                          ul: ({node, ...props}) => <ul className="mb-6 space-y-3" {...props} />,
+                          li: ({node, ...props}) => (
+                            <li className="flex gap-3">
+                              <span className="text-sky-500 mt-1.5 shrink-0">•</span>
+                              <span>{props.children}</span>
+                            </li>
+                          ),
+                          h3: ({node, ...props}) => (
+                            <h3 className="text-lg font-bold text-white mt-10 mb-5 flex items-center gap-3" {...props}>
+                              <div className="w-1 h-5 bg-sky-500 rounded-full" />
+                              {props.children}
+                            </h3>
+                          ),
+                          strong: ({node, ...props}) => <strong className="text-sky-400 font-bold px-1.5 py-0.5 bg-sky-500/5 rounded-md border border-sky-500/10" {...props} />,
+                          hr: () => <hr className="my-10 border-white/5" />,
+                          blockquote: ({node, ...props}) => (
+                            <blockquote className="my-8 p-6 bg-sky-500/5 border-l-2 border-sky-500 rounded-r-2xl italic text-neutral-300" {...props} />
+                          ),
+                        }}
+                      >
+                        {summary}
+                      </Markdown>
                     </div>
 
                     {/* Action Footer */}
