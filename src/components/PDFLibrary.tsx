@@ -84,7 +84,19 @@ const PDF_FILES: PDFFile[] = [
   { name: 'The Trading Game', path: 'ryan-jones-the-trading-gamepdf.pdf', category: 'Strategy', thumbnail: 'https://picsum.photos/seed/game/400/600' },
   { name: 'Secret Of 411', path: 'Secret Of 411.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/411/400/600' },
   { name: 'SNR Malaysia', path: 'SNR Malaysia.pdf', category: 'Technical Analysis', thumbnail: 'https://picsum.photos/seed/malaysia/400/600' },
-  { name: 'The Handbook of Portfolio Mathematics', path: 'The handbook of portfolio mathematics.pdf', category: 'Risk Management', thumbnail: 'https://picsum.photos/seed/math/400/600' }
+  { name: 'The Handbook of Portfolio Mathematics', path: 'The handbook of portfolio mathematics.pdf', category: 'Risk Management', thumbnail: 'https://picsum.photos/seed/math/400/600' },
+  { 
+    name: 'The Psychology of Money (Joseph E Powell)', 
+    path: 'The_Psychology_of_Money_-_Joseph_E_Powell.pdf', 
+    category: 'Psychology', 
+    thumbnail: 'https://picsum.photos/seed/money1/400/600' 
+  },
+  { 
+    name: 'The Psychology of Money (Marcus P Lancaster)', 
+    path: 'The_Psychology_of_Money_-_Marcus_P_Lancaster.pdf', 
+    category: 'Psychology', 
+    thumbnail: 'https://picsum.photos/seed/money2/400/600' 
+  }
 ];
 
 export default function PDFLibrary() {
@@ -165,7 +177,12 @@ export default function PDFLibrary() {
                 <div className="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center">
                   <FileText className="w-5 h-5 text-sky-500" />
                 </div>
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter italic">PDF Library</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-white uppercase tracking-tighter italic">PDF Library</h2>
+                  <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest">
+                    {PDF_FILES.length} Books
+                  </span>
+                </div>
               </div>
               <p className="text-sm text-neutral-500 font-medium">Download exclusive trading books and educational guides.</p>
             </div>

@@ -52,6 +52,7 @@ import {
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { motion, AnimatePresence } from 'motion/react';
+import { LoadingState } from '../components/LoadingState';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
@@ -68,11 +69,11 @@ export default function Journal() {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'list' | 'calendar' | 'details'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [viewingDayDetails, setViewingDayDetails] = useState<Date | null>(null);
   const [expandedTrades, setExpandedTrades] = useState<Set<string>>(new Set());
 
   const toggleTradeExpansion = (tradeId: string) => {
@@ -358,6 +359,12 @@ export default function Journal() {
     setIsSubmitting(true);
     setFormError('');
 
+    if (selectedAccount?.account_type === 'Passed') {
+      setFormError('Trade logging is disabled for passed accounts.');
+      setIsSubmitting(false);
+      return;
+    }
+
     const entry = parseFloat(entryPrice);
     const totalQty = parseFloat(contractSize);
     
@@ -613,6 +620,21 @@ export default function Journal() {
     return trades.filter(t => isSameDay(new Date(t.entry_date), date));
   };
 
+  const getWeeklyPnL = (startOfWeekDate: Date) => {
+    const endOfWeekDate = endOfWeek(startOfWeekDate);
+    const weeklyDays = eachDayOfInterval({ start: startOfWeekDate, end: endOfWeekDate });
+    return weeklyDays.reduce((acc, day) => acc + getDayPnL(day), 0);
+  };
+
+  const getMonthlyPnL = () => {
+    return dailyPnls
+      .filter(p => {
+        const d = new Date(p.date);
+        return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
+      })
+      .reduce((acc, p) => acc + (p.pnl || 0), 0);
+  };
+
   const filteredTrades = trades.filter(trade => {
     const matchesSearch = 
       trade.asset.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -621,8 +643,8 @@ export default function Journal() {
     
     const matchesDate = !selectedDate || isSameDay(new Date(trade.entry_date), selectedDate);
     
-    // If we are in calendar view and a date is selected, we only show trades for that date
-    if (view === 'calendar' && selectedDate) {
+    // Only show trades for selected date in calendar
+    if (selectedDate) {
       return matchesDate && matchesSearch;
     }
     
@@ -649,580 +671,238 @@ export default function Journal() {
             />
           </div>
 
-          <div className="flex bg-[#141414] border border-[#262626] rounded-2xl p-1">
+          {selectedAccount?.account_type !== 'Passed' && (
             <button 
-              onClick={() => setView('calendar')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                view === 'calendar' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
-              )}
+              onClick={() => {
+                resetForm();
+                setEditingTradeId(null);
+                setIsModalOpen(true);
+              }}
+              className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20"
             >
-              Calendar
+              <Plus className="w-5 h-5" />
             </button>
-            <button 
-              onClick={() => setView('list')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                view === 'list' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
-              )}
-            >
-              List
-            </button>
-            <button 
-              onClick={() => setView('details')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold transition-all hidden md:block",
-                view === 'details' ? "bg-sky-500 text-black" : "text-neutral-500 hover:text-white"
-              )}
-            >
-              Details
-            </button>
-          </div>
-
-          <button 
-            onClick={() => {
-              resetForm();
-              setEditingTradeId(null);
-              setIsModalOpen(true);
-            }}
-            className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
+          )}
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-[40vh]">
-          <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <LoadingState message="Decoding trade logs..." />
       ) : (
-        <AnimatePresence mode="wait">
-          {view === 'calendar' ? (
-            <div className="space-y-12">
-              <motion.div 
-                key="calendar"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden shadow-sm"
-              >
-              <div className="p-8 border-b border-[#262626] flex items-center justify-between">
+        <div className="space-y-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden shadow-sm"
+          >
+            <div className="p-8 border-b border-[#262626] flex items-center justify-between">
+              <div className="flex items-center gap-6">
                 <h3 className="text-xl font-bold text-white">{format(currentMonth, 'MMMM yyyy')}</h3>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                    className="p-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => setCurrentMonth(new Date())}
-                    className="px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-xs font-bold text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
-                  >
-                    Today
-                  </button>
-                  <button 
-                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                    className="p-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-[#0a0a0a] border border-[#262626] rounded-full">
+                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Monthly</span>
+                  <span className={cn(
+                    "text-xs font-black",
+                    getMonthlyPnL() >= 0 ? "text-sky-400" : "text-rose-400"
+                  )}>
+                    {getMonthlyPnL() >= 0 ? '+' : ''}{formatCurrency(getMonthlyPnL())}
+                  </span>
                 </div>
               </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                  className="p-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setCurrentMonth(new Date())}
+                  className="px-4 py-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-xs font-bold text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
+                >
+                  Today
+                </button>
+                <button 
+                  onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                  className="p-2 bg-[#0a0a0a] border border-[#262626] rounded-xl text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-7 border-b border-[#262626]">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="py-4 text-center text-[10px] font-black text-neutral-500 uppercase tracking-widest border-r border-[#262626] last:border-r-0">
-                    <span className="hidden sm:inline">{day}</span>
-                    <span className="sm:hidden">{day[0]}</span>
+            <div className="grid grid-cols-7 border-b border-[#262626]">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="py-4 text-center text-[10px] font-black text-neutral-500 uppercase tracking-widest border-r border-[#262626] last:border-r-0">
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day[0]}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {calendarDays.map((day, i) => {
+                const pnl = getDayPnL(day);
+                const dayTrades = getDayTrades(day);
+                const isCurrentMonth = format(day, 'M') === format(currentMonth, 'M');
+                const isFirstDayOfWeek = i % 7 === 0;
+                const weeklyPnL = isFirstDayOfWeek ? getWeeklyPnL(day) : 0;
+                
+                return (
+                  <div 
+                    key={day.toString()} 
+                    onClick={() => {
+                      setSelectedDate(day);
+                      if (dayTrades.length > 0) setViewingDayDetails(day);
+                    }}
+                    className={cn(
+                      "min-h-[100px] sm:min-h-[160px] p-2 sm:p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative cursor-pointer",
+                      !isCurrentMonth && "opacity-20 grayscale",
+                      selectedDate && isSameDay(day, selectedDate) && "bg-sky-500/5",
+                      (i + 1) % 7 === 0 && "border-r-0"
+                    )}
+                  >
+                    {isFirstDayOfWeek && isCurrentMonth && (
+                      <div className="absolute -left-1 sm:left-auto sm:-right-1 top-1/2 -translate-y-1/2 rotate-[-90deg] sm:rotate-90 origin-center z-10">
+                        <div className={cn(
+                          "px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border backdrop-blur-md",
+                          weeklyPnL >= 0 ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                        )}>
+                           W: {formatCurrency(weeklyPnL)}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-start mb-1 sm:mb-4">
+                      <span className={cn(
+                        "text-[10px] sm:text-xs font-black",
+                        isToday(day) ? "w-5 h-5 sm:w-6 sm:h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
+                      )}>
+                        {format(day, 'd')}
+                      </span>
+                      {pnl !== 0 && (
+                        <span className={cn(
+                          "text-[8px] sm:text-[10px] font-black tracking-tighter",
+                          pnl > 0 ? "text-sky-400" : "text-rose-400"
+                        )}>
+                          {pnl > 0 ? '+' : ''}<span className="hidden sm:inline">{formatCurrency(pnl)}</span>
+                          <span className="sm:hidden">{pnl > 0 ? 'W' : 'L'}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5 sm:space-y-1">
+                      {dayTrades.slice(0, 2).map(trade => (
+                        <div 
+                          key={`calendar-${trade.id}`}
+                          className={cn(
+                            "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
+                            trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
+                          )}
+                        >
+                          {trade.asset}
+                        </div>
+                      ))}
+                      {dayTrades.length > 2 && (
+                        <div className="text-[7px] sm:text-[9px] font-bold text-neutral-600 pl-1">
+                          + {dayTrades.length - 2}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Daily Details Modal */}
+      <AnimatePresence>
+        {viewingDayDetails && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-4xl bg-[#141414] border border-[#262626] rounded-[40px] shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-10 border-b border-[#262626] flex items-center justify-between bg-gradient-to-br from-[#1a1a1a] to-[#141414]">
+                <div>
+                  <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">
+                    {format(viewingDayDetails, 'MMMM d, yyyy')}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">Daily Performance</span>
+                    <div className={cn(
+                      "px-2 py-0.5 rounded-md text-[10px] font-black",
+                      getDayPnL(viewingDayDetails) >= 0 ? "bg-sky-500/10 text-sky-400" : "bg-rose-500/10 text-rose-400"
+                    )}>
+                      {getDayPnL(viewingDayDetails) >= 0 ? '+' : ''}{formatCurrency(getDayPnL(viewingDayDetails))}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setViewingDayDetails(null)}
+                  className="w-12 h-12 bg-[#1f1f1f] rounded-2xl text-neutral-500 hover:text-white transition-all flex items-center justify-center"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto p-10 space-y-6">
+                {getDayTrades(viewingDayDetails).map((trade) => (
+                  <div key={trade.id} className="bg-[#0a0a0a] border border-[#262626] rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-sky-500/30 transition-all">
+                    <div className="flex items-center gap-5">
+                      <div className={cn(
+                        "w-14 h-14 rounded-2xl flex items-center justify-center",
+                        trade.pnl >= 0 ? "bg-sky-500/10 text-sky-400" : "bg-rose-500/10 text-rose-400"
+                      )}>
+                        {trade.pnl >= 0 ? <TrendingUp className="w-7 h-7" /> : <TrendingDown className="w-7 h-7" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-xl font-bold text-white">{trade.asset}</h4>
+                          <span className={cn(
+                            "text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest",
+                            trade.type === 'LONG' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                          )}>
+                            {trade.type}
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium text-neutral-500 mt-1">
+                          {format(new Date(trade.entry_date), 'HH:mm')} • {trade.contract_size} Lots @ {trade.entry_price}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-10">
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Profit/Loss</p>
+                        <p className={cn(
+                          "text-xl font-black italic",
+                          trade.pnl >= 0 ? "text-sky-400" : "text-rose-400"
+                        )}>
+                          {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setViewingDayDetails(null);
+                          handleEditTrade(trade);
+                        }}
+                        className="w-10 h-10 bg-[#1f1f1f] border border-[#262626] rounded-xl text-neutral-400 hover:text-white hover:border-sky-500/50 transition-all flex items-center justify-center"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
-
-              <div className="grid grid-cols-7">
-                {calendarDays.map((day, i) => {
-                  const pnl = getDayPnL(day);
-                  const dayTrades = getDayTrades(day);
-                  const isCurrentMonth = format(day, 'M') === format(currentMonth, 'M');
-                  
-                  return (
-                    <div 
-                      key={day.toString()} 
-                      onClick={() => setSelectedDate(day)}
-                      className={cn(
-                        "min-h-[80px] sm:min-h-[140px] p-2 sm:p-4 border-r border-b border-[#262626] transition-all hover:bg-[#1f1f1f]/50 group relative cursor-pointer",
-                        !isCurrentMonth && "opacity-20 grayscale",
-                        selectedDate && isSameDay(day, selectedDate) && "bg-sky-500/5",
-                        (i + 1) % 7 === 0 && "border-r-0"
-                      )}
-                    >
-                      <div className="flex justify-between items-start mb-1 sm:mb-4">
-                        <span className={cn(
-                          "text-[10px] sm:text-xs font-black",
-                          isToday(day) ? "w-5 h-5 sm:w-6 sm:h-6 bg-sky-500 text-black rounded-full flex items-center justify-center" : "text-neutral-500"
-                        )}>
-                          {format(day, 'd')}
-                        </span>
-                        {pnl !== 0 && (
-                          <span className={cn(
-                            "text-[8px] sm:text-[10px] font-black tracking-tighter",
-                            pnl > 0 ? "text-sky-400" : "text-neutral-500"
-                          )}>
-                            {pnl > 0 ? '+' : ''}<span className="hidden sm:inline">{formatCurrency(pnl)}</span>
-                            <span className="sm:hidden">{pnl > 0 ? 'W' : 'L'}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="space-y-0.5 sm:space-y-1">
-                        {dayTrades.slice(0, 2).map(trade => (
-                          <div 
-                            key={`calendar-${trade.id}`}
-                            className={cn(
-                              "px-1 sm:px-2 py-0.5 rounded text-[7px] sm:text-[9px] font-bold truncate",
-                              trade.pnl > 0 ? "bg-sky-500/10 text-sky-400 border border-sky-500/20" : "bg-neutral-500/5 text-neutral-500 border border-[#262626]"
-                            )}
-                          >
-                            {trade.asset}
-                          </div>
-                        ))}
-                        {dayTrades.length > 2 && (
-                          <div className="text-[7px] sm:text-[9px] font-bold text-neutral-600 pl-1">
-                            + {dayTrades.length - 2}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </motion.div>
-
-            {/* Selected Day Trades */}
-            <AnimatePresence>
-              {selectedDate && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-3">
-                      Trades for {format(selectedDate, 'MMMM dd, yyyy')}
-                      <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest">
-                        {getDayTrades(selectedDate).length} Trades
-                      </span>
-                    </h3>
-                    <button 
-                      onClick={() => setSelectedDate(null)}
-                      className="text-xs font-bold text-neutral-500 hover:text-white uppercase tracking-widest"
-                    >
-                      Clear Selection
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {getDayTrades(selectedDate).length === 0 ? (
-                      <div className="col-span-full bg-[#141414] border border-[#262626] rounded-3xl p-12 text-center">
-                        <p className="text-neutral-500 font-bold">No trades recorded for this day.</p>
-                      </div>
-                    ) : (
-                      getDayTrades(selectedDate).map(trade => (
-                        <div 
-                          key={`day-list-${trade.id}`}
-                          onClick={() => setSelectedTrade(trade)}
-                          className="bg-[#141414] border border-[#262626] rounded-2xl p-6 flex items-center justify-between hover:border-sky-500/30 transition-all group cursor-pointer"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-10 h-10 rounded-xl flex items-center justify-center",
-                              trade.pnl > 0 ? "bg-sky-500/10 text-sky-400" : "bg-neutral-500/10 text-neutral-500"
-                            )}>
-                              {trade.pnl > 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-bold text-white">{trade.asset}</h4>
-                              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
-                                {trade.type} • {trade.contract_size} contracts
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={cn(
-                              "text-sm font-black",
-                              trade.pnl > 0 ? "text-sky-400" : "text-neutral-200"
-                            )}>
-                              {trade.pnl > 0 ? '+' : ''}{formatCurrency(trade.pnl)}
-                            </p>
-                            <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedTrade(trade);
-                                }}
-                                className="p-1.5 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"
-                                title="View Details"
-                              >
-                                <Layout className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditTrade(trade);
-                                }}
-                                className="p-1.5 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTrade(trade.id);
-                                }}
-                                className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            </div>
-          ) : view === 'list' ? (
-            <motion.div 
-              key="list"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
-            >
-              {filteredTrades.length === 0 ? (
-                <div className="bg-[#141414] border border-[#262626] rounded-3xl p-12 text-center space-y-4">
-                  <Book className="w-12 h-12 text-neutral-700 mx-auto" />
-                  <p className="text-neutral-500 font-bold">No trades found matching your search.</p>
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="text-sky-500 text-xs font-bold uppercase tracking-widest hover:underline"
-                    >
-                      Clear Search
-                    </button>
-                  )}
-                </div>
-              ) : (
-                filteredTrades.map(trade => (
-                  <div 
-                    key={`list-${trade.id}`}
-                    onClick={() => setSelectedTrade(trade)}
-                    className="bg-[#141414] border border-[#262626] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-sky-500/30 transition-all group cursor-pointer"
-                  >
-                      <div className="flex items-center gap-6">
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center",
-                          trade.pnl > 0 ? "bg-sky-500/10 text-sky-400" : "bg-neutral-500/10 text-neutral-500"
-                        )}>
-                          {trade.pnl > 0 ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <h4 className="text-lg font-bold text-white">{trade.asset}</h4>
-                            <span className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest",
-                              trade.pnl > 0 ? "bg-sky-500/10 text-sky-400" : "bg-neutral-500/10 text-neutral-500"
-                            )}>
-                              {trade.status}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4 mt-1">
-                            <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-bold">
-                              <Clock className="w-3.5 h-3.5" />
-                              {format(new Date(trade.entry_date), 'MMM dd, HH:mm')}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-neutral-500 font-bold">
-                              <Tag className="w-3.5 h-3.5" />
-                              {trade.contract_size} contracts
-                            </div>
-                            {trade.strategy && (
-                              <div className="flex items-center gap-1.5 text-xs text-sky-500/60 font-black uppercase tracking-widest">
-                                <Target className="w-3.5 h-3.5" />
-                                {trade.strategy.strategy_name}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-12">
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">PnL</p>
-                          <p className={cn(
-                            "text-xl font-black tracking-tighter",
-                            trade.pnl > 0 ? "text-sky-400" : "text-neutral-200"
-                          )}>
-                            {trade.pnl > 0 ? '+' : ''}{formatCurrency(trade.pnl)}
-                          </p>
-                          <p className="text-[10px] font-bold text-neutral-600">{formatPercent(trade.pnl_percent)}</p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTrade(trade);
-                            }}
-                            className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
-                            title="View Details"
-                          >
-                            <Layout className="w-4 h-4" />
-                          </button>
-                          {trade.status === 'OPEN' && (
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCloseTrade(trade);
-                              }}
-                              className="p-2 text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all"
-                              title="Close Trade"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditTrade(trade);
-                            }}
-                            className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
-                            title="Edit Trade"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTrade(trade.id);
-                            }}
-                            className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                            title="Delete Trade"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </motion.div>
-          ) : (
-            <motion.div 
-              key="details"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden"
-            >
-              {filteredTrades.length === 0 ? (
-                <div className="p-12 text-center space-y-4">
-                  <Book className="w-12 h-12 text-neutral-700 mx-auto" />
-                  <p className="text-neutral-500 font-bold">No trades found matching your search.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[#262626] bg-[#1a1a1a]">
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Date</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Asset</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Direction</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Status</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Entry</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Exit</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Qty</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">PnL</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest">Reason</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-neutral-500 uppercase tracking-widest text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTrades.map(trade => {
-                        const exitsList = trade.trade_exits && trade.trade_exits.length > 0 
-                          ? trade.trade_exits 
-                          : [{ 
-                              id: `temp-${trade.id}`, 
-                              closed_contract: trade.contract_size, 
-                              exit_price: trade.exit_price || 0, 
-                              exit_status: trade.status === 'OPEN' ? 'OPEN' : 'CLOSED',
-                              exit_reason: null,
-                              exit_timestamp: trade.exit_date || trade.entry_date,
-                              pnl_for_this_exit: trade.pnl,
-                              commission_for_this_exit: 0
-                            }];
-
-                        const totalPnl = exitsList.reduce((acc, e) => acc + (e.pnl_for_this_exit || 0), 0);
-                        const totalQty = exitsList.reduce((acc, e) => acc + (Number(e.closed_contract) || 0), 0);
-                        const isExpanded = expandedTrades.has(trade.id);
-
-                        return (
-                          <React.Fragment key={`details-${trade.id}`}>
-                            {/* Trade Summary Row */}
-                            <tr 
-                              className="bg-[#1a1a1a] border-t-2 border-[#262626] group cursor-pointer hover:bg-[#1f1f1f] transition-all"
-                              onClick={() => setSelectedTrade(trade)}
-                            >
-                              <td className="px-6 py-4 text-[10px] font-black text-sky-500 uppercase tracking-widest">
-                                <div className="flex items-center gap-2">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleTradeExpansion(trade.id);
-                                    }}
-                                    className="p-1 hover:bg-[#262626] rounded transition-all"
-                                  >
-                                    <ChevronRight className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-90")} />
-                                  </button>
-                                  {format(new Date(trade.entry_date), 'MM/dd/yyyy')}
-                                </div>
-                                <div className="text-[8px] text-neutral-600 mt-0.5 ml-5">{format(new Date(trade.entry_date), 'h:mm:ss a')}</div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col">
-                                  <span className="text-xs font-black text-white">{trade.asset}</span>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="text-[8px] text-neutral-600 font-bold uppercase tracking-tighter">Trade ID: {trade.id.slice(0, 8)}</span>
-                                    {trade.strategy && (
-                                      <>
-                                        <span className="text-[8px] text-neutral-700">•</span>
-                                        <span className="text-[8px] text-sky-500/60 font-black uppercase tracking-widest">{trade.strategy.strategy_name}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={cn(
-                                  "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest",
-                                  trade.type === 'LONG' ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                                )}>
-                                  {trade.type}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={cn(
-                                  "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest bg-sky-500/10 text-sky-400"
-                                )}>
-                                  {trade.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-xs font-black text-white">{trade.entry_price.toLocaleString()}</td>
-                              <td className="px-6 py-4 text-xs font-black text-neutral-500">-</td>
-                              <td className="px-6 py-4 text-xs font-black text-white">{totalQty} Total</td>
-                              <td className="px-6 py-4">
-                                <span className={cn(
-                                  "text-sm font-black",
-                                  totalPnl > 0 ? "text-sky-400" : "text-neutral-400"
-                                )}>
-                                  {totalPnl > 0 ? '+' : ''}{formatCurrency(totalPnl)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
-                                {exitsList.length} Exits
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedTrade(trade);
-                                    }}
-                                    className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
-                                    title="View Details"
-                                  >
-                                    <Layout className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditTrade(trade);
-                                    }}
-                                    className="p-2 text-neutral-500 hover:text-sky-400 hover:bg-sky-500/10 rounded-xl transition-all"
-                                    title="Edit Trade"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteTrade(trade.id);
-                                    }}
-                                    className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                                    title="Delete Trade"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                            
-                            {/* Individual Exit Rows */}
-                            <AnimatePresence>
-                              {isExpanded && exitsList.map((exit, index) => (
-                                <motion.tr 
-                                  key={`${trade.id}-${index}`}
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="border-b border-[#262626]/30 bg-[#0a0a0a]/20 hover:bg-[#1f1f1f]/30 transition-all"
-                                >
-                                  <td className="px-6 py-3 text-[9px] font-bold text-neutral-600 pl-10">
-                                    {exit.exit_timestamp ? format(new Date(exit.exit_timestamp), 'h:mm:ss a') : '-'}
-                                  </td>
-                                  <td className="px-6 py-3 text-[9px] font-bold text-neutral-700 italic">Partial Exit</td>
-                                  <td className="px-6 py-3"></td>
-                                  <td className="px-6 py-3">
-                                    <span className={cn(
-                                      "px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
-                                      exit.exit_status === 'OPEN' ? "bg-sky-500/10 text-sky-400" : "bg-neutral-600/10 text-neutral-500"
-                                    )}>
-                                      {exit.exit_status}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-3 text-[10px] font-bold text-neutral-700">{trade.entry_price.toLocaleString()}</td>
-                                  <td className="px-6 py-3 text-[10px] font-bold text-white">{exit.exit_price ? exit.exit_price.toLocaleString() : '-'}</td>
-                                  <td className="px-6 py-3 text-[10px] font-bold text-neutral-500">
-                                    -{exit.closed_contract}
-                                  </td>
-                                  <td className="px-6 py-3">
-                                    <span className={cn(
-                                      "text-[10px] font-black",
-                                      (exit.pnl_for_this_exit || 0) > 0 ? "text-sky-400/70" : "text-neutral-500"
-                                    )}>
-                                      {(exit.pnl_for_this_exit || 0) > 0 ? '+' : ''}{formatCurrency(exit.pnl_for_this_exit || 0)}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-3 text-[9px] text-neutral-600 font-medium">
-                                    {exit.exit_reason || '-'}
-                                  </td>
-                                </motion.tr>
-                              ))}
-                            </AnimatePresence>
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add Trade Modal */}
       <AnimatePresence>

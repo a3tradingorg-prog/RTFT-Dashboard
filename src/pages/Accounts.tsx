@@ -21,7 +21,12 @@ import {
   Zap,
   CheckCircle2,
   Ban,
-  ChevronDown
+  ChevronDown,
+  Award,
+  Upload,
+  ExternalLink,
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,6 +34,7 @@ import { toast } from 'sonner';
 import { useAccount } from '../lib/AccountContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { ScrollReveal } from '../components/ScrollReveal';
+import { LoadingState } from '../components/LoadingState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import FundedAccountManager from '../components/FundedAccountManager';
 
@@ -56,6 +62,7 @@ export default function Accounts() {
   const [profitTarget, setProfitTarget] = useState('');
   const [maxDrawdown, setMaxDrawdown] = useState('');
   const [consistencyRules, setConsistencyRules] = useState('');
+  const [hasConsistency, setHasConsistency] = useState(true);
   const [asset, setAsset] = useState<TradingAccount['asset']>('MNQ');
   const [commission, setCommission] = useState('0.50');
   
@@ -69,10 +76,14 @@ export default function Accounts() {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [isConsistencyDropdownOpen, setIsConsistencyDropdownOpen] = useState(false);
   const [managingPayoutId, setManagingPayoutId] = useState<string | null>(null);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [isPassingChallengeId, setIsPassingChallengeId] = useState<string | null>(null);
   const [payoutThreshold, setPayoutThreshold] = useState('');
 
   const typeRef = useClickOutside(() => setIsTypeDropdownOpen(false));
+  const consistencyRef = useClickOutside(() => setIsConsistencyDropdownOpen(false));
 
   // Update input when asset changes
   useEffect(() => {
@@ -132,12 +143,13 @@ export default function Accounts() {
       account_type: accountType,
       profit_target: parseFloat(profitTarget) || 0,
       max_drawdown: parseFloat(maxDrawdown) || 0,
-      consistency_rules: consistencyRules,
+      consistency_rules: hasConsistency ? consistencyRules : 'No Consistency',
       asset,
       commission: parseFloat(commission) || 0,
       initial_balance: parsedBalance,
       current_balance: editingAccount ? editingAccount.current_balance : parsedBalance,
-      user_id: user?.id
+      user_id: user?.id,
+      status: 'active'
     };
 
     // Only add payout_threshold if it's explicitly set AND we know we can handle it
@@ -246,7 +258,8 @@ export default function Accounts() {
     setAccountType(account.account_type);
     setProfitTarget(account.profit_target.toString());
     setMaxDrawdown(account.max_drawdown.toString());
-    setConsistencyRules(account.consistency_rules);
+    setHasConsistency(account.consistency_rules !== 'No Consistency');
+    setConsistencyRules(account.consistency_rules === 'No Consistency' ? '' : account.consistency_rules);
     setAsset(account.asset);
     setCommission(account.commission.toString());
     setPayoutThreshold(account.payout_threshold?.toString() || '');
@@ -262,13 +275,87 @@ export default function Accounts() {
     setProfitTarget('');
     setMaxDrawdown('');
     setConsistencyRules('');
+    setHasConsistency(true);
     setAsset('MNQ');
     setCommission(ASSET_COMMISSIONS['MNQ'].toString());
     setPayoutThreshold('');
     setFormError('');
   };
 
-  const accountTypes: TradingAccount['account_type'][] = ['Challenge', 'Funded', 'Fail/Breached'];
+  const accountTypes: TradingAccount['account_type'][] = ['Challenge', 'Funded', 'Fail/Breached', 'Passed'];
+
+  const handlePassChallenge = async (account: TradingAccount, certUrl: string) => {
+    try {
+      // 1. Update Challenge Account to Passed
+      const { error: updateError } = await supabase
+        .from('accounts')
+        .update({ 
+          account_type: 'Passed',
+          status: 'passed',
+          certificate_url: certUrl
+        })
+        .eq('id', account.id);
+
+      if (updateError) throw updateError;
+
+      // 2. Auto Create Funded Account
+      const fundedAccountData = {
+        name: `${account.name} (Funded)`,
+        propfirm: account.propfirm,
+        account_size: account.account_size,
+        account_type: 'Funded',
+        profit_target: 0,
+        max_drawdown: account.max_drawdown,
+        consistency_rules: 'No Consistency',
+        asset: account.asset,
+        commission: account.commission,
+        initial_balance: account.initial_balance,
+        current_balance: account.initial_balance,
+        user_id: user?.id,
+        status: 'active'
+      };
+
+      const { error: insertError } = await supabase
+        .from('accounts')
+        .insert([fundedAccountData]);
+
+      if (insertError) throw insertError;
+
+      toast.success('Challenge passed! Funded account created automatically.');
+      refreshAccounts();
+      setIsPassingChallengeId(null);
+    } catch (err: any) {
+      console.error('Error passing challenge:', err);
+      toast.error(`Failed to pass challenge: ${err.message}`);
+    }
+  };
+
+  const uploadCertificate = async (file: File, account: TradingAccount) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}/${account.id}_${Date.now()}.${fileExt}`;
+      const filePath = `certificates/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('certificates')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('certificates')
+        .getPublicUrl(filePath);
+
+      await handlePassChallenge(account, publicUrl);
+    } catch (err: any) {
+      console.error('Error uploading certificate:', err);
+      toast.error(`Failed to upload certificate: ${err.message}`);
+    }
+  };
+
+  if (contextLoading) {
+    return <LoadingState message="Fetching accounts..." />;
+  }
 
   return (
     <div className="space-y-10">
@@ -283,9 +370,9 @@ export default function Accounts() {
               resetForm();
               setIsModalOpen(true);
             }}
-            className="w-14 h-14 bg-sky-500 text-black rounded-2xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 group"
+            className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20 group"
           >
-            <Plus className="w-7 h-7 group-hover:scale-110 transition-transform" />
+            <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </ScrollReveal>
@@ -350,11 +437,7 @@ export default function Accounts() {
         </ScrollReveal>
       </div>
 
-      {contextLoading ? (
-        <div className="flex items-center justify-center h-[40vh]">
-          <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : accounts.length === 0 ? (
+      {accounts.length === 0 ? (
         <ScrollReveal delay={0.4}>
           <div className="bg-[#141414] border border-[#262626] rounded-3xl p-12 text-center space-y-6">
             <div className="w-20 h-20 bg-sky-500/5 rounded-3xl flex items-center justify-center mx-auto border border-sky-500/10">
@@ -372,7 +455,11 @@ export default function Accounts() {
             const isFunded = account.account_type === 'Funded';
             const isChallenge = account.account_type === 'Challenge';
             const isBreached = account.account_type === 'Fail/Breached';
+            const isPassed = account.account_type === 'Passed';
             
+            const profitValue = account.current_balance - account.initial_balance;
+            const targetHit = isChallenge && account.profit_target > 0 && profitValue >= account.profit_target;
+
             return (
               <ScrollReveal key={account.id} delay={0.1 * (index % 3)}>
                 <motion.div 
@@ -383,7 +470,9 @@ export default function Accounts() {
                   className={cn(
                     "bg-[#141414] border border-[#262626] rounded-[32px] p-8 group transition-all duration-500 relative overflow-hidden h-full",
                     isFunded && "hover:bg-sky-500/[0.04] hover:border-sky-500/40 hover:shadow-[0_20px_50px_rgba(14,165,233,0.1)]",
-                    isChallenge && "hover:bg-amber-500/[0.04] hover:border-amber-500/40 hover:shadow-[0_20px_50px_rgba(245,158,11,0.1)]",
+                    isChallenge && !targetHit && "hover:bg-amber-500/[0.04] hover:border-amber-500/40 hover:shadow-[0_20px_50px_rgba(245,158,11,0.1)]",
+                    targetHit && "hover:bg-emerald-500/[0.04] hover:border-emerald-500/40 hover:shadow-[0_20px_50px_rgba(16,185,129,0.1)]",
+                    isPassed && "hover:bg-indigo-500/[0.04] hover:border-indigo-500/40 hover:shadow-[0_20px_50px_rgba(99,102,241,0.1)] border-indigo-500/20",
                     isBreached && "hover:bg-red-500/[0.02] hover:border-red-500/30 opacity-70 grayscale-[0.3]"
                   )}
                 >
@@ -392,6 +481,8 @@ export default function Accounts() {
                     "absolute -top-24 -right-24 w-48 h-48 blur-[80px] rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-700",
                     isFunded && "bg-sky-500",
                     isChallenge && "bg-amber-500",
+                    targetHit && "bg-emerald-500",
+                    isPassed && "bg-indigo-500",
                     isBreached && "bg-red-500"
                   )} />
 
@@ -422,7 +513,7 @@ export default function Accounts() {
                       </button>
                     </div>
 
-                    {!isBreached && (
+                    {!isBreached && !isPassed && (
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/5">
                         <div className="relative flex h-2 w-2">
                           <span className={cn(
@@ -440,6 +531,12 @@ export default function Accounts() {
                         )}>Live</span>
                       </div>
                     )}
+                    {isPassed && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 rounded-full border border-indigo-500/20">
+                        <Award className="w-3 h-3 text-indigo-400" />
+                        <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Passed</span>
+                      </div>
+                    )}
                     {isBreached && (
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 rounded-full border border-red-500/20">
                         <Skull className="w-3 h-3 text-red-500" />
@@ -453,9 +550,12 @@ export default function Accounts() {
                       "w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500",
                       isFunded && "bg-sky-500/10 text-sky-500",
                       isChallenge && "bg-amber-500/10 text-amber-500",
+                      targetHit && "bg-emerald-500/10 text-emerald-500",
+                      isPassed && "bg-indigo-500/10 text-indigo-500",
                       isBreached && "bg-red-500/10 text-red-500"
                     )}>
                       {isFunded ? <TrendingUp className="w-7 h-7" /> : 
+                       isPassed ? <Award className="w-7 h-7" /> :
                        isChallenge ? <Zap className="w-7 h-7" /> : 
                        <Ban className="w-7 h-7" />}
                     </div>
@@ -467,6 +567,7 @@ export default function Accounts() {
                       <span className={cn(
                         "text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full border shrink-0",
                         isFunded ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5 shadow-[0_0_15px_rgba(16,185,129,0.05)]" : 
+                        isPassed ? "text-indigo-400 border-indigo-400/20 bg-indigo-400/5 shadow-[0_0_15px_rgba(99,102,241,0.05)]" :
                         isChallenge ? "text-amber-500 border-amber-500/20 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.05)]" : 
                         "text-red-500 border-red-500/20 bg-red-500/5 shadow-[0_0_15px_rgba(239,44,44,0.05)]"
                       )}>
@@ -485,10 +586,76 @@ export default function Accounts() {
                       <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Current</p>
                       <p className={cn(
                         "text-lg font-bold",
-                        isBreached ? "text-neutral-400" : "text-sky-400"
+                        isBreached ? "text-neutral-400" : 
+                        isPassed ? "text-indigo-400" :
+                        "text-sky-400"
                       )}>{formatCurrency(account.current_balance)}</p>
                     </div>
                   </div>
+
+                  {/* Target Achievement Section */}
+                  {targetHit && !isPassed && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-6 p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] space-y-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center animate-bounce">
+                          <Check className="w-6 h-6 text-black" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-white uppercase tracking-widest">Target Hit!</p>
+                          <p className="text-[10px] text-emerald-400 font-bold">You have passed this challenge.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <p className="text-[10px] text-neutral-400 font-medium">Please upload your propfirm certificate to record this achievement and create your Funded account.</p>
+                        <label className="flex items-center justify-center gap-3 py-3.5 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20">
+                          <Upload className="w-4 h-4" />
+                          Upload Certificate
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) uploadCertificate(file, account);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Showcase for Passed Accounts */}
+                  {isPassed && account.certificate_url && (
+                    <div className="mt-6 space-y-4">
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Achievement Certificate</p>
+                      <div className="relative aspect-[4/3] rounded-2x overflow-hidden border border-[#262626] group/cert">
+                        <img 
+                          src={account.certificate_url} 
+                          alt="Certificate" 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover/cert:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/cert:opacity-100 transition-opacity flex items-center justify-center">
+                          <a 
+                            href={account.certificate_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="w-12 h-12 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+                          >
+                            <ExternalLink className="w-6 h-6" />
+                          </a>
+                        </div>
+                      </div>
+                      <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center gap-3">
+                        <Lock className="w-4 h-4 text-indigo-400/60" />
+                        <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest">Trade logging disabled for passed account</p>
+                      </div>
+                    </div>
+                  )}
 
                   {account.account_type === 'Funded' && (
                     <button 
@@ -644,15 +811,52 @@ export default function Accounts() {
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 relative" ref={consistencyRef}>
                     <label className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.2em] ml-1">Consistency Rules</label>
-                    <input 
-                      type="text"
-                      value={consistencyRules}
-                      onChange={(e) => setConsistencyRules(e.target.value)}
-                      placeholder="e.g. 50%"
-                      className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold placeholder:text-neutral-800"
-                    />
+                    <div className="relative">
+                      <button 
+                        type="button"
+                        onClick={() => setIsConsistencyDropdownOpen(!isConsistencyDropdownOpen)}
+                        className="w-full px-7 py-5 bg-[#0a0a0a] border border-[#262626] rounded-2xl text-white focus:border-sky-500/50 focus:outline-none transition-all font-bold text-left flex items-center justify-between"
+                      >
+                        {hasConsistency ? (consistencyRules || 'Select %') : 'No Consistency'}
+                        <ChevronDown className={cn("w-5 h-5 text-neutral-500 transition-transform", isConsistencyDropdownOpen && "rotate-180")} />
+                      </button>
+                      
+                      <AnimatePresence>
+                        {isConsistencyDropdownOpen && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="absolute bottom-full left-0 right-0 mb-2 bg-[#1f1f1f] border border-[#262626] rounded-2xl shadow-2xl z-[110] overflow-hidden"
+                          >
+                            {['30%', '40%', '50%', 'No Consistency'].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                  if (opt === 'No Consistency') {
+                                    setHasConsistency(false);
+                                    setConsistencyRules('');
+                                  } else {
+                                    setHasConsistency(true);
+                                    setConsistencyRules(opt);
+                                  }
+                                  setIsConsistencyDropdownOpen(false);
+                                }}
+                                className={cn(
+                                  "w-full px-7 py-4 text-left text-sm font-bold hover:bg-[#262626] transition-all",
+                                  (hasConsistency ? consistencyRules === opt : opt === 'No Consistency') ? "text-sky-400 bg-sky-500/5" : "text-neutral-400"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
 
                   {accountType === 'Funded' && (

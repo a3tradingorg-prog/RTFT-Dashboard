@@ -4,15 +4,17 @@ export type TradingAccount = {
   name: string;
   propfirm: string;
   account_size: string;
-  account_type: 'Challenge' | 'Funded' | 'Fail/Breached';
+  account_type: 'Challenge' | 'Funded' | 'Fail/Breached' | 'Passed';
+  status: 'active' | 'passed' | 'funded' | 'failed';
   profit_target: number;
   max_drawdown: number;
-  consistency_rules: string;
+  consistency_rules: string; // 'No Consistency' or percentage
   asset: 'MNQ' | 'NQ' | 'MES' | 'ES' | 'MGC' | 'GC';
   commission: number;
   initial_balance: number;
   current_balance: number;
-  payout_threshold?: number; // Minimum balance to be eligible for payout
+  payout_threshold?: number;
+  certificate_url?: string;
   created_at: string;
 };
 

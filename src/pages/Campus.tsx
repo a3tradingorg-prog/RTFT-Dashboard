@@ -373,17 +373,23 @@ export default function Campus() {
   }, []);
 
   const categories = [
-    '2026 Future Mentorship',
-    'TTT',
-    'VIP-1 Courses', 
-    'VIP-2 Courses', 
-    'Day Trading Strategy', 
-    'Introduction about Crypto',
-    'Fundamental',
-    'Learn Thai',
-    'ICT Notes',
-    'PDF'
+    { name: '2026 Future Mentorship', count: FUTURE_MENTORSHIP_VIDEOS.length },
+    { name: 'TTT', count: TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0) },
+    { name: 'VIP-1 Courses', count: VIP1_VIDEOS.length },
+    { name: 'VIP-2 Courses', count: VIP2_VIDEOS.length },
+    { name: 'Day Trading Strategy', count: DAY_TRADING_VIDEOS.length },
+    { name: 'Introduction about Crypto', count: CRYPTO_INTRO_VIDEOS.length },
+    { name: 'Fundamental', count: FUNDAMENTAL_VIDEOS.length },
+    { name: 'Learn Thai', count: THAI_LANGUAGE_VIDEOS.length },
+    { name: 'ICT Notes', count: 0 }, // Handled separately
+    { name: 'PDF', count: 0 } // Handled separately
   ];
+
+  const getCategoryCount = (catName: string) => {
+    const staticCount = categories.find(c => c.name === catName)?.count || 0;
+    const dynamicCount = resources.filter(r => r.category === catName).length;
+    return staticCount + dynamicCount;
+  };
   
   const filteredResources = resources.filter(r => 
     r.category === filter && 
@@ -415,35 +421,46 @@ export default function Campus() {
       {/* Category Filter */}
       <ScrollReveal delay={0.1}>
         <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => {
-                setFilter(cat);
-                setOpenVideoId(null);
-              }}
-              className={cn(
-                "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden group",
-                filter === cat 
-                  ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
-                  : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
-              )}
-            >
-              <span className="relative z-10">{cat}</span>
-              {cat === '2026 Future Mentorship' && (
-                <span className={cn(
-                  "w-2 h-2 rounded-full animate-pulse relative z-10",
-                  filter === cat ? "bg-black" : "bg-sky-500"
-                )} />
-              )}
-              {filter === cat && (
-                <motion.div 
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
-                />
-              )}
-            </button>
-          ))}
+          {categories.map((cat) => {
+            const count = getCategoryCount(cat.name);
+            return (
+              <button
+                key={cat.name}
+                onClick={() => {
+                  setFilter(cat.name);
+                  setOpenVideoId(null);
+                }}
+                className={cn(
+                  "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative overflow-hidden group",
+                  filter === cat.name 
+                    ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
+                    : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
+                )}
+              >
+                <span className="relative z-10">{cat.name}</span>
+                {count > 0 && (
+                  <span className={cn(
+                    "px-1.5 py-0.5 rounded text-[8px] font-black relative z-10",
+                    filter === cat.name ? "bg-black/20 text-black" : "bg-sky-500/10 text-sky-500"
+                  )}>
+                    {count}
+                  </span>
+                )}
+                {cat.name === '2026 Future Mentorship' && (
+                  <span className={cn(
+                    "w-2 h-2 rounded-full animate-pulse relative z-10",
+                    filter === cat.name ? "bg-black" : "bg-sky-500"
+                  )} />
+                )}
+                {filter === cat.name && (
+                  <motion.div 
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       </ScrollReveal>
 
@@ -570,35 +587,48 @@ export default function Campus() {
 
           {/* TTT Curriculum */}
           <div className="space-y-12">
-            {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => (
-              <div key={section.title} className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-500 font-bold text-xs">
-                    0{sIdx + 1}
+            {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => {
+              const totalVideos = section.videos.length;
+              return (
+                <div key={section.title} className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-500 font-bold text-xs">
+                        0{sIdx + 1}
+                      </div>
+                      <h3 className="text-xl font-bold text-white">{section.title}</h3>
+                    </div>
+                    <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                      {totalVideos} Videos
+                    </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white">{section.title}</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {section.videos.map((video) => (
+                      <AccordionItem 
+                        key={video.id}
+                        title={video.title}
+                        description={video.description}
+                        url={video.url}
+                        isOpen={openVideoId === video.id}
+                        onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  {section.videos.map((video) => (
-                    <AccordionItem 
-                      key={video.id}
-                      title={video.title}
-                      description={video.description}
-                      url={video.url}
-                      isOpen={openVideoId === video.id}
-                      onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : filter === 'VIP-1 Courses' ? (
         <div className="max-w-4xl">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">VIP-1 Curriculum</h2>
-            <p className="text-neutral-500">Master the basics and build a solid foundation for your trading journey.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">VIP-1 Curriculum</h2>
+              <p className="text-neutral-500">Master the basics and build a solid foundation for your trading journey.</p>
+            </div>
+            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+              {VIP1_VIDEOS.length} Videos
+            </span>
           </div>
           {VIP1_VIDEOS.map((video) => (
             <AccordionItem 
@@ -613,9 +643,14 @@ export default function Campus() {
         </div>
       ) : filter === 'VIP-2 Courses' ? (
         <div className="max-w-4xl">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">VIP-2 Advanced Curriculum</h2>
-            <p className="text-neutral-500">Advanced strategies and deep market insights for professional traders.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">VIP-2 Advanced Curriculum</h2>
+              <p className="text-neutral-500">Advanced strategies and deep market insights for professional traders.</p>
+            </div>
+            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+              {VIP2_VIDEOS.length} Videos
+            </span>
           </div>
           {VIP2_VIDEOS.map((video) => (
             <AccordionItem 
@@ -630,9 +665,14 @@ export default function Campus() {
         </div>
       ) : filter === 'Day Trading Strategy' ? (
         <div className="max-w-4xl">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Day Trading Strategy</h2>
-            <p className="text-neutral-500">Master the art of intraday trading with our proven strategies.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Day Trading Strategy</h2>
+              <p className="text-neutral-500">Master the art of intraday trading with our proven strategies.</p>
+            </div>
+            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+              {DAY_TRADING_VIDEOS.length} Videos
+            </span>
           </div>
           {DAY_TRADING_VIDEOS.map((video) => (
             <AccordionItem 
@@ -647,9 +687,14 @@ export default function Campus() {
         </div>
       ) : filter === 'Introduction about Crypto' ? (
         <div className="max-w-4xl">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Introduction about Crypto</h2>
-            <p className="text-neutral-500">Learn the fundamentals of cryptocurrency and blockchain technology.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Introduction about Crypto</h2>
+              <p className="text-neutral-500">Learn the fundamentals of cryptocurrency and blockchain technology.</p>
+            </div>
+            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+              {CRYPTO_INTRO_VIDEOS.length} Videos
+            </span>
           </div>
           {CRYPTO_INTRO_VIDEOS.map((video) => (
             <AccordionItem 
@@ -664,9 +709,14 @@ export default function Campus() {
         </div>
       ) : filter === 'Fundamental' ? (
         <div className="max-w-4xl">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">Fundamental Analysis</h2>
-            <p className="text-neutral-500">Understand the economic forces that drive global markets.</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Fundamental Analysis</h2>
+              <p className="text-neutral-500">Understand the economic forces that drive global markets.</p>
+            </div>
+            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+              {FUNDAMENTAL_VIDEOS.length} Videos
+            </span>
           </div>
           {FUNDAMENTAL_VIDEOS.map((video) => (
             <AccordionItem 
@@ -696,10 +746,15 @@ export default function Campus() {
           </motion.div>
 
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white flex items-center gap-3">
-              <PlayCircle className="w-6 h-6 text-emerald-500" />
-              Video Lessons
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <PlayCircle className="w-6 h-6 text-emerald-500" />
+                Video Lessons
+              </h3>
+              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {THAI_LANGUAGE_VIDEOS.length} Videos
+              </span>
+            </div>
             <div className="grid grid-cols-1 gap-4">
               {THAI_LANGUAGE_VIDEOS.map((video) => (
                 <AccordionItem 
@@ -721,7 +776,14 @@ export default function Campus() {
               <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter italic">{filter}</h2>
+                <span className="px-3 py-1 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest">
+                  {filteredResources.length} Resources
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredResources.map((resource) => {
                 const youtubeId = getYouTubeId(resource.url);
                 
@@ -784,9 +846,10 @@ export default function Campus() {
                 </div>
               )}
             </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+          </div>
+        )}
+      </>
+    )}
+  </div>
+);
 }

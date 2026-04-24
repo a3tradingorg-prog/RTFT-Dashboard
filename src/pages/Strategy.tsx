@@ -30,13 +30,15 @@ import { toast } from 'sonner';
 import { ScrollReveal } from '../components/ScrollReveal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
+import { LoadingState } from '../components/LoadingState';
+
 const ASSETS = ['MNQ', 'NQ', 'MES', 'ES', 'MGC', 'GC'];
 const TIMEFRAMES = ['1min', '5min', '15min', '1hr', '4hr', 'Daily', 'Weekly'];
 const STATUSES = ['Active', 'Archived', 'Under Review'];
 
 export default function StrategyPage() {
   // ... existing state ...
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,8 +88,10 @@ export default function StrategyPage() {
   useEffect(() => {
     if (user) {
       fetchData().catch(err => console.error('Initial strategy data fetch error:', err));
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -115,6 +119,10 @@ export default function StrategyPage() {
       setLoading(false);
     }
   };
+
+  if (authLoading || (user && loading)) {
+    return <div className="pt-20"><LoadingState message="Accessing Strategy Vault..." /></div>;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +261,10 @@ export default function StrategyPage() {
     return matchesSearch && matchesStatus;
   });
 
+  if (authLoading || (user && loading)) {
+    return <LoadingState message="Accessing Strategy Vault..." />;
+  }
+
   return (
     <div className="space-y-10 pb-20">
       {/* Header Section */}
@@ -291,21 +303,16 @@ export default function StrategyPage() {
                   resetForm();
                   setIsModalOpen(true);
                 }}
-                className="w-12 h-12 bg-sky-500 text-black rounded-xl flex items-center justify-center hover:bg-sky-400 transition-all shadow-lg shadow-sky-500/20 shrink-0"
+                className="w-10 h-10 bg-sky-400 text-black rounded-xl flex items-center justify-center hover:bg-sky-300 transition-all shadow-lg shadow-sky-400/20 shrink-0"
               >
-                <Plus className="w-6 h-6" />
+                <Plus className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </ScrollReveal>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-[40vh]">
-          <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           {filteredStrategies.map((strategy, i) => {
             const stats = getStrategyStats(strategy.strategy_id);
             return (
@@ -391,12 +398,10 @@ export default function StrategyPage() {
             </ScrollReveal>
           )}
         </div>
-      )}
 
-      {/* Strategy Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-start justify-center p-6 overflow-y-auto bg-black/80 backdrop-blur-sm py-12">
+          <div className="fixed inset-0 z-[100] flex items-start justify-center p-6 overflow-y-auto bg-black/80 backdrop-blur-sm py-12" onClick={() => setIsModalOpen(false)}>
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -43,6 +43,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from '
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScrollReveal } from '../components/ScrollReveal';
+import { LoadingState } from '../components/LoadingState';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -179,13 +180,15 @@ export default function Dashboard() {
     const edgeScore = (winRate * 0.4) + (Math.min(100, (profitFactor / 2) * 100) * 0.3) + (Math.min(100, (winLossRatio / 2) * 100) * 0.3);
 
     // Propfirm Consistency
-    const consistencyPercent = (parseFloat(selectedAccount.consistency_rules) || 50) / 100;
+    const consistencyRules = selectedAccount.consistency_rules;
+    const hasConsistencyRule = consistencyRules !== 'No Consistency';
+    const consistencyPercent = hasConsistencyRule ? (parseFloat(consistencyRules) || 50) / 100 : 0;
     const profitTarget = selectedAccount.profit_target || (selectedAccount.initial_balance * 0.1);
     const maxDayProfit = Math.max(...dailyPnls.map(p => p.pnl), 0);
     
     // Consistency rule: No single day profit > consistency % of profit target
     const currentConsistencyRatio = profitTarget > 0 ? (maxDayProfit / profitTarget) : 0;
-    const isConsistent = currentConsistencyRatio <= consistencyPercent;
+    const isConsistent = !hasConsistencyRule || currentConsistencyRatio <= consistencyPercent;
 
     // Profit Target
     const targetProgress = Math.min(100, Math.max(0, (totalPnl / profitTarget) * 100));
@@ -219,6 +222,7 @@ export default function Dashboard() {
       edgeScore,
       edgeData,
       isConsistent,
+      hasConsistencyRule,
       targetProgress,
       amountLeft,
       profitTarget,
@@ -266,12 +270,7 @@ export default function Dashboard() {
   };
 
   if (loading || accountsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-        <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-neutral-500 font-medium animate-pulse">Loading dashboard data...</p>
-      </div>
-    );
+    return <LoadingState message="Synchronizing performance metrics..." />;
   }
 
   if (error) {
@@ -616,21 +615,23 @@ export default function Dashboard() {
               </div>
               
               <div className="space-y-6 pt-4 border-t border-[#262626]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-sky-400" />
-                    <span className="text-sm font-bold text-neutral-400">Consistency</span>
+                {stats?.hasConsistencyRule && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-5 h-5 text-sky-400" />
+                      <span className="text-sm font-bold text-neutral-400">Consistency</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
+                      <span className={cn(
+                        "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
+                        stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                      )}>
+                        {stats?.isConsistent ? 'Compliant' : 'Violated'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-black text-white">{formatPercent((stats?.currentConsistencyRatio || 0) * 100)}</span>
-                    <span className={cn(
-                      "px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full border",
-                      stats?.isConsistent ? "bg-sky-500/10 text-sky-400 border-sky-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
-                    )}>
-                      {stats?.isConsistent ? 'Compliant' : 'Violated'}
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">

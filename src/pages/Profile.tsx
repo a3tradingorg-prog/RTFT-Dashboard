@@ -402,9 +402,9 @@ export default function Profile() {
                     whileTap={{ scale: 0.95 }}
                     onClick={handleSaveUsername}
                     disabled={!isUsernameDirty || isSavingUsername}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-sky-500 text-black font-black uppercase tracking-widest rounded-xl hover:bg-sky-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                    className="flex items-center gap-2 px-4 py-2 bg-sky-400 text-black font-black uppercase tracking-widest rounded-xl hover:bg-sky-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-[10px]"
                   >
-                    {isSavingUsername ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {isSavingUsername ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                     Save Changes
                   </motion.button>
                 </div>
@@ -487,9 +487,9 @@ export default function Profile() {
                     whileTap={{ scale: 0.95 }}
                     type="submit"
                     disabled={!isPasswordValid || isChangingPassword}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-sky-500 text-black font-black uppercase tracking-widest rounded-xl hover:bg-sky-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                    className="flex items-center gap-2 px-4 py-2 bg-sky-400 text-black font-black uppercase tracking-widest rounded-xl hover:bg-sky-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-[10px]"
                   >
-                    {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                    {isChangingPassword ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     Change Password
                   </motion.button>
                 </div>
