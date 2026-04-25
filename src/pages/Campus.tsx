@@ -94,6 +94,34 @@ const THAI_LANGUAGE_VIDEOS = [
   { id: 'th8', title: 'သင်ခန်းစာ ၈ တားမြစ်စကားလုံးနှင့် အငြင်း စကားလုံးများ', url: 'https://youtu.be/Wu28U7cvXwo', description: 'တားမြစ်စကားလုံးများနှင့် အငြင်းစကားလုံးများ' },
   { id: 'th9', title: 'သင်ခန်းစာ ၉ စကားစပ်များ', url: 'https://youtu.be/mZnaLlm3Ug4', description: 'စကားစပ်များ အသုံးပြုပုံ' },
   { id: 'th10', title: 'သင်ခန်းစာ ၁၀ ရက်လနှစ် အခေါ်အဝေါ် များ', url: 'https://youtu.be/0xgVTCVtkn8', description: 'ရက်၊ လ၊ နှစ် အခေါ်အဝေါ်များ' },
+  { id: 'th11', title: 'Thai Lesson 11', url: 'https://youtu.be/qXjtZ3Uu8AM', description: 'Thai language learning series.' },
+  { id: 'th12', title: 'Thai Lesson 12', url: 'https://youtu.be/umcATvtbfN8', description: 'Thai language learning series.' },
+  { id: 'th13', title: 'Thai Lesson 13', url: 'https://youtu.be/gpnPZTV1IjY', description: 'Thai language learning series.' },
+  { id: 'th14', title: 'Thai Lesson 14', url: 'https://youtu.be/Ct2UHkW4Ii4', description: 'Thai language learning series.' },
+  { id: 'th15', title: 'Thai Lesson 15', url: 'https://youtu.be/jmbvD-jAtRY', description: 'Thai language learning series.' },
+  { id: 'th16', title: 'Thai Lesson 16', url: 'https://youtu.be/eCWHn4Dvpwk', description: 'Thai language learning series.' },
+  { id: 'th17', title: 'Thai Lesson 17', url: 'https://youtu.be/kdQljttaPEw', description: 'Thai language learning series.' },
+  { id: 'th18', title: 'Thai Lesson 18', url: 'https://youtu.be/S5sUkZKarZQ', description: 'Thai language learning series.' },
+  { id: 'th19', title: 'Thai Lesson 19', url: 'https://youtu.be/8kO3l2BOzBQ', description: 'Thai language learning series.' },
+  { id: 'th20', title: 'Thai Lesson 20', url: 'https://youtu.be/alsEaKChXtU', description: 'Thai language learning series.' },
+  { id: 'th21', title: 'Thai Lesson 21', url: 'https://youtu.be/ArHdi3t4SdI', description: 'Thai language learning series.' },
+  { id: 'th22', title: 'Thai Lesson 22', url: 'https://youtu.be/FeYMibLr32Y', description: 'Thai language learning series.' },
+  { id: 'th23', title: 'Thai Lesson 23', url: 'https://youtu.be/8jzrgaXgcvQ', description: 'Thai language learning series.' },
+  { id: 'th24', title: 'Thai Lesson 24', url: 'https://youtu.be/mgAY587e4Bc', description: 'Thai language learning series.' },
+  { id: 'th25', title: 'Thai Lesson 25', url: 'https://youtu.be/e8XmnlCKkBY', description: 'Thai language learning series.' },
+  { id: 'th26', title: 'Thai Lesson 26', url: 'https://youtu.be/_0jCwZWZrrE', description: 'Thai language learning series.' },
+  { id: 'th27', title: 'Thai Lesson 27', url: 'https://youtu.be/14OXAZBgv-U', description: 'Thai language learning series.' },
+  { id: 'th28', title: 'Thai Lesson 28', url: 'https://youtu.be/OPiyfEjsKRU', description: 'Thai language learning series.' },
+  { id: 'th29', title: 'Thai Lesson 29', url: 'https://youtu.be/PQXY-tWzZI0', description: 'Thai language learning series.' },
+  { id: 'th30', title: 'Thai Short Lesson', url: 'https://youtube.com/shorts/Zm2Cp93N7do', description: 'Thai language short lesson.' },
+  { id: 'th31', title: 'Thai Lesson 31', url: 'https://youtu.be/VcCuRXZD-iI', description: 'Thai language learning series.' },
+  { id: 'th32', title: 'Thai Lesson 32', url: 'https://youtu.be/l6lJ5EeCyAY', description: 'Thai language learning series.' },
+  { id: 'th33', title: 'Thai Lesson 33', url: 'https://youtu.be/nMVmCUzuK-I', description: 'Thai language learning series.' },
+  { id: 'th34', title: 'Thai Lesson 34', url: 'https://youtu.be/iEiZHW3SPrA', description: 'Thai language learning series.' },
+  { id: 'th35', title: 'Thai Lesson 35', url: 'https://youtu.be/QGIlOtUKvPo', description: 'Thai language learning series.' },
+  { id: 'th36', title: 'Thai Lesson 36', url: 'https://youtu.be/TxNLk9PIF8U', description: 'Thai language learning series.' },
+  { id: 'th37', title: 'Thai Lesson 37', url: 'https://youtu.be/5AATT_Hu1BA', description: 'Thai language learning series.' },
+  { id: 'th38', title: 'Thai Lesson 38', url: 'https://youtu.be/5oQQDKQ04dA', description: 'Thai language learning series.' },
 ];
 
 const FUTURE_MENTORSHIP_VIDEOS = [
@@ -284,10 +312,12 @@ function AccordionItem({ title, description, url, isOpen, onToggle }: { title: s
             <Video className="w-5 h-5" />
           </div>
           <div>
-            <h3 className={cn(
-              "font-bold transition-colors text-sm",
-              isOpen ? "text-sky-400" : "text-white"
-            )}>{title}</h3>
+            <div className="flex items-center gap-3">
+              <h3 className={cn(
+                "font-bold transition-colors text-sm",
+                isOpen ? "text-sky-400" : "text-white"
+              )}>{title}</h3>
+            </div>
             <p className="text-[10px] text-neutral-500 mt-0.5">{description}</p>
           </div>
         </div>
@@ -621,113 +651,138 @@ export default function Campus() {
         </div>
       ) : filter === 'VIP-1 Courses' ? (
         <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">VIP-1 Curriculum</h2>
-              <p className="text-neutral-500">Master the basics and build a solid foundation for your trading journey.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">VIP-1 Curriculum</h2>
+                  <p className="text-neutral-500">Master the basics and build a solid foundation for your trading journey.</p>
+                </div>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {VIP1_VIDEOS.length} Videos
+              </span>
             </div>
-            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-              {VIP1_VIDEOS.length} Videos
-            </span>
-          </div>
-          {VIP1_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
+            {VIP1_VIDEOS.map((video) => (
+              <AccordionItem 
+                key={video.id}
+                title={video.title}
+                description={video.description}
+                url={video.url}
+                isOpen={openVideoId === video.id}
+                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+              />
+            ))}
         </div>
       ) : filter === 'VIP-2 Courses' ? (
         <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">VIP-2 Advanced Curriculum</h2>
-              <p className="text-neutral-500">Advanced strategies and deep market insights for professional traders.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">VIP-2 Advanced Curriculum</h2>
+                  <p className="text-neutral-500">Advanced strategies and deep market insights for professional traders.</p>
+                </div>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {VIP2_VIDEOS.length} Videos
+              </span>
             </div>
-            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-              {VIP2_VIDEOS.length} Videos
-            </span>
-          </div>
-          {VIP2_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
+            {VIP2_VIDEOS.map((video) => (
+              <AccordionItem 
+                key={video.id}
+                title={video.title}
+                description={video.description}
+                url={video.url}
+                isOpen={openVideoId === video.id}
+                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+              />
+            ))}
         </div>
       ) : filter === 'Day Trading Strategy' ? (
         <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Day Trading Strategy</h2>
-              <p className="text-neutral-500">Master the art of intraday trading with our proven strategies.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Day Trading Strategy</h2>
+                  <p className="text-neutral-500">Master the art of intraday trading with our proven strategies.</p>
+                </div>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {DAY_TRADING_VIDEOS.length} Videos
+              </span>
             </div>
-            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-              {DAY_TRADING_VIDEOS.length} Videos
-            </span>
-          </div>
-          {DAY_TRADING_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
+            {DAY_TRADING_VIDEOS.map((video) => (
+              <AccordionItem 
+                key={video.id}
+                title={video.title}
+                description={video.description}
+                url={video.url}
+                isOpen={openVideoId === video.id}
+                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+              />
+            ))}
         </div>
       ) : filter === 'Introduction about Crypto' ? (
         <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Introduction about Crypto</h2>
-              <p className="text-neutral-500">Learn the fundamentals of cryptocurrency and blockchain technology.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Introduction about Crypto</h2>
+                  <p className="text-neutral-500">Learn the fundamentals of cryptocurrency and blockchain technology.</p>
+                </div>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {CRYPTO_INTRO_VIDEOS.length} Videos
+              </span>
             </div>
-            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-              {CRYPTO_INTRO_VIDEOS.length} Videos
-            </span>
-          </div>
-          {CRYPTO_INTRO_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
+            {CRYPTO_INTRO_VIDEOS.map((video) => (
+              <AccordionItem 
+                key={video.id}
+                title={video.title}
+                description={video.description}
+                url={video.url}
+                isOpen={openVideoId === video.id}
+                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+              />
+            ))}
         </div>
       ) : filter === 'Fundamental' ? (
         <div className="max-w-4xl">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-2">Fundamental Analysis</h2>
-              <p className="text-neutral-500">Understand the economic forces that drive global markets.</p>
+            <div className="mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Fundamental Analysis</h2>
+                  <p className="text-neutral-500">Understand the economic forces that drive global markets.</p>
+                </div>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
+              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
+                {FUNDAMENTAL_VIDEOS.length} Videos
+              </span>
             </div>
-            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-              {FUNDAMENTAL_VIDEOS.length} Videos
-            </span>
-          </div>
-          {FUNDAMENTAL_VIDEOS.map((video) => (
-            <AccordionItem 
-              key={video.id}
-              title={video.title}
-              description={video.description}
-              url={video.url}
-              isOpen={openVideoId === video.id}
-              onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-            />
-          ))}
+            {FUNDAMENTAL_VIDEOS.map((video) => (
+              <AccordionItem 
+                key={video.id}
+                title={video.title}
+                description={video.description}
+                url={video.url}
+                isOpen={openVideoId === video.id}
+                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
+              />
+            ))}
         </div>
       ) : filter === 'Learn Thai' ? (
         <div className="max-w-5xl space-y-12">
@@ -737,7 +792,12 @@ export default function Campus() {
             className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent border border-emerald-500/20 p-8 md:p-12 text-center"
           >
             <div className="relative z-10 mx-auto max-w-2xl">
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 uppercase tracking-tighter italic">Learn Thai Language</h2>
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <h2 className="text-3xl md:text-5xl font-bold text-white uppercase tracking-tighter italic">Learn Thai Language</h2>
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                  Complete
+                </span>
+              </div>
               <p className="text-lg text-neutral-400 mb-0 leading-relaxed font-medium">
                 မြန်မာနိုင်ငံသားများအတွက် မြန်မာဘာသာဖြင့် ထိုင်းဘာသာစကားကို အလွယ်တကူ လေ့လာသင်ယူနိုင်ရန် ဖော်ပြပေးထားသော နေရာဖြစ်ပါသည်။
               </p>
