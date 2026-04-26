@@ -1,54 +1,26 @@
-import { GoogleGenAI } from "@google/genai";
 import { toast } from "sonner";
-
-const getApiKeys = () => {
-  let keysStr = "";
-  
-  try {
-    // Vite-style environment variables (Bundled into client)
-    keysStr = 
-      ((import.meta as any).env?.VITE_GEMINI_API_KEYS) || 
-      ((import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-      "";
-      
-    // Fallback to process.env (Only works in some environments or if polyfilled)
-    if (!keysStr && typeof process !== 'undefined' && process.env) {
-      keysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
-    }
-  } catch (e) {
-    console.warn("[Gemini] Error reading environment variables:", e);
-  }
-    
-  const keys = keysStr.split(",").map(k => k.trim()).filter(k => k !== "");
-  
-  if (keys.length > 0) {
-    console.log(`[Gemini] Client-side fallback initialized with ${keys.length} API keys.`);
-  } else {
-    console.warn("[Gemini] No VITE_GEMINI_API_KEYS found for client-side fallback. Only backend proxy will be used.");
-  }
-  
-  return keys;
-};
-
-const MODELS = [
-  "gemini-2.0-flash-exp",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-1.5-flash-8b"
-];
 
 export const callGeminiWithRetry = async (
   prompt: string, 
   config: any = {}, 
-  maxRetries = 3, 
+  maxRetries = 2, 
   toastId?: string | number,
   updateQuotaError?: (time: number) => void
 ) => {
-  // 1. Attempt Backend Proxy Call First
-  let backendRateLimited = false;
+  const { provider = 'Gemini', userApiKey } = config;
+
+  if (!userApiKey) {
+    throw new Error(`Please configure your ${provider} API Key in the AI Settings.`);
+  }
+
+  // Use the backend proxy for all requests to ensure clean handling and avoid CORS if any
   try {
-    console.log("[Gemini] Attempting backend proxy call...");
-    const response = await fetch("/api/gemini", {
+    const endpoint = 
+      provider === 'ChatGPT' ? "/api/openai" : 
+      provider === 'ManuAI' ? "/api/manuai" : 
+      "/api/gemini";
+    
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt, config })
@@ -62,101 +34,19 @@ export const callGeminiWithRetry = async (
     let errorData: any = {};
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-      errorData = await response.json().catch(() => ({}));
+      errorData = await response.json();
     } else {
-      const text = await response.text().catch(() => "");
-      errorData = { error: text || response.statusText };
+      errorData = { error: await response.text().catch(() => response.statusText) };
     }
 
     if (response.status === 429) {
-      backendRateLimited = true;
-      console.warn("[Gemini] Backend rate limited (429). Falling back to client-side rotation.");
-      if (toastId) toast.loading("Backend busy, switching to direct client-side connection...", { id: toastId });
-    } else {
-      console.error("[Gemini] Backend error:", errorData);
+      if (updateQuotaError) updateQuotaError(Date.now());
+      throw new Error(`Your ${provider} API quota has been reached. Please check your billing or wait a moment.`);
     }
-  } catch (err) {
-    console.error("[Gemini] Failed to reach backend proxy:", err);
+
+    throw new Error(errorData.error || `${provider} API Error: ${response.status}`);
+  } catch (err: any) {
+    console.error(`[AI] ${provider} request failed:`, err);
+    throw err;
   }
-
-  // 2. Client-Side Fallback with Key & Model Rotation
-  const allKeys = getApiKeys();
-  if (allKeys.length === 0) {
-    const errorMsg = "Gemini API Key is missing for client-side fallback. Please add VITE_GEMINI_API_KEYS to your environment variables.";
-    console.error(`[Gemini] ${errorMsg}`);
-    if (backendRateLimited && updateQuotaError) {
-      updateQuotaError(Date.now());
-    }
-    throw new Error(errorMsg);
-  }
-
-  let lastError: any = null;
-
-  for (const modelName of MODELS) {
-    console.log(`[Gemini] Trying model: ${modelName}`);
-    
-    // Shuffle keys for each model attempt
-    const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < shuffledKeys.length; i++) {
-      const apiKey = shuffledKeys[i];
-      const ai = new GoogleGenAI({ apiKey });
-      
-      try {
-        const response = await ai.models.generateContent({
-          model: modelName,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: {
-            ...(config?.systemInstruction ? { systemInstruction: config.systemInstruction } : {}),
-            temperature: config.temperature || 0.7,
-            topP: config.topP || 0.95,
-            topK: config.topK || 40,
-            responseMimeType: config.responseMimeType
-          }
-        });
-        
-        const text = response.text;
-        
-        if (!text) {
-          console.error(`[Gemini] Empty response from ${modelName}:`, JSON.stringify(response));
-          throw new Error("Invalid response structure from Gemini");
-        }
-        
-        return { text };
-      } catch (err: any) {
-        lastError = err;
-        console.error(`[Gemini] Error with model ${modelName} and key ${apiKey.substring(0, 8)}...:`, err?.message || err);
-        
-        const isQuotaError = err?.message?.includes('429') || 
-                           err?.status === 429 || 
-                           JSON.stringify(err).includes('429') ||
-                           err?.message?.toLowerCase().includes('quota');
-        
-        if (isQuotaError) {
-          console.warn(`[Gemini] Key ${apiKey.substring(0, 8)}... exhausted for ${modelName}. Trying next key...`);
-          continue; 
-        }
-
-        const isInvalidKey = err?.message?.includes('API key not valid') || 
-                            err?.status === 400 || 
-                            JSON.stringify(err).includes('API_KEY_INVALID');
-        
-        if (isInvalidKey) {
-          console.warn(`[Gemini] Invalid API key detected for ${modelName}. Trying next key...`);
-          continue;
-        }
-        
-        continue;
-      }
-    }
-    
-    console.warn(`[Gemini] All keys exhausted for model ${modelName}. Trying next model...`);
-  }
-
-  // If we reached here, ALL models and ALL keys failed
-  if (updateQuotaError) {
-    updateQuotaError(Date.now());
-  }
-
-  throw lastError || new Error("All Gemini API models and keys failed after multiple attempts.");
 };

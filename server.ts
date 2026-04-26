@@ -3,7 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import YahooFinance from 'yahoo-finance2';
 
 const yahooFinance = new YahooFinance();
@@ -249,96 +249,8 @@ async function startServer() {
     }
   });
 
-  // Gemini API Proxy with Model Rotation
-  app.post("/api/gemini", async (req, res) => {
-    console.log(`[Server Gemini] Received request for prompt: ${req.body.prompt?.substring(0, 50)}...`);
-    const { prompt, config } = req.body;
-    const keysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
-    const allKeys = keysStr.split(",").map(k => k.trim()).filter(k => k !== "");
-    
-    if (allKeys.length === 0) {
-      console.error("[Server Gemini] No API keys found in environment.");
-      return res.status(500).json({ error: "Gemini API Key is missing on server." });
-    }
+  // AI Proxy routes will be rebuilt here
 
-    const MODELS = [
-      "gemini-2.0-flash-exp",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.5-flash-8b"
-    ];
-
-    let lastError: any = null;
-
-    for (const modelName of MODELS) {
-      const shuffledKeys = [...allKeys].sort(() => Math.random() - 0.5);
-      
-      for (const apiKey of shuffledKeys) {
-        try {
-          console.log(`[Server Gemini] Attempting with model: ${modelName}`);
-          const ai = new GoogleGenAI({ apiKey });
-          
-          const response = await ai.models.generateContent({
-            model: modelName,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: {
-              ...(config?.systemInstruction ? { systemInstruction: config.systemInstruction } : {}),
-              temperature: config.temperature || 0.7,
-              topP: config.topP || 0.95,
-              topK: config.topK || 40,
-              responseMimeType: config.responseMimeType
-            }
-          });
-          
-          const text = response.text;
-          
-          if (!text) {
-            console.error(`[Server Gemini] Empty response from ${modelName}:`, JSON.stringify(response));
-            throw new Error("Invalid response structure from Gemini");
-          }
-          
-          console.log(`[Server Gemini] Success with model: ${modelName}`);
-          return res.json({
-            text: text
-          });
-        } catch (err: any) {
-          lastError = err;
-          console.error(`[Server Gemini] Error with model ${modelName}:`, err?.message || err);
-          const isQuotaError = err?.message?.includes('429') || 
-                             err?.status === 429 || 
-                             JSON.stringify(err).includes('429') ||
-                             err?.message?.toLowerCase().includes('quota');
-          
-          const isInvalidKey = err?.message?.includes('API key not valid') || 
-                               err?.status === 400 || 
-                               JSON.stringify(err).includes('API_KEY_INVALID');
-          
-          if (isQuotaError) {
-            console.warn(`[Server Gemini] Key exhausted for ${modelName}. Trying next key...`);
-            continue;
-          }
-
-          if (isInvalidKey) {
-            console.warn(`[Server Gemini] Invalid API key detected for ${modelName}. Trying next key...`);
-            continue;
-          }
-          
-          continue;
-        }
-      }
-      console.warn(`[Server Gemini] All keys exhausted for ${modelName}. Trying next model...`);
-    }
-
-    console.error("[Server Gemini] All attempts failed.");
-    const isQuotaError = lastError?.message?.includes('429') || 
-                       lastError?.status === 429 || 
-                       JSON.stringify(lastError).includes('429');
-
-    res.status(isQuotaError ? 429 : 500).json({ 
-      error: lastError?.message || "All Gemini models/keys failed on server.",
-      status: isQuotaError ? 429 : 500
-    });
-  });
 
   // Request logging middleware (only for non-API requests that fall through to Vite/Static)
   app.use((req, res, next) => {
