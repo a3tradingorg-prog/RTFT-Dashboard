@@ -142,6 +142,7 @@ const FUTURE_MENTORSHIP_VIDEOS = [
   { id: 'fm18', title: '27 April 2026 Mentorship Course(ORG Trend continuation+1st P FVG)', url: 'https://youtu.be/G0uvhfEklhk', description: 'Mentorship session focusing on trend continuation and FVG analysis.' },
   { id: 'fm19', title: '29 April 2026 Mentorship Course (ORG + C.E anticipation theory)', url: 'https://youtu.be/KZtrYE-AGTM', description: 'Mentorship session focusing on ORG and C.E anticipation theory.' },
   { id: 'fm20', title: '2 May 2026 Backtest Session', url: 'https://youtu.be/tvZwfriEjm8', description: 'Interactive backtesting session recorded on May 2.' },
+  { id: 'fm21', title: '25 May 2026 (Time window, Liquidity and Algorithmic price Delivery)', url: 'https://youtu.be/sQAW-9UO3mo', description: 'Mentorship session on time window, liquidity, and algorithmic price delivery.' },
 ];
 
 const TTT_BASIC = [
