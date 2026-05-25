@@ -96,6 +96,18 @@ const PDF_FILES: PDFFile[] = [
     path: 'The_Psychology_of_Money_-_Marcus_P_Lancaster.pdf', 
     category: 'Psychology', 
     thumbnail: 'https://picsum.photos/seed/money2/400/600' 
+  },
+  { 
+    name: 'Trading in the Zone (Mark Dagrous)', 
+    path: '_OceanofPDF.com_Trading_in_the_zone_-_Mark_Dagrous.pdf', 
+    category: 'Psychology', 
+    thumbnail: 'https://picsum.photos/seed/dagrous/400/600' 
+  },
+  { 
+    name: 'Trading in the Zone (Mark Douglas)', 
+    path: '_OceanofPDF.com_Trading_in_the_zone_-_Mark_Douglas.pdf', 
+    category: 'Psychology', 
+    thumbnail: 'https://picsum.photos/seed/douglas/400/600' 
   }
 ];
 
@@ -125,11 +137,27 @@ export default function PDFLibrary() {
     const toastId = toast.loading(`Preparing ${file.name}...`);
 
     try {
+      let finalPath = file.path;
+      if (finalPath.startsWith('http')) {
+        try {
+          const urlObj = new URL(finalPath);
+          const segments = urlObj.pathname.split('/');
+          const pdfIdx = segments.indexOf('pdf');
+          if (pdfIdx !== -1 && pdfIdx < segments.length - 1) {
+            finalPath = decodeURIComponent(segments.slice(pdfIdx + 1).join('/'));
+          } else {
+            finalPath = decodeURIComponent(segments[segments.length - 1]);
+          }
+        } catch (e) {
+          console.warn('Path parsing error:', e);
+        }
+      }
+
       // Use Supabase Storage download method
       // This ensures that the request is authenticated with the user's session
       const { data, error } = await supabase.storage
         .from('pdf')
-        .download(file.path);
+        .download(finalPath);
 
       if (error) {
         console.error('Download error:', error);
