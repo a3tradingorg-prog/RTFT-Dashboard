@@ -144,6 +144,31 @@ export default function Journal() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const accountRef = useClickOutside(() => setIsAccountDropdownOpen(false));
 
+  const parseAsUSTimezone = (dateStr: string): Date => {
+    const cleanStr = dateStr.trim();
+    if (cleanStr.includes('Z') || cleanStr.includes('GMT') || cleanStr.includes('+') || (cleanStr.includes('-') && cleanStr.split('-').length > 3)) {
+      return new Date(cleanStr);
+    }
+    try {
+      // YRM and matching prop firms export times in UTC/GMT timezone.
+      // So "2026-02-24 14:40:16" needs to be parsed as UTC/GMT.
+      const normalized = cleanStr.replace(/\//g, '-');
+      let isoCompatible = normalized;
+      if (normalized.includes(' ')) {
+        isoCompatible = normalized.replace(' ', 'T');
+      }
+      
+      // Append 'Z' to treat the date string strictly as UTC
+      const finalDate = new Date(isoCompatible + 'Z');
+      if (!isNaN(finalDate.getTime())) {
+        return finalDate;
+      }
+      return new Date(normalized);
+    } catch (err) {
+      return new Date(dateStr);
+    }
+  };
+
   const handleImportLogs = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -216,12 +241,25 @@ export default function Journal() {
 
       // 1. Resolve Account
       let targetAccountId = selectedAccountId;
+      let targetAccountInitialBalance = 50000;
+      let isOverriding = false;
       
       // If none selected or we want to match by CSV account name
       if (firstAccountName) {
         const existingAcc = accounts.find(a => a.name === firstAccountName);
         if (existingAcc) {
           targetAccountId = existingAcc.id;
+          targetAccountInitialBalance = existingAcc.initial_balance || 50000;
+          isOverriding = true;
+
+          // Override option: Wipe matching trades, trade exits, and daily pnl to avoid duplicate merges
+          const { data: oldTrades } = await supabase.from('trades').select('id').eq('account_id', targetAccountId);
+          if (oldTrades && oldTrades.length > 0) {
+            const oldTradeIds = oldTrades.map(ot => ot.id);
+            await supabase.from('trade_exits').delete().in('trade_id', oldTradeIds);
+          }
+          await supabase.from('trades').delete().eq('account_id', targetAccountId);
+          await supabase.from('daily_pnl').delete().eq('account_id', targetAccountId);
         } else {
           // Create the account if it doesn't exist
           const { data: newAcc, error: accError } = await supabase
@@ -241,6 +279,7 @@ export default function Journal() {
           
           if (accError) throw new Error(`Failed to create account: ${accError.message}`);
           targetAccountId = newAcc.id;
+          targetAccountInitialBalance = 50000;
           await refreshAccounts(); // Update context
         }
       }
@@ -254,6 +293,8 @@ export default function Journal() {
       const dailyPnlsToUpdate: Record<string, number> = {};
 
       for (const t of tradesToInsert as any[]) {
+        const entryParsed = parseAsUSTimezone(t.entry_date).toISOString();
+        const exitParsed = parseAsUSTimezone(t.exits[t.exits.length - 1].exit_date).toISOString();
         const { data: trade, error: tradeError } = await supabase
           .from('trades')
           .insert([{
@@ -261,14 +302,14 @@ export default function Journal() {
             user_id: user.id,
             asset: t.asset,
             type: t.type,
-            entry_date: new Date(t.entry_date).toISOString(),
-            exit_date: new Date(t.exits[t.exits.length - 1].exit_date).toISOString(),
+            entry_date: entryParsed,
+            exit_date: exitParsed,
             contract_size: t.contract_size,
             entry_price: t.entry_price,
             exit_price: t.exits[t.exits.length - 1].exit_price,
             pnl: t.total_pnl,
             status: 'CLOSED',
-            created_at: new Date(t.entry_date).toISOString()
+            created_at: entryParsed
           }])
           .select()
           .single();
@@ -281,7 +322,7 @@ export default function Journal() {
         totalPnLForImport += t.total_pnl;
 
         // Track daily PnL
-        const dateStr = format(new Date(t.entry_date), 'yyyy-MM-dd');
+        const dateStr = format(parseAsUSTimezone(t.entry_date), 'yyyy-MM-dd');
         dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + t.total_pnl;
 
         if (trade) {
@@ -290,7 +331,7 @@ export default function Journal() {
             closed_contract: e.closed_contract,
             exit_price: e.exit_price,
             exit_status: 'TP',
-            created_at: new Date(e.exit_date).toISOString()
+            created_at: parseAsUSTimezone(e.exit_date).toISOString()
           }));
           const { error: exitsError } = await supabase.from('trade_exits').insert(exitRecords);
           if (exitsError) console.warn('Exits insert warning:', exitsError);
@@ -298,8 +339,7 @@ export default function Journal() {
       }
 
       // 3. Update account balance
-      const currentAcc = accounts.find(a => a.id === targetAccountId);
-      const newBalance = (currentAcc?.current_balance || 50000) + totalPnLForImport;
+      const newBalance = targetAccountInitialBalance + totalPnLForImport;
       await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', targetAccountId);
 
       // 4. Update daily PnLs
