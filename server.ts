@@ -307,19 +307,83 @@ async function startServer() {
         return timeB - timeA;
       });
 
-      // Limit to 250 most recent closed trades to ensure speedy response times and stable model processing
-      if (processedTradesInput.length > 250) {
-        processedTradesInput = processedTradesInput.slice(0, 250);
+      // Limit to 150 most recent closed trades to ensure highly stable response times under Cloud Run timeouts
+      if (processedTradesInput.length > 150) {
+        processedTradesInput = processedTradesInput.slice(0, 150);
       }
 
-      // Format trades data for optimal token usage and accuracy
+      // Pre-calculate exact session performance statistics to pass as ground truth
+      const amStats = {
+        totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        netPnL: 0,
+        winRate: 0,
+        durationsWin: [] as number[],
+        durationsLoss: [] as number[],
+        avgDurationWinMin: 0,
+        avgDurationLossMin: 0,
+      };
+
+      const pmStats = {
+        totalTrades: 0,
+        winningTrades: 0,
+        losingTrades: 0,
+        netPnL: 0,
+        winRate: 0,
+        durationsWin: [] as number[],
+        durationsLoss: [] as number[],
+        avgDurationWinMin: 0,
+        avgDurationLossMin: 0,
+      };
+
+      // Helper to parse dates identically to client-side Journal.tsx
+      const parseDateRobust = (dateStr: any): Date | null => {
+        if (!dateStr) return null;
+        const cleanStr = String(dateStr).trim();
+        if (cleanStr.includes('Z') || cleanStr.includes('GMT') || cleanStr.includes('+') || (cleanStr.includes('-') && cleanStr.split('-').length > 3)) {
+          const d = new Date(cleanStr);
+          return isNaN(d.getTime()) ? null : d;
+        }
+        try {
+          const normalized = cleanStr.replace(/\//g, '-');
+          let isoCompatible = normalized;
+          if (normalized.includes(' ')) {
+            isoCompatible = normalized.replace(' ', 'T');
+          }
+          const finalDate = new Date(isoCompatible + 'Z');
+          if (!isNaN(finalDate.getTime())) {
+            return finalDate;
+          }
+          const backupDate = new Date(normalized);
+          return isNaN(backupDate.getTime()) ? null : backupDate;
+        } catch (err) {
+          const d = new Date(dateStr);
+          return isNaN(d.getTime()) ? null : d;
+        }
+      };
+
+      // Format trades data for optimal token usage and accuracy, and compute stats in a single pass
       const formattedTrades = processedTradesInput.map((t: any) => {
         let estStr = "";
         let estHourStr = "";
-        try {
-          const entryD = new Date(t.entry_date);
-          if (!isNaN(entryD.getTime())) {
-            // Get 24-hour New York local time string
+        let hour = -1;
+        let minute = -1;
+        let durationMinutes = 0;
+
+        const entryD = parseDateRobust(t.entry_date);
+        const exitD = parseDateRobust(t.exit_date);
+
+        if (entryD) {
+          if (exitD) {
+            const diffMs = exitD.getTime() - entryD.getTime();
+            if (diffMs > 0) {
+              durationMinutes = diffMs / (1000 * 60);
+            }
+          }
+
+          try {
+            // Get New York 24-hour time
             const formatter24 = new Intl.DateTimeFormat("en-US", {
               timeZone: "America/New_York",
               year: "numeric",
@@ -330,22 +394,65 @@ async function startServer() {
               second: "2-digit",
               hour12: false
             });
-            const formatted24 = formatter24.format(entryD); // e.g., "02/24/2026, 14:40:16"
+            const formatted24 = formatter24.format(entryD);
+
+            // Extract date and time parts cleanly and robustly
             const datePart = formatted24.split(", ")[0];
             const timePart = formatted24.split(", ")[1];
-            const [hh, mm] = timePart.split(":");
-            
-            // Format 12-hour AM/PM for estStr
-            const hInt = parseInt(hh, 10);
-            const period = hInt >= 12 ? "PM" : "AM";
-            const h12 = hInt % 12 === 0 ? 12 : hInt % 12;
-            const h12Str = String(h12).padStart(2, '0');
-            
-            estStr = `${datePart}, ${h12Str}:${mm} ${period} EST`;
-            estHourStr = `${hh}:${mm} EST`;
+
+            if (timePart) {
+              const timeParts = timePart.split(":");
+              const hhStr = timeParts[0]?.replace(/\D/g, ""); // strip non-digits safely (like unicode marks)
+              const mmStr = timeParts[1]?.replace(/\D/g, "");
+
+              if (hhStr && mmStr) {
+                hour = parseInt(hhStr, 10);
+                minute = parseInt(mmStr, 10);
+
+                const hInt = hour;
+                const period = hInt >= 12 ? "PM" : "AM";
+                const h12 = hInt % 12 === 0 ? 12 : hInt % 12;
+                const h12Str = String(h12).padStart(2, '0');
+
+                estStr = `${datePart}, ${h12Str}:${mmStr} ${period} EST`;
+                estHourStr = `${String(hour).padStart(2, '0')}:${mmStr} EST`;
+              }
+            }
+          } catch (e) {
+            console.warn("Timezone formatter failed:", e);
           }
-        } catch (e) {
-          console.warn("Timezone conversion mapping failed:", e);
+        }
+
+        // Aggregate statistics for AM and PM sessions
+        if (hour !== -1 && minute !== -1) {
+          const totalMinutes = hour * 60 + minute;
+          const isWinning = Number(t.pnl) > 0;
+          const pnlVal = Number(t.pnl) || 0;
+
+          // US Morning AM Session (09:30 AM - 11:30 AM EST) -> 570 to 690 min
+          if (totalMinutes >= 570 && totalMinutes <= 690) {
+            amStats.totalTrades++;
+            if (isWinning) {
+              amStats.winningTrades++;
+              amStats.durationsWin.push(durationMinutes);
+            } else {
+              amStats.losingTrades++;
+              amStats.durationsLoss.push(durationMinutes);
+            }
+            amStats.netPnL += pnlVal;
+          }
+          // US Afternoon PM Session (01:30 PM - 03:30 PM EST) -> 810 to 930 min
+          else if (totalMinutes >= 810 && totalMinutes <= 930) {
+            pmStats.totalTrades++;
+            if (isWinning) {
+              pmStats.winningTrades++;
+              pmStats.durationsWin.push(durationMinutes);
+            } else {
+              pmStats.losingTrades++;
+              pmStats.durationsLoss.push(durationMinutes);
+            }
+            pmStats.netPnL += pnlVal;
+          }
         }
 
         return {
@@ -390,102 +497,8 @@ async function startServer() {
         languageInstructions = `4. Write the text fields strictly in Myanmar language (Burmese), but keep technical trading definitions (such as 'fvg', 'liquidity', 'risk-to-reward ratio', 'drawdown', 'orderblock', 'imbalance', 'fair value gap', 'break of structure', etc.) as-is to preserve professional accuracy.`;
       }
 
-      // Pre-calculate exact session performance statistics to pass as ground truth
-      const amStats = {
-        totalTrades: 0,
-        winningTrades: 0,
-        losingTrades: 0,
-        netPnL: 0,
-        winRate: 0,
-        durationsWin: [] as number[],
-        durationsLoss: [] as number[],
-        avgDurationWinMin: 0,
-        avgDurationLossMin: 0,
-      };
-
-      const pmStats = {
-        totalTrades: 0,
-        winningTrades: 0,
-        losingTrades: 0,
-        netPnL: 0,
-        winRate: 0,
-        durationsWin: [] as number[],
-        durationsLoss: [] as number[],
-        avgDurationWinMin: 0,
-        avgDurationLossMin: 0,
-      };
-
-      for (const t of processedTradesInput) {
-        let hour = -1;
-        let minute = -1;
-        let durationMinutes = 0;
-        
-        try {
-          const entryD = new Date(t.entry_date);
-          const exitD = t.exit_date ? new Date(t.exit_date) : null;
-          if (entryD && !isNaN(entryD.getTime()) && exitD && !isNaN(exitD.getTime())) {
-            const diffMs = exitD.getTime() - entryD.getTime();
-            if (diffMs > 0) {
-              durationMinutes = diffMs / (1000 * 60);
-            }
-          }
-          
-          if (entryD && !isNaN(entryD.getTime())) {
-            const formatter24 = new Intl.DateTimeFormat("en-US", {
-              timeZone: "America/New_York",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false
-            });
-            const formatted = formatter24.format(entryD);
-            const parts = formatted.split(":");
-            if (parts.length >= 2) {
-              hour = parseInt(parts[0], 10);
-              minute = parseInt(parts[1], 10);
-            }
-          }
-        } catch (e) {
-          console.warn("Error parsing trade time for timezone stats:", e);
-        }
-
-        if (hour !== -1 && minute !== -1) {
-          const totalMinutes = hour * 60 + minute;
-          const isWinning = Number(t.pnl) > 0;
-          const pnlVal = Number(t.pnl) || 0;
-
-          // US Morning AM Session (09:30 AM - 11:30 AM EST)
-          // 09:30 => 9*60+30 = 570
-          // 11:30 => 11*60+30 = 690
-          if (totalMinutes >= 570 && totalMinutes <= 690) {
-            amStats.totalTrades++;
-            if (isWinning) {
-              amStats.winningTrades++;
-              amStats.durationsWin.push(durationMinutes);
-            } else {
-              amStats.losingTrades++;
-              amStats.durationsLoss.push(durationMinutes);
-            }
-            amStats.netPnL += pnlVal;
-          } 
-          // US Afternoon PM Session (01:30 PM - 03:30 PM EST)
-          // 01:30 PM => 13*60+30 = 810
-          // 03:30 PM => 15*60+30 = 930
-          else if (totalMinutes >= 810 && totalMinutes <= 930) {
-            pmStats.totalTrades++;
-            if (isWinning) {
-              pmStats.winningTrades++;
-              pmStats.durationsWin.push(durationMinutes);
-            } else {
-              pmStats.losingTrades++;
-              pmStats.durationsLoss.push(durationMinutes);
-            }
-            pmStats.netPnL += pnlVal;
-          }
-        }
-      }
-
       const calcAvg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-      
+
       amStats.winRate = amStats.totalTrades > 0 ? Math.round((amStats.winningTrades / amStats.totalTrades) * 100) : 0;
       amStats.avgDurationWinMin = calcAvg(amStats.durationsWin);
       amStats.avgDurationLossMin = calcAvg(amStats.durationsLoss);

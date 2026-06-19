@@ -375,8 +375,25 @@ export default function AISummary() {
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({ error: "Server response error" }));
-        throw new Error(errData.error || "Analysis could not be processed.");
+        let errorMessage = `Server error (${response.status})`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) {
+            errorMessage = errData.error;
+          } else if (errData && errData.message) {
+            errorMessage = errData.message;
+          }
+        } catch (e) {
+          try {
+            const rawText = await response.text();
+            if (rawText && rawText.trim().length > 0 && rawText.length < 300) {
+              errorMessage = `${errorMessage}: ${rawText.trim()}`;
+            }
+          } catch (textErr) {
+            // retain standard message
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data: AIResult = await response.json();
