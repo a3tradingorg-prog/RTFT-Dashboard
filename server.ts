@@ -554,7 +554,7 @@ ${languageInstructions}`;
 
       if (apiKeys.length === 0) {
         return res.status(500).json({ 
-          error: "서버에 valid Gemini API Key က ပြင်ဆင်သတ်မှတ်ထားခြင်း မရှိသေးပါ။ ကျေးဇူးပြု၍ API key ထည့်သွင်းပေးပါ။" 
+          error: "စနစ် (Server) တွင် အသုံးပြုရန် သင့်လျော်သော Gemini API Key တစ်ခုခုကို ကောင်းမွန်စွာ ပြင်ဆင်သတ်မှတ်ထားခြင်း မရှိသေးပါ။ ကျေးဇူးပြု၍ API key ထည့်သွင်းပေးပါ။" 
         });
       }
 

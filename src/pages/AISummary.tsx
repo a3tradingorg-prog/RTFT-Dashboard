@@ -53,7 +53,7 @@ const translations: Record<string, any> = {
     connectAccounts: "Connecting to Account",
     connectAccountsDesc: "AI ဆန်းစစ်မှု ပြုလုပ်လိုသော trading accounts များကို စိတ်ကြိုက် ရွေးချယ်ချိတ်ဆက်ပါ။",
     noAccounts: "ချိတ်ဆက်ထားသော accounts မရှိသေးပါ။",
-    addAccountsFirst: "Accounts စาမျက်နှာတွင် အရင်ထည့်ရန်",
+    addAccountsFirst: "Accounts စာမျက်နှာတွင် အရင်ထည့်ရန်",
     accountsList: "ဆန်းစစ်မည့် အကောင့်များ",
     selectAccountTrigger: "Choose Account",
     noAccountSelected: "အကောင့် ရွေးချယ်ထားခြင်း မရှိပါ",
@@ -82,7 +82,7 @@ const translations: Record<string, any> = {
     strengthsTitle: "ကျွမ်းကျင်မှု အားသာချက်များ (Strengths)",
     weaknessesTitle: "ပြတ်ယွင်းချက် အားနည်းချက်များ (Weaknesses)",
     tradingEdgeTitle: "Trading Edge & Strategy Consistency",
-    recommendationsTitle: "အကြังပြု ပြုပြင်ချက်များ (Recommendations)",
+    recommendationsTitle: "အကြံပြု ပြုပြင်ချက်များ (Recommendations)",
     overviewTitle: "ပြုပြင်တိုးတက်မှု သုံးသပ်ချက်အနှစ်ချုပ် (Overview Report)",
     readyTitle: "AI Report ဆန်းစစ်မှုစတင်ရန် အဆင်သင့်ရှိပါသည်",
     readyDesc: "ဘယ်ဘက်ရှိ sidebar မီနူးမှ သင့်၏ trading accounts များကို ရွေးချယ်ပြီး အောက်ခြေရှိ \"AI Evaluation စတင်ရန်\" ခလုတ်အားနှိပ်၍ quantitative insights များကို ထုတ်ယူလိုက်ပါ။",
@@ -845,7 +845,7 @@ export default function AISummary() {
                             <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
                           </div>
                           <span className="text-xs font-bold text-rose-400 uppercase tracking-wide">
-                            {selectedLanguage === 'my' ? "Unsuitable Time (මသင့်တော်သောအချိန်)" : "Unsuitable Time (Worst Trading Time)"}
+                            {selectedLanguage === 'my' ? "Unsuitable Time (မသင့်တော်သောအချိန်)" : "Unsuitable Time (Worst Trading Time)"}
                           </span>
                         </div>
                         <p className="text-xs text-neutral-300 leading-relaxed font-semibold whitespace-pre-wrap">
