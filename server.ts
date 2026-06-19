@@ -546,7 +546,7 @@ Requirements:
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
-      const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+      const rawKeys = process.env.GEMINI_API_KEYS || process.env.VITE_GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
       const apiKeys = rawKeys
           .split(",")
           .map(k => k.trim())

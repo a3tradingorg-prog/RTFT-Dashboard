@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { prompt, config } = req.body;
-  const keysStr = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || "";
+  const keysStr = process.env.GEMINI_API_KEYS || process.env.VITE_GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
   const allKeys = keysStr.split(",").map(k => k.trim()).filter(k => k !== "");
   
   if (allKeys.length === 0) {
