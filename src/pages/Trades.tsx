@@ -17,7 +17,7 @@ import {
   Wallet,
   AlertCircle
 } from 'lucide-react';
-import { formatCurrency, formatPercent, cn } from '../lib/utils';
+import { formatCurrency, formatPercent, cn, formatToEST } from '../lib/utils';
 import { format, parseISO } from 'date-fns';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -296,7 +296,10 @@ export default function Trades() {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-white">{trade.asset}</span>
-                        <span className="text-xs text-neutral-500">{format(new Date(trade.entry_date), 'MMM dd, yyyy')}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <span className="text-xs text-neutral-500">{format(new Date(trade.entry_date), 'MMM dd, yyyy HH:mm')}</span>
+                          <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded leading-none">US: {formatToEST(trade.entry_date)} EST</span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">

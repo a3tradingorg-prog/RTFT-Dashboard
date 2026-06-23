@@ -108,6 +108,108 @@ const PDF_FILES: PDFFile[] = [
     path: '_OceanofPDF.com_Trading_in_the_zone_-_Mark_Douglas.pdf', 
     category: 'Psychology', 
     thumbnail: 'https://picsum.photos/seed/douglas/400/600' 
+  },
+  {
+    name: 'API Book by Ei Maung',
+    path: 'Web Dev/API-book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/api/400/600'
+  },
+  {
+    name: 'Bitcoin Book by Ei Maung',
+    path: 'Web Dev/Bitcoin-book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/bitcoin/400/600'
+  },
+  {
+    name: 'Bootstrap 5 Book by Ei Maung',
+    path: 'Web Dev/Bootstrap5-book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/bootstrap/400/600'
+  },
+  {
+    name: 'JavaScript Book by Ei Maung',
+    path: 'Web Dev/JavaScript-Book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/javascript/400/600'
+  },
+  {
+    name: 'Laravel 8 Book by Ei Maung',
+    path: 'Web Dev/Laravel8-book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/laravel/400/600'
+  },
+  {
+    name: 'Lyra & Silent Frequency',
+    path: 'Web Dev/Lyra-and-Silent-Frequency.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/lyra/400/600'
+  },
+  {
+    name: 'n8n Book',
+    path: 'Web Dev/n8n-book.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/n8n/400/600'
+  },
+  {
+    name: 'OpenClaw Book',
+    path: 'Web Dev/openclaw-book.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/openclaw/400/600'
+  },
+  {
+    name: 'PHP Book by Ei Maung',
+    path: 'Web Dev/PHP-Book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/php/400/600'
+  },
+  {
+    name: 'Professional Web Developer 2023',
+    path: 'Web Dev/Professional-Web-Developer-2023.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/webdev2023/400/600'
+  },
+  {
+    name: 'Professional Web Developer 4th Edition by Ei Maung',
+    path: 'Web Dev/Professional-Web-Developer-4th-Edition-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/webdev4th/400/600'
+  },
+  {
+    name: 'Programming for Kids',
+    path: 'Web Dev/Programming-for-Kids.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/kids/400/600'
+  },
+  {
+    name: 'React Book by Ei Maung',
+    path: 'Web Dev/React-book-by-Ei-Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/react/400/600'
+  },
+  {
+    name: 'Rockstar Developer 2025',
+    path: 'Web Dev/Rockstar-Developer-2025.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/rockstar2025/400/600'
+  },
+  {
+    name: 'Rockstar Developer by Ei Maung',
+    path: 'Web Dev/Rockstar-Developer-by-Ei.Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/rockstar/400/600'
+  },
+  {
+    name: 'Ubuntu Linux for You (14.04) by Ei Maung',
+    path: 'Web Dev/Ubuntu-Linux-for-You-14.04-by-Ei.Maung.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/ubuntu/400/600'
+  },
+  {
+    name: 'Vibe Coding Book',
+    path: 'Web Dev/vibe-coding-book.pdf',
+    category: 'Web Dev',
+    thumbnail: 'https://picsum.photos/seed/vibecoding/400/600'
   }
 ];
 

@@ -35,7 +35,7 @@ import {
   Wallet,
   Activity
 } from 'lucide-react';
-import { formatCurrency, formatPercent, cn } from '../lib/utils';
+import { formatCurrency, formatPercent, cn, formatToEST } from '../lib/utils';
 import { 
   format, 
   startOfMonth, 
@@ -140,6 +140,10 @@ export default function Journal() {
   const [isStrategyDropdownOpen, setIsStrategyDropdownOpen] = useState(false);
   const [openExitDropdown, setOpenExitDropdown] = useState<{ index: number, type: 'status' | 'reason' } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const isImportingRef = React.useRef(isImporting);
+  React.useEffect(() => {
+    isImportingRef.current = isImporting;
+  }, [isImporting]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const accountRef = useClickOutside(() => setIsAccountDropdownOpen(false));
@@ -288,53 +292,73 @@ export default function Journal() {
         throw new Error('Please select or create an account first');
       }
 
-      // 2. Insert Trades
-      let totalPnLForImport = 0;
-      const dailyPnlsToUpdate: Record<string, number> = {};
-
-      for (const t of tradesToInsert as any[]) {
+      // 2. Insert Trades using Batch operation
+      const tradesPayload = (tradesToInsert as any[]).map(t => {
         const entryParsed = parseAsUSTimezone(t.entry_date).toISOString();
         const exitParsed = parseAsUSTimezone(t.exits[t.exits.length - 1].exit_date).toISOString();
-        const { data: trade, error: tradeError } = await supabase
-          .from('trades')
-          .insert([{
-            account_id: targetAccountId,
-            user_id: user.id,
-            asset: t.asset,
-            type: t.type,
-            entry_date: entryParsed,
-            exit_date: exitParsed,
-            contract_size: t.contract_size,
-            entry_price: t.entry_price,
-            exit_price: t.exits[t.exits.length - 1].exit_price,
-            pnl: t.total_pnl,
-            status: 'CLOSED',
-            created_at: entryParsed
-          }])
-          .select()
-          .single();
+        return {
+          account_id: targetAccountId,
+          user_id: user.id,
+          asset: t.asset,
+          type: t.type,
+          entry_date: entryParsed,
+          exit_date: exitParsed,
+          contract_size: t.contract_size,
+          entry_price: t.entry_price,
+          exit_price: t.exits[t.exits.length - 1].exit_price,
+          pnl: t.total_pnl,
+          status: 'CLOSED',
+          created_at: entryParsed
+        };
+      });
 
-        if (tradeError) {
-          console.error('Trade insert error:', tradeError);
-          throw new Error(`Failed to insert trade: ${tradeError.message}`);
-        }
-        
-        totalPnLForImport += t.total_pnl;
+      const { data: insertedTrades, error: tradesInsertError } = await supabase
+        .from('trades')
+        .insert(tradesPayload)
+        .select('*');
 
-        // Track daily PnL
-        const dateStr = format(parseAsUSTimezone(t.entry_date), 'yyyy-MM-dd');
-        dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + t.total_pnl;
+      if (tradesInsertError) {
+        console.error('Trades batch insert error:', tradesInsertError);
+        throw new Error(`Failed to batch insert trades: ${tradesInsertError.message}`);
+      }
 
-        if (trade) {
-          const exitRecords = t.exits.map((e: any) => ({
-            trade_id: trade.id,
-            closed_contract: e.closed_contract,
-            exit_price: e.exit_price,
-            exit_status: 'TP',
-            created_at: parseAsUSTimezone(e.exit_date).toISOString()
-          }));
-          const { error: exitsError } = await supabase.from('trade_exits').insert(exitRecords);
-          if (exitsError) console.warn('Exits insert warning:', exitsError);
+      let totalPnLForImport = 0;
+      const dailyPnlsToUpdate: Record<string, number> = {};
+      const exitRecordsToInsert: any[] = [];
+
+      if (insertedTrades) {
+        insertedTrades.forEach(dbTrade => {
+          // Match back to the original trade to extract exits
+          const originalTrade = (tradesToInsert as any[]).find(t => {
+            const parsedEntry = parseAsUSTimezone(t.entry_date).toISOString();
+            return parsedEntry === dbTrade.entry_date && t.asset === dbTrade.asset;
+          });
+
+          if (originalTrade) {
+            originalTrade.exits.forEach((e: any) => {
+              exitRecordsToInsert.push({
+                trade_id: dbTrade.id,
+                closed_contract: e.closed_contract,
+                exit_price: e.exit_price,
+                exit_status: 'TP',
+                created_at: parseAsUSTimezone(e.exit_date).toISOString()
+              });
+            });
+          }
+
+          totalPnLForImport += dbTrade.pnl;
+          const dateStr = format(new Date(dbTrade.entry_date), 'yyyy-MM-dd');
+          dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + dbTrade.pnl;
+        });
+      }
+
+      // Insert exit records in batch
+      if (exitRecordsToInsert.length > 0) {
+        const { error: exitsInsertError } = await supabase
+          .from('trade_exits')
+          .insert(exitRecordsToInsert);
+        if (exitsInsertError) {
+          console.warn('Exits batch insert warning:', exitsInsertError);
         }
       }
 
@@ -343,19 +367,46 @@ export default function Journal() {
       await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', targetAccountId);
 
       // 4. Update daily PnLs
-      for (const [date, pnl] of Object.entries(dailyPnlsToUpdate)) {
-        const { data: existing } = await supabase
-          .from('daily_pnl')
-          .select('*')
-          .eq('account_id', targetAccountId)
-          .eq('date', date)
-          .single();
+      // Fetch all existing daily PnLs to do single batch update/insert
+      const { data: existingPnls } = await supabase
+        .from('daily_pnl')
+        .select('*')
+        .eq('account_id', targetAccountId);
 
+      const existingPnlsMap = (existingPnls || []).reduce((acc: Record<string, any>, curr) => {
+        acc[curr.date] = curr;
+        return acc;
+      }, {});
+
+      const dailyPnlsToInsert: any[] = [];
+      const dailyPnlsToUpdateList: any[] = [];
+
+      for (const [date, pnl] of Object.entries(dailyPnlsToUpdate)) {
+        const existing = existingPnlsMap[date];
         if (existing) {
-          await supabase.from('daily_pnl').update({ pnl: Number(existing.pnl) + pnl }).eq('id', existing.id);
+          dailyPnlsToUpdateList.push({
+            id: existing.id,
+            account_id: targetAccountId,
+            user_id: user.id,
+            date,
+            pnl: Number(existing.pnl) + pnl
+          });
         } else {
-          await supabase.from('daily_pnl').insert([{ account_id: targetAccountId, user_id: user.id, date, pnl }]);
+          dailyPnlsToInsert.push({
+            account_id: targetAccountId,
+            user_id: user.id,
+            date,
+            pnl
+          });
         }
+      }
+
+      if (dailyPnlsToInsert.length > 0) {
+        await supabase.from('daily_pnl').insert(dailyPnlsToInsert);
+      }
+
+      if (dailyPnlsToUpdateList.length > 0) {
+        await supabase.from('daily_pnl').upsert(dailyPnlsToUpdateList);
       }
 
       setSelectedAccountId(targetAccountId!);
@@ -416,6 +467,7 @@ export default function Journal() {
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
+          if (isImportingRef.current) return;
           fetchJournalData().catch(err => console.error('Realtime trades fetch error:', err));
         })
         .subscribe();
@@ -429,6 +481,7 @@ export default function Journal() {
         }, () => {
           // Since we can't easily filter by account_id on the exit table directly without a join in the filter
           // we'll just refresh if any exit changes. For better performance, we could filter by trade_ids.
+          if (isImportingRef.current) return;
           fetchJournalData().catch(err => console.error('Realtime exit fetch error:', err));
         })
         .subscribe();
@@ -441,6 +494,7 @@ export default function Journal() {
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
+          if (isImportingRef.current) return;
           fetchJournalData().catch(err => console.error('Realtime pnl fetch error:', err));
         })
         .subscribe();
@@ -587,12 +641,6 @@ export default function Journal() {
 
     setIsSubmitting(true);
     setFormError('');
-
-    if (selectedAccount?.account_type === 'Passed' || selectedAccount?.account_type === 'Fail/Breached') {
-      setFormError(`Trade logging is disabled for ${selectedAccount.account_type.toLowerCase()} accounts.`);
-      setIsSubmitting(false);
-      return;
-    }
 
     const entry = parseFloat(entryPrice);
     const totalQty = parseFloat(contractSize);
@@ -900,41 +948,33 @@ export default function Journal() {
             />
           </div>
 
-          {selectedAccount?.account_type !== 'Passed' && (
-            <div className="flex gap-2">
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleImportLogs}
-                accept=".csv"
-                className="hidden"
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting || selectedAccount?.account_type === 'Fail/Breached'}
-                title={selectedAccount?.account_type === 'Fail/Breached' ? "Import disabled for breached accounts" : "Import Trade Logs (CSV)"}
-                className="w-10 h-10 bg-neutral-800 text-neutral-400 rounded-xl flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-all border border-[#262626] disabled:opacity-50"
-              >
-                <Upload className={cn("w-5 h-5", isImporting && "animate-pulse")} />
-              </button>
-              <button 
-                onClick={() => {
-                  resetForm();
-                  setEditingTradeId(null);
-                  setIsModalOpen(true);
-                }}
-                disabled={selectedAccount?.account_type === 'Fail/Breached'}
-                className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-lg",
-                  selectedAccount?.account_type === 'Fail/Breached'
-                    ? "bg-neutral-800 text-neutral-600 border border-[#262626] cursor-not-allowed opacity-50 shadow-none hover:bg-neutral-800"
-                    : "bg-sky-400 text-black hover:bg-sky-300 shadow-sky-400/20"
-                )}
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleImportLogs}
+              accept=".csv"
+              className="hidden"
+            />
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              title="Import Trade Logs (CSV)"
+              className="w-10 h-10 bg-neutral-800 text-neutral-400 rounded-xl flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-all border border-[#262626] disabled:opacity-50"
+            >
+              <Upload className={cn("w-5 h-5", isImporting && "animate-pulse")} />
+            </button>
+            <button 
+              onClick={() => {
+                resetForm();
+                setEditingTradeId(null);
+                setIsModalOpen(true);
+              }}
+              className="w-10 h-10 rounded-xl bg-sky-400 text-black hover:bg-sky-300 shadow-lg shadow-sky-400/20 flex items-center justify-center transition-all"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1142,8 +1182,11 @@ export default function Journal() {
                             {trade.type}
                           </span>
                         </div>
-                        <p className="text-xs font-medium text-neutral-500 mt-1">
-                          {format(new Date(trade.entry_date), 'HH:mm')} • {trade.contract_size} Lots @ {trade.entry_price}
+                        <p className="text-xs font-medium text-neutral-500 mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span>{format(new Date(trade.entry_date), 'HH:mm')}</span>
+                          <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded">US: {formatToEST(trade.entry_date)} EST</span>
+                          <span>•</span>
+                          <span>{trade.contract_size} Lots @ {trade.entry_price}</span>
                         </p>
                       </div>
                     </div>
@@ -1706,8 +1749,12 @@ export default function Journal() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white tracking-tight">{selectedTrade.asset}</h2>
-                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-                      {selectedTrade.type} • {format(new Date(selectedTrade.entry_date), 'MMMM dd, yyyy HH:mm')}
+                    <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
+                      <span>{selectedTrade.type}</span>
+                      <span>•</span>
+                      <span>{format(new Date(selectedTrade.entry_date), 'MMMM dd, yyyy HH:mm')}</span>
+                      <span>•</span>
+                      <span className="text-sky-400 font-bold bg-sky-500/10 px-1.5 py-0.5 rounded">US: {formatToEST(selectedTrade.entry_date)} EST</span>
                     </p>
                   </div>
                 </div>

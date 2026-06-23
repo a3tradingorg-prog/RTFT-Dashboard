@@ -337,6 +337,11 @@ async function startServer() {
         avgDurationLossMin: 0,
       };
 
+      const hourlyStats: Record<number, { total: number; wins: number; pnl: number }> = {};
+      for (let h = 0; h < 24; h++) {
+        hourlyStats[h] = { total: 0, wins: 0, pnl: 0 };
+      }
+
       // Helper to parse dates identically to client-side Journal.tsx
       const parseDateRobust = (dateStr: any): Date | null => {
         if (!dateStr) return null;
@@ -429,6 +434,13 @@ async function startServer() {
           const isWinning = Number(t.pnl) > 0;
           const pnlVal = Number(t.pnl) || 0;
 
+          // Populate hourly stats
+          hourlyStats[hour].total++;
+          if (isWinning) {
+            hourlyStats[hour].wins++;
+          }
+          hourlyStats[hour].pnl += pnlVal;
+
           // US Morning AM Session (09:30 AM - 11:30 AM EST) -> 570 to 690 min
           if (totalMinutes >= 570 && totalMinutes <= 690) {
             amStats.totalTrades++;
@@ -507,6 +519,50 @@ async function startServer() {
       pmStats.avgDurationWinMin = calcAvg(pmStats.durationsWin);
       pmStats.avgDurationLossMin = calcAvg(pmStats.durationsLoss);
 
+      // Format hourly intervals to extract the exact profitable time ranges from uploaded trades
+      const formattedIntervals = Object.entries(hourlyStats)
+        .map(([hStr, stat]) => {
+          const h = parseInt(hStr, 10);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          const displayHr = h % 12 === 0 ? 12 : h % 12;
+          const displayHrFormatted = String(displayHr).padStart(2, '0');
+          const nextHr = (h + 1) % 12 === 0 ? 12 : (h + 1) % 12;
+          const nextAmpm = (h + 1) >= 24 ? 'AM' : ((h + 1) >= 12 ? 'PM' : 'AM');
+          const nextHrFormatted = String(nextHr).padStart(2, '0');
+          const label = `${displayHrFormatted}:00 ${ampm} - ${nextHrFormatted}:00 ${nextAmpm} EST`;
+          
+          return {
+            hour: h,
+            label,
+            total: stat.total,
+            wins: stat.wins,
+            pnl: stat.pnl,
+            winRate: stat.total > 0 ? Math.round((stat.wins / stat.total) * 100) : 0
+          };
+        })
+        .filter(item => item.total > 0);
+
+      const strictlyProfitable = formattedIntervals.filter(item => item.pnl > 0);
+      const strictlyUnprofitable = formattedIntervals.filter(item => item.pnl <= 0);
+
+      let strictlyProfitableText = "";
+      if (strictlyProfitable.length > 0) {
+        strictlyProfitableText = strictlyProfitable.map(item => 
+          `- **${item.label}**: Net Profit: $${item.pnl.toFixed(2)}, Trades Count: ${item.total} (Wins: ${item.wins}, Losses: ${item.total - item.wins}, Win Rate: ${item.winRate}%)`
+        ).join('\n');
+      } else {
+        strictlyProfitableText = "No strictly profitable single-hour time ranges found where Net PnL is positive.";
+      }
+
+      let strictlyUnprofitableText = "";
+      if (strictlyUnprofitable.length > 0) {
+        strictlyUnprofitableText = strictlyUnprofitable.map(item => 
+          `- **${item.label}**: Net Loss: $${item.pnl.toFixed(2)}, Trades Count: ${item.total} (Wins: ${item.wins}, Losses: ${item.total - item.wins}, Win Rate: ${item.winRate}%)`
+        ).join('\n');
+      } else {
+        strictlyUnprofitableText = "No specific hour slots with net losses found.";
+      }
+
       const prompt = `You are an expert AI trading coach and quantitative analyst. Analyze the following trading logs and account setups to provide a completely objective, honest, and professional evaluation of the trader's level, strategy, trading edge, strengths, weaknesses, and actionable recommendations.
 
 Account setups:
@@ -528,8 +584,15 @@ PRE-CALCULATED ACTUAL SESSION STATISTICS (USE THIS AS THE ABSOLUTE TRUTH SOURCE 
    - Losing Trades (Losses): ${pmStats.losingTrades}
    - Net Profit/Loss (PnL): $${pmStats.netPnL.toFixed(2)}
    - Win Rate: ${pmStats.winRate}%
-   - Average Trade Holding Duration (Wins): ${pmStats.avgDurationWinMin} minutes
-   - Average Trade Holding Duration (Losses): ${pmStats.avgDurationLossMin} minutes
+   - Average Trade Holding Duration (Wins): ${amStats.avgDurationWinMin} minutes
+   - Average Trade Holding Duration (Losses): ${amStats.avgDurationLossMin} minutes
+
+PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN (FROM INSTANT INDIVIDUAL TRADE TIMESTAMPS):
+Profitable hour slots (Net PnL > 0):
+${strictlyProfitableText}
+
+Unprofitable/Risky hour slots (Net PnL <= 0):
+${strictlyUnprofitableText}
 
 Trade Logs:
 ${JSON.stringify(formattedTrades, null, 2)}
@@ -543,6 +606,14 @@ Requirements:
    - NEVER mention any other active hour blocks (e.g., "02:00 PM - 04:00 PM EST") since they are outside the trader's actual active slots.
 4. CRITICAL TIMEZONE REQUIREMENT (MUST FOLLOW): Each trade lists its pre-computed US New York Market Local Time under the parameters "entry_date_us_eastern" and "entry_hour_us_eastern". You MUST base all of your time analysis, session grouping, Prime Time calculations, and Unsuitable Time identifications strictly on these Eastern Time values. Do not use raw UTC hours or other timezone mappings. Specifically check and call out the trader's performance and trade holding times exactly aligned with the trader's actual experience during the 09:30 AM - 11:30 AM EST session and the 01:30 PM - 03:30 PM EST session.
 5. STRICT 12-HOUR TIME FORMAT REQUIREMENT (MUST FOLLOW): DO NOT use 24-hour / military time notation (such as "13:00 - 16:00 EST", "17:00 - 23:59 EST", "13 - 16 EST", "17 - 23 EST", etc.) in the 'primeTime', 'unsuitableTime', or 'timeAnalysisDetails' explanations or any other fields. You MUST format all hours and market sessions strictly using the standard 12-hour AM/PM format (e.g. "01:30 PM - 03:30 PM EST", "09:30 AM - 11:30 AM EST", "05:00 PM - 11:59 PM EST", etc.). Always prefix or suffix all hours/sessions with AM or PM, and clearly specify EST/New York local time.
+6. EXACT PROFITABLE TIME RANGE DIRECTIVE (CRITICAL USER REQUEST):
+   - You MUST extract the exact most profitable time range(s) from the "PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN" above (the slots with positive Net PnL and high win rate) and explicitly name them in your output.
+   - You MUST state these exact hours and exact net profit figures in the "overview" section and fully present them in the "primeTime", "unsuitableTime", and "timeAnalysisDetails" outputs in standard 12-hour AM/PM format (EST).
+   - Ensure you analyze why these specific hourly slots succeeded (e.g. alignment with high volume sessions, specific holding times, higher setups consistency) of those exact hours compared to the unprofitable hours. Make it highly clear and detailed.
+7. HIGH-LOSS SESSIONS TO AVOID DIRECTIVE (CRITICAL USER REQUEST):
+   - You MUST identify the specific hourly range(s) from the "PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN" above that suffer from the highest net losses or lowest win rates (e.g. negative Net PnL, highest losses count) and explicitly present them as peak unsuitable trading hours/sessions to avoid (ရှောင်ကြဉ်သင့်သော Trading Session များ / Trade session များ).
+   - In your analysis (specifically in the "unsuitableTime" and "timeAnalysisDetails" fields in Burmese/English), clearly state these exact hour range(s), their total loss amount, and trade counts.
+   - Provide direct feedback on why these specific hours are so risky and recommend actionable solutions to completely stay out of the market during these high-loss hourly slots.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys

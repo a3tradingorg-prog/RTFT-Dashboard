@@ -221,6 +221,26 @@ export default function AISummary() {
   const [result, setResult] = useState<AIResult | null>(null);
   const [profileName, setProfileName] = useState('TRADER');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // Simulated progress bar controller
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (analyzing) {
+      setProgress(0);
+      interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 95) return prev;
+          // Decelerating growth: faster at first, then slows down
+          const increment = (95 - prev) * 0.06;
+          return parseFloat((prev + Math.max(0.4, increment)).toFixed(1));
+        });
+      }, 150);
+    } else {
+      setProgress(0);
+    }
+    return () => clearInterval(interval);
+  }, [analyzing]);
 
   const t = translations[selectedLanguage || 'my'];
 
@@ -725,8 +745,32 @@ export default function AISummary() {
                       {t.analyzingDesc}
                     </p>
                   </div>
-                  <div className="w-48 bg-[#1f1f1f] h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-orange-500 h-full w-2/3 rounded-full animate-[progress_2s_infinite_ease-in-out]" />
+                  <div className="space-y-4 w-full max-w-[280px] flex flex-col items-center">
+                    <div className="w-full bg-[#1b1b1b] h-2 rounded-full overflow-hidden p-[1px] border border-[#2d2d2d] relative shadow-inner">
+                      <motion.div 
+                        className="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 h-full rounded-full relative"
+                        initial={{ width: "0%" }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ type: "spring", stiffness: 40, damping: 12 }}
+                      >
+                        {/* Shimmer laser effect */}
+                        <motion.div 
+                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                          animate={{
+                            x: ['-100%', '100%'],
+                          }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1.2,
+                            ease: 'linear',
+                          }}
+                        />
+                      </motion.div>
+                    </div>
+                    <div className="text-[11px] font-bold text-orange-400 tracking-widest uppercase flex items-center gap-1">
+                      <span>Analyzing Data</span>
+                      <span className="w-12 text-right">{Math.round(progress)}%</span>
+                    </div>
                   </div>
                 </motion.div>
               ) : result ? (
