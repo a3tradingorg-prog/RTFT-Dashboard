@@ -9,7 +9,16 @@ import {
   Search,
   PlayCircle,
   ChevronDown,
-  Clock
+  Clock,
+  Sparkles,
+  Award,
+  TrendingUp,
+  Coins,
+  Globe,
+  Languages,
+  CheckCircle2,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -91,7 +100,7 @@ const THAI_LANGUAGE_VIDEOS = [
   { id: 'th5', title: 'သင်ခန်းစာ ၅ အခြေခံ ဝါကျ တည်ဆောက်ပုံ', url: 'https://youtu.be/db6XUxOG3Gw', description: 'အခြေခံ ဝါကျ တည်ဆောက်ပုံများ' },
   { id: 'th6', title: 'သင်ခန်းစာ ၆ အကူကြိယာနှင့် ဝါကျ တည်ဆောက်နည်း', url: 'https://youtu.be/QClgTMabo_c', description: 'အကူကြိယာများ အသုံးပြု၍ ဝါကျ တည်ဆောက်ပုံ' },
   { id: 'th7', title: 'သင်ခန်းစာ ၇ အငြင်းစကားလုံးနှင့် အကူကြိယာ ပေါင်းစပ်ခြင်း', url: 'https://youtu.be/4_dizmZO0TM', description: 'အငြင်းစကားလုံးများနှင့် အကူကြိယာများ ပေါင်းစပ်အသုံးပြုပုံ' },
-  { id: 'th8', title: 'သင်ခန်းစာ ၈ တားမြစ်စကားလုံးနှင့် အငြင်း စကားလုံးများ', url: 'https://youtu.be/Wu28U7cvXwo', description: 'တားမြစ်စကားလုံးများနှင့် အငြင်းစကားလုံးများ' },
+  { id: 'th8', title: 'သင်ခန်းစာ ၈ တားမြစ်စကားလုံးနှင့် အငြင်း စကားလုံးများ', url: 'https://youtu.be/Wu28U7cvXwo', description: 'ตားမြစ်စကားလုံးများနှင့် အငြင်းစကားလုံးများ' },
   { id: 'th9', title: 'သင်ခန်းစာ ၉ စကားစပ်များ', url: 'https://youtu.be/mZnaLlm3Ug4', description: 'စကားစပ်များ အသုံးပြုပုံ' },
   { id: 'th10', title: 'သင်ခန်းစာ ၁၀ ရက်လနှစ် အခေါ်အဝေါ် များ', url: 'https://youtu.be/0xgVTCVtkn8', description: 'ရက်၊ လ၊ နှစ် အခေါ်အဝေါ်များ' },
   { id: 'th11', title: 'သင်ခန်းစာ ၁၁ ဒေသ အခေါ်အဝေါ် များ', url: 'https://youtu.be/qXjtZ3Uu8AM', description: 'Thai language learning series.' },
@@ -158,7 +167,7 @@ const TTT_BASIC = [
     title: "Series 100 - Introduction To Trading",
     videos: [
       { id: "ttt-b-2-1", title: "Your trading journey", url: "https://youtu.be/BZ31WpVmsyw?si=3W2_rc0lGs5l5klq", description: "Setting expectations for your journey." },
-      { id: "ttt-b-2-2", title: "Understanding CFDs", url: "https://youtu.be/OACazUYigGU?si=LuYrwJCmPFGM0vqp", description: "Basics of Contract for Difference." },
+      { id: "ttt-b-2-2", title: "Understanding CFDs", url: "https://youtu.be/OACazUYigGU?si=LuYrwJCmGM0vqp", description: "Basics of Contract for Difference." },
       { id: "ttt-b-2-3", title: "Understanding Futures", url: "https://youtu.be/fEwXKFTB2OM?si=4Yqk-hrT-q6sHIwl", description: "Basics of Futures trading." },
       { id: "ttt-b-2-4", title: "Tools you will need as a trader", url: "https://youtu.be/Qr5x0Egap-o?si=ZqXGC3YdTLZ2sDih", description: "Essential trading tools." },
       { id: "ttt-b-2-5", title: "Who, what, why, when, where, how", url: "https://youtu.be/JU_Sb5C2fEM?si=RjgvX3iri0pqTAmH", description: "The 5Ws and 1H of trading." },
@@ -293,93 +302,128 @@ const getYouTubeId = (url: string) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-function AccordionItem({ title, description, url, isOpen, onToggle }: { title: string, description: string, url: string, isOpen: boolean, onToggle: () => void }) {
-  const youtubeId = getYouTubeId(url);
-  
-  return (
-    <div className={cn(
-      "border transition-all duration-300 rounded-2xl overflow-hidden mb-4",
-      isOpen ? "border-sky-500/30 bg-[#1a1a1a] shadow-lg shadow-sky-500/5" : "border-[#262626] bg-[#141414] hover:border-neutral-700"
-    )}>
-      <button 
-        onClick={onToggle}
-        className="w-full px-5 py-4 flex items-center justify-between transition-colors text-left group"
-      >
-        <div className="flex items-center gap-4">
-          <div className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
-            isOpen ? "bg-sky-500 text-black" : "bg-sky-500/10 text-sky-500 group-hover:bg-sky-500/20"
-          )}>
-            <Video className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <h3 className={cn(
-                "font-bold transition-colors text-sm",
-                isOpen ? "text-sky-400" : "text-white"
-              )}>{title}</h3>
-            </div>
-            <p className="text-[10px] text-neutral-500 mt-0.5">{description}</p>
-          </div>
-        </div>
-        <div className={cn(
-          "w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300",
-          isOpen ? "bg-sky-500/20 text-sky-400 rotate-180" : "bg-neutral-800 text-neutral-500"
-        )}>
-          <ChevronDown className="w-4 h-4" />
-        </div>
-      </button>
-      
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            <div className="p-6 pt-0 border-t border-[#262626]">
-              <div className="aspect-video rounded-xl overflow-hidden bg-black mt-4">
-                {youtubeId ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${youtubeId}`}
-                    title={title}
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-neutral-800">
-                    <PlayCircle className="w-16 h-16" />
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 flex justify-end">
-                <a 
-                  href={url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs font-black uppercase tracking-widest text-sky-500 hover:text-sky-400 flex items-center gap-2"
-                >
-                  Watch on YouTube
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+// High-fidelity metadata for each category, giving a custom name, subtitle, description, icon and color theme
+const CATEGORY_META: Record<string, {
+  title: string;
+  subtitle: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  featuredTag?: string;
+  badgeStyle: string;
+}> = {
+  '2026 Future Mentorship': {
+    title: 'Future Mentorship Program 2026',
+    subtitle: 'High Frequency & Price Delivery',
+    description: 'Master algorithmic liquidity delivery, order block grading levels, and daily bias keys with our cutting-edge live modules.',
+    icon: Sparkles,
+    featuredTag: 'Elite Series',
+    badgeStyle: 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+  },
+  'TTT': {
+    title: 'TTT Ultimate Trading Path',
+    subtitle: 'From Fundamentals to Execution Edges',
+    description: 'Learn the proprietary TTT trading architecture featuring dynamic setups, complete debt-cycle macroeconomics, and volume profile mastery.',
+    icon: Layers,
+    featuredTag: 'Masterclass',
+    badgeStyle: 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+  },
+  'VIP-1 Courses': {
+    title: 'VIP-1 Foundation Suite',
+    subtitle: 'Professional Market Core Essentials',
+    description: 'Kickstart your trading path with core market structures, basic risk mechanics, and essential quantitative psychology lessons.',
+    icon: BookOpen,
+    featuredTag: 'Foundational',
+    badgeStyle: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+  },
+  'VIP-2 Courses': {
+    title: 'VIP-2 Pro Advanced Suite',
+    subtitle: 'Advanced Confluences & Strategy',
+    description: 'Technical and fundamental synergy modules. Deep dive into Fibonacci extension, harmonic structures, and advanced correlations.',
+    icon: Award,
+    featuredTag: 'Advanced Upgrade',
+    badgeStyle: 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+  },
+  'Day Trading Strategy': {
+    title: 'Day Trading Strategy Blueprint',
+    subtitle: 'Intraday Session Scaling',
+    description: 'Formulate an institutional daily trading plan based on session liquidity sweeps, volume profiles, and strict high-RR rules.',
+    icon: TrendingUp,
+    featuredTag: 'Tactical Study',
+    badgeStyle: 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+  },
+  'Introduction about Crypto': {
+    title: 'Digital Assets & Web3 Intro',
+    subtitle: 'Distributed Ledger Trading Fundamentals',
+    description: 'A structural overview of blockchain mechanics, wallet governance, exchange security guidelines, and hot/cold custody configurations.',
+    icon: Coins,
+    featuredTag: 'Tech-Forward',
+    badgeStyle: 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+  },
+  'Fundamental': {
+    title: 'Macro & Fundamental Analysis',
+    subtitle: 'Central Bank & Economic Mechanics',
+    description: 'Model real-world macro dynamics. Master interest rate decisions, non-farm payroll indicators, Sentiment indexes, and CPI-inflation hedging.',
+    icon: Globe,
+    featuredTag: 'Macroeconomics',
+    badgeStyle: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+  },
+  'Learn Thai': {
+    title: 'Thai Language Masterclass',
+    subtitle: 'ထိုင်းစကားပြောနှင့် ဝါကျတည်ဆောက်ခြင်း',
+    description: 'ထိုင်းဘာသာစကားကို နိဒါန်းမှစတင်ကာ နေ့စဉ်သုံးစကားပြော၊ အလုပ်အကိုင်၊ ဈေးဝယ်ခြင်းနှင့် ခရီးသွားလမ်းညွှန်များအထိ စနစ်တကျ သင်ယူပါ။',
+    icon: Languages,
+    featuredTag: 'Bilingual Course',
+    badgeStyle: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+  },
+  'ICT Notes': {
+    title: 'ICT Cheat Sheets',
+    subtitle: 'Price Delivery Reference Library',
+    description: 'Interactive cheatsheets, Fair Value Gap (FVG) guidelines, and institutional orderflow algorithms summarized visually.',
+    icon: FileText,
+    featuredTag: 'Quick Reference',
+    badgeStyle: 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+  },
+  'PDF': {
+    title: 'A3 Trading PDF Library',
+    subtitle: 'Curated Institutional Core Handbooks',
+    description: 'Downloadable market playbooks, trading plans, journal templates, and key charts customized for instant reference.',
+    icon: FileText,
+    featuredTag: 'Resource Vault',
+    badgeStyle: 'bg-neutral-500/10 text-neutral-400 border border-neutral-500/20'
+  }
+};
 
 export default function Campus() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('2026 Future Mentorship');
   const [tttSubFilter, setTttSubFilter] = useState<'Basic' | 'Premium'>('Basic');
-  const [openVideoId, setOpenVideoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // High-end stateful learning center props
+  const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; url: string; description: string } | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [completedVideos, setCompletedVideos] = useState<string[]>([]);
+
+  // Load persistence completed state
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('campus_completed_videos');
+      if (stored) {
+        setCompletedVideos(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to load completed videos state', e);
+    }
+  }, []);
+
+  const toggleVideoCompleted = (id: string) => {
+    setCompletedVideos(prev => {
+      const next = prev.includes(id) ? prev.filter(vid => vid !== id) : [...prev, id];
+      localStorage.setItem('campus_completed_videos', JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchResources = async () => {
@@ -404,16 +448,16 @@ export default function Campus() {
   }, []);
 
   const categories = [
-    { name: '2026 Future Mentorship', count: FUTURE_MENTORSHIP_VIDEOS.length },
-    { name: 'TTT', count: TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0) },
-    { name: 'VIP-1 Courses', count: VIP1_VIDEOS.length },
-    { name: 'VIP-2 Courses', count: VIP2_VIDEOS.length },
-    { name: 'Day Trading Strategy', count: DAY_TRADING_VIDEOS.length },
-    { name: 'Introduction about Crypto', count: CRYPTO_INTRO_VIDEOS.length },
-    { name: 'Fundamental', count: FUNDAMENTAL_VIDEOS.length },
-    { name: 'Learn Thai', count: THAI_LANGUAGE_VIDEOS.length },
-    { name: 'ICT Notes', count: 0 }, // Handled separately
-    { name: 'PDF', count: 0 } // Handled separately
+    { name: '2026 Future Mentorship', count: FUTURE_MENTORSHIP_VIDEOS.length, icon: Sparkles },
+    { name: 'TTT', count: TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0), icon: Layers },
+    { name: 'VIP-1 Courses', count: VIP1_VIDEOS.length, icon: BookOpen },
+    { name: 'VIP-2 Courses', count: VIP2_VIDEOS.length, icon: Award },
+    { name: 'Day Trading Strategy', count: DAY_TRADING_VIDEOS.length, icon: TrendingUp },
+    { name: 'Introduction about Crypto', count: CRYPTO_INTRO_VIDEOS.length, icon: Coins },
+    { name: 'Fundamental', count: FUNDAMENTAL_VIDEOS.length, icon: Globe },
+    { name: 'Learn Thai', count: THAI_LANGUAGE_VIDEOS.length, icon: Languages },
+    { name: 'ICT Notes', count: 0, icon: FileText },
+    { name: 'PDF', count: 0, icon: FileText }
   ];
 
   const getCategoryCount = (catName: string) => {
@@ -421,496 +465,537 @@ export default function Campus() {
     const dynamicCount = resources.filter(r => r.category === catName).length;
     return staticCount + dynamicCount;
   };
-  
-  const filteredResources = resources.filter(r => 
-    r.category === filter && 
-    (r.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     r.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+
+  const getActiveVideosList = () => {
+    let list: { id: string; title: string; url: string; description: string }[] = [];
+    if (filter === '2026 Future Mentorship') {
+      list = FUTURE_MENTORSHIP_VIDEOS;
+    } else if (filter === 'VIP-1 Courses') {
+      list = VIP1_VIDEOS;
+    } else if (filter === 'VIP-2 Courses') {
+      list = VIP2_VIDEOS;
+    } else if (filter === 'Day Trading Strategy') {
+      list = DAY_TRADING_VIDEOS;
+    } else if (filter === 'Introduction about Crypto') {
+      list = CRYPTO_INTRO_VIDEOS;
+    } else if (filter === 'Fundamental') {
+      list = FUNDAMENTAL_VIDEOS;
+    } else if (filter === 'Learn Thai') {
+      list = THAI_LANGUAGE_VIDEOS;
+    } else if (filter === 'TTT') {
+      const activeSections = tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM;
+      list = activeSections.flatMap(s => s.videos);
+    } else {
+      list = resources.filter(r => r.category === filter).map(r => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        description: r.description
+      }));
+    }
+
+    if (searchQuery.trim()) {
+      list = list.filter(v => 
+        v.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        v.description.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return list;
+  };
+
+  const activeVideosList = getActiveVideosList();
+
+  // Intelligently sync active video when track/filter shifts
+  useEffect(() => {
+    if (activeVideosList.length > 0) {
+      const alreadyActiveExists = activeVideosList.some(v => v.id === activeVideo?.id);
+      if (!alreadyActiveExists) {
+        setActiveVideo(activeVideosList[0]);
+        setIsPlaying(false);
+      }
+    } else {
+      setActiveVideo(null);
+      setIsPlaying(false);
+    }
+  }, [filter, tttSubFilter, searchQuery, resources]);
+
+  const activeYtId = activeVideo ? getYouTubeId(activeVideo.url) : null;
+
+  // Calculators completion stats
+  const currentCategoryCompletedCount = completedVideos.filter(vidId => {
+    if (filter === '2026 Future Mentorship') return FUTURE_MENTORSHIP_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'VIP-1 Courses') return VIP1_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'VIP-2 Courses') return VIP2_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'Day Trading Strategy') return DAY_TRADING_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'Introduction about Crypto') return CRYPTO_INTRO_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'Fundamental') return FUNDAMENTAL_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'Learn Thai') return THAI_LANGUAGE_VIDEOS.some(v => v.id === vidId);
+    if (filter === 'TTT') return [...TTT_BASIC.flatMap(s => s.videos), ...TTT_PREMIUM.flatMap(s => s.videos)].some(v => v.id === vidId);
+    return false;
+  }).length;
+
+  const currentCategoryTotalCount = filter === 'TTT' 
+    ? TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0)
+    : getCategoryCount(filter);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
+      {/* Search and Header Section */}
       <ScrollReveal>
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-[#141414]">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Campus</h1>
-            <p className="text-xs font-medium text-neutral-500 mt-1 uppercase tracking-widest">Exclusive educational content and market outlooks.</p>
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase italic">Campus Academy</h1>
+            <p className="text-xs font-semibold text-neutral-500 mt-1 uppercase tracking-widest leading-relaxed">
+              Premium educational environment tailored for financial markets & trading logic development.
+            </p>
           </div>
-          <div className="relative group w-full md:w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500 group-focus-within:text-sky-500 transition-colors" />
+          <div className="relative group w-full md:w-72 shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 group-focus-within:text-sky-500 transition-colors duration-300" />
             <input 
               type="text"
-              placeholder="Search courses..."
+              placeholder="Search lectures & courses..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#141414] border border-[#262626] rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-sky-500/50 transition-all placeholder:text-neutral-600"
+              className="w-full bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl py-3 pl-11 pr-4 text-xs text-white focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/25 transition-all duration-300 placeholder:text-neutral-600"
             />
           </div>
         </header>
       </ScrollReveal>
 
-      {/* Category Filter */}
-      <ScrollReveal delay={0.1}>
-        <div className="flex flex-wrap gap-3 pb-4 border-b border-[#262626]">
-          {categories.map((cat) => {
-            const count = getCategoryCount(cat.name);
-            return (
-              <button
-                key={cat.name}
-                onClick={() => {
-                  setFilter(cat.name);
-                  setOpenVideoId(null);
-                }}
-                className={cn(
-                  "px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative overflow-hidden group",
-                  filter === cat.name 
-                    ? "bg-sky-500 text-black shadow-xl shadow-sky-500/20 scale-105" 
-                    : "bg-[#141414] text-neutral-500 hover:text-white border border-[#262626] hover:border-neutral-700"
-                )}
-              >
-                <span className="relative z-10">{cat.name}</span>
-                {count > 0 && (
-                  <span className={cn(
-                    "px-1.5 py-0.5 rounded text-[8px] font-black relative z-10",
-                    filter === cat.name ? "bg-black/20 text-black" : "bg-sky-500/10 text-sky-500"
-                  )}>
-                    {count}
-                  </span>
-                )}
-                {cat.name === '2026 Future Mentorship' && (
-                  <span className={cn(
-                    "w-2 h-2 rounded-full animate-pulse relative z-10",
-                    filter === cat.name ? "bg-black" : "bg-sky-500"
-                  )} />
-                )}
-                {filter === cat.name && (
-                  <motion.div 
-                    layoutId="activeTab"
-                    className="absolute inset-0 bg-gradient-to-r from-sky-400 to-sky-600 opacity-50"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </ScrollReveal>
-
-      {/* Conditional Rendering */}
-      {filter === 'ICT Notes' ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <ICTNotes />
-        </motion.div>
-      ) : filter === 'PDF' ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <PDFLibrary />
-        </motion.div>
-      ) : filter === '2026 Future Mentorship' ? (
-        <div className="max-w-5xl space-y-12">
-          {/* Featured Banner */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-sky-500/20 via-sky-500/5 to-transparent border border-sky-500/20 p-8 md:p-12"
-          >
-            <div className="relative z-10 max-w-2xl">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="px-3 py-1 bg-sky-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Featured Course
-                </span>
-                <span className="px-3 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest border border-sky-500/20 rounded-lg animate-pulse">
-                  In Progress
-                </span>
-              </div>
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">2026 Future Mentorship Program</h2>
-              <p className="text-lg text-neutral-400 mb-8 leading-relaxed">
-                Join our most comprehensive mentorship program yet. Live sessions, deep-dive lectures, and real-time market analysis updated weekly.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
-                  <Video className="w-4 h-4 text-sky-500" />
-                  <span className="text-xs font-bold text-white">{FUTURE_MENTORSHIP_VIDEOS.length} Lessons</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10">
-                  <Clock className="w-4 h-4 text-sky-500" />
-                  <span className="text-xs font-bold text-white">Updated Weekly</span>
-                </div>
-              </div>
-            </div>
-            {/* Decorative background element */}
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-sky-500/10 to-transparent pointer-events-none" />
-            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-sky-500/20 rounded-full blur-[100px] pointer-events-none" />
-          </motion.div>
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Curriculum</h3>
-              <p className="text-xs text-neutral-500 font-black uppercase tracking-widest">
-                {FUTURE_MENTORSHIP_VIDEOS.length} Recorded Sessions
-              </p>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {FUTURE_MENTORSHIP_VIDEOS.map((video) => (
-                <AccordionItem 
-                  key={video.id}
-                  title={video.title}
-                  description={video.description}
-                  url={video.url}
-                  isOpen={openVideoId === video.id}
-                  onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-                />
-              ))}
-            </div>
+      {/* Main Grid: Responsive Sidebar + Content stage */}
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+        
+        {/* Left Side: Professional Navigation Rail (Scrolls Horizontally on Mobile, Sticky Column on Desktop) */}
+        <div className="lg:sticky lg:top-24 space-y-4 max-w-full">
+          <div className="hidden lg:block pl-3">
+            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest block mb-2">Learning Directory</span>
           </div>
-        </div>
-      ) : filter === 'TTT' ? (
-        <div className="max-w-5xl space-y-12">
-          {/* TTT Header */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-sky-500/20 via-sky-500/5 to-transparent border border-sky-500/20 p-8 md:p-12"
-          >
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="px-3 py-1 bg-sky-500 text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Mentorship Program
-                </span>
-                <span className="px-3 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest border border-sky-500/20 rounded-lg">
-                  Complete Series
-                </span>
-              </div>
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">TTT Mentorship Program</h2>
-              <p className="text-lg text-neutral-400 mb-8 leading-relaxed max-w-2xl">
-                Master the markets with the TTT path. From basic introduction to advanced volume profile mastery and dynamic setups.
-              </p>
-              
-              {/* Sub-filter Toggle */}
-              <div className="flex p-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl w-fit">
-                {(['Basic', 'Premium'] as const).map((sub) => (
-                  <button
-                    key={sub}
-                    onClick={() => {
-                      setTttSubFilter(sub);
-                      setOpenVideoId(null);
-                    }}
-                    className={cn(
-                      "px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                      tttSubFilter === sub 
-                        ? "bg-sky-500 text-black shadow-lg shadow-sky-500/20" 
-                        : "text-neutral-500 hover:text-white"
-                    )}
-                  >
-                    {sub}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-sky-500/10 to-transparent pointer-events-none" />
-          </motion.div>
 
-          {/* TTT Curriculum */}
-          <div className="space-y-12">
-            {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => {
-              const totalVideos = section.videos.length;
+          <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-3 lg:pb-0 scrollbar-none snap-x snap-mandatory">
+            {categories.map((cat) => {
+              const count = getCategoryCount(cat.name);
+              const IconComponent = cat.icon;
+              const isActive = filter === cat.name;
+
               return (
-                <div key={section.title} className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-500 font-bold text-xs">
-                        0{sIdx + 1}
-                      </div>
-                      <h3 className="text-xl font-bold text-white">{section.title}</h3>
+                <button
+                  key={cat.name}
+                  onClick={() => {
+                    setFilter(cat.name);
+                    setIsPlaying(false);
+                  }}
+                  className={cn(
+                    "snap-center shrink-0 flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all duration-300 relative overflow-hidden text-left group",
+                    isActive 
+                      ? "bg-sky-500 text-black font-black shadow-lg shadow-sky-500/10 w-[210px] lg:w-full" 
+                      : "bg-[#0a0a0a] text-neutral-400 hover:text-white border border-[#141414] hover:border-[#222] w-[170px] lg:w-full hover:bg-[#0e0e0e]"
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                      "w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300",
+                      isActive ? "bg-black/10 text-black" : "bg-[#121212] text-neutral-500 group-hover:bg-[#1a1a1a] group-hover:text-white"
+                    )}>
+                      <IconComponent className="w-3.5 h-3.5 animate-none group-hover:scale-110 transition-transform" />
                     </div>
-                    <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                      {totalVideos} Videos
-                    </span>
+                    <span className="truncate">{cat.name}</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {section.videos.map((video) => (
-                      <AccordionItem 
-                        key={video.id}
-                        title={video.title}
-                        description={video.description}
-                        url={video.url}
-                        isOpen={openVideoId === video.id}
-                        onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-                      />
-                    ))}
+
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto pl-2">
+                    {count > 0 && (
+                      <span className={cn(
+                        "px-1.5 py-0.5 rounded text-[8px] font-mono font-black",
+                        isActive ? "bg-black/15 text-black" : "bg-sky-500/10 text-sky-400 border border-sky-500/5"
+                      )}>
+                        {count}
+                      </span>
+                    )}
+                    {cat.name === '2026 Future Mentorship' && (
+                      <span className={cn(
+                        "w-1.5 h-1.5 rounded-full animate-pulse",
+                        isActive ? "bg-black" : "bg-sky-500"
+                      )} />
+                    )}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         </div>
-      ) : filter === 'VIP-1 Courses' ? (
-        <div className="max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">VIP-1 Curriculum</h2>
-                  <p className="text-neutral-500">Master the basics and build a solid foundation for your trading journey.</p>
-                </div>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {VIP1_VIDEOS.length} Videos
-              </span>
-            </div>
-            {VIP1_VIDEOS.map((video) => (
-              <AccordionItem 
-                key={video.id}
-                title={video.title}
-                description={video.description}
-                url={video.url}
-                isOpen={openVideoId === video.id}
-                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-              />
-            ))}
-        </div>
-      ) : filter === 'VIP-2 Courses' ? (
-        <div className="max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">VIP-2 Advanced Curriculum</h2>
-                  <p className="text-neutral-500">Advanced strategies and deep market insights for professional traders.</p>
-                </div>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {VIP2_VIDEOS.length} Videos
-              </span>
-            </div>
-            {VIP2_VIDEOS.map((video) => (
-              <AccordionItem 
-                key={video.id}
-                title={video.title}
-                description={video.description}
-                url={video.url}
-                isOpen={openVideoId === video.id}
-                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-              />
-            ))}
-        </div>
-      ) : filter === 'Day Trading Strategy' ? (
-        <div className="max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Day Trading Strategy</h2>
-                  <p className="text-neutral-500">Master the art of intraday trading with our proven strategies.</p>
-                </div>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {DAY_TRADING_VIDEOS.length} Videos
-              </span>
-            </div>
-            {DAY_TRADING_VIDEOS.map((video) => (
-              <AccordionItem 
-                key={video.id}
-                title={video.title}
-                description={video.description}
-                url={video.url}
-                isOpen={openVideoId === video.id}
-                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-              />
-            ))}
-        </div>
-      ) : filter === 'Introduction about Crypto' ? (
-        <div className="max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Introduction about Crypto</h2>
-                  <p className="text-neutral-500">Learn the fundamentals of cryptocurrency and blockchain technology.</p>
-                </div>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {CRYPTO_INTRO_VIDEOS.length} Videos
-              </span>
-            </div>
-            {CRYPTO_INTRO_VIDEOS.map((video) => (
-              <AccordionItem 
-                key={video.id}
-                title={video.title}
-                description={video.description}
-                url={video.url}
-                isOpen={openVideoId === video.id}
-                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-              />
-            ))}
-        </div>
-      ) : filter === 'Fundamental' ? (
-        <div className="max-w-4xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Fundamental Analysis</h2>
-                  <p className="text-neutral-500">Understand the economic forces that drive global markets.</p>
-                </div>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {FUNDAMENTAL_VIDEOS.length} Videos
-              </span>
-            </div>
-            {FUNDAMENTAL_VIDEOS.map((video) => (
-              <AccordionItem 
-                key={video.id}
-                title={video.title}
-                description={video.description}
-                url={video.url}
-                isOpen={openVideoId === video.id}
-                onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-              />
-            ))}
-        </div>
-      ) : filter === 'Learn Thai' ? (
-        <div className="max-w-5xl space-y-12">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative rounded-[32px] overflow-hidden bg-gradient-to-br from-emerald-500/20 via-emerald-500/5 to-transparent border border-emerald-500/20 p-8 md:p-12 text-center"
-          >
-            <div className="relative z-10 mx-auto max-w-2xl">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <h2 className="text-3xl md:text-5xl font-bold text-white uppercase tracking-tighter italic">Learn Thai Language</h2>
-                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest rounded-lg">
-                  Complete
-                </span>
-              </div>
-              <p className="text-lg text-neutral-400 mb-0 leading-relaxed font-medium">
-                မြန်မာနိုင်ငံသားများအတွက် မြန်မာဘာသာဖြင့် ထိုင်းဘာသာစကားကို အလွယ်တကူ လေ့လာသင်ယူနိုင်ရန် ဖော်ပြပေးထားသော နေရာဖြစ်ပါသည်။
-              </p>
-            </div>
-            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
-          </motion.div>
 
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                <PlayCircle className="w-6 h-6 text-emerald-500" />
-                Video Lessons
-              </h3>
-              <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[10px] font-black uppercase tracking-widest shrink-0">
-                {THAI_LANGUAGE_VIDEOS.length} Videos
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {THAI_LANGUAGE_VIDEOS.map((video) => (
-                <AccordionItem 
-                  key={video.id}
-                  title={video.title}
-                  description={video.description}
-                  url={video.url}
-                  isOpen={openVideoId === video.id}
-                  onToggle={() => setOpenVideoId(openVideoId === video.id ? null : video.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          {loading ? (
-            <div className="flex items-center justify-center h-[40vh]">
-              <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          ) : (
-            <div className="space-y-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter italic">{filter}</h2>
-                <span className="px-3 py-1 bg-sky-500/10 text-sky-500 rounded text-[10px] font-black uppercase tracking-widest">
-                  {filteredResources.length} Resources
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredResources.map((resource) => {
-                const youtubeId = getYouTubeId(resource.url);
-                
-                return (
-                  <div key={resource.id} className="group bg-[#141414] border border-[#262626] rounded-3xl overflow-hidden hover:border-sky-500/30 transition-all flex flex-col shadow-sm hover:shadow-xl hover:shadow-sky-500/5">
-                    <div className="relative aspect-video bg-[#0a0a0a] overflow-hidden">
-                      {youtubeId ? (
-                        <div className="w-full h-full relative">
-                          <iframe
-                            src={`https://www.youtube.com/embed/${youtubeId}`}
-                            title={resource.title}
-                            className="w-full h-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      ) : resource.thumbnail_url ? (
-                        <img 
-                          src={resource.thumbnail_url} 
-                          alt={resource.title} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-800">
-                          <PlayCircle className="w-16 h-16" />
-                        </div>
+        {/* Right Side: Primary Learning Stage */}
+        <div className="min-w-0 flex-1 space-y-4">
+          
+          {/* Dynamic Track Header Banner */}
+          {CATEGORY_META[filter] && (
+            <ScrollReveal>
+              <div className="relative rounded-2xl overflow-hidden border border-[#141414] py-4 px-5 md:py-5 md:px-7 bg-gradient-to-br from-[#0c0c0c] to-[#040404]">
+                {/* Decorative background gradients */}
+                <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-l from-sky-500/5 to-transparent pointer-events-none blur-3xl rounded-full" />
+                <div className="absolute -bottom-24 -right-12 w-48 h-48 bg-sky-500/5 rounded-full blur-[85px] pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col md:flex-row gap-6 md:items-center justify-between">
+                  <div className="space-y-2 max-w-xl">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {CATEGORY_META[filter].featuredTag && (
+                        <span className={cn(
+                          "px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-lg",
+                          CATEGORY_META[filter].badgeStyle
+                        )}>
+                          {CATEGORY_META[filter].featuredTag}
+                        </span>
                       )}
-                      <div className="absolute top-4 left-4 z-10">
-                        <span className="px-3 py-1 bg-black/80 backdrop-blur-md rounded-lg text-[10px] font-black uppercase tracking-widest text-sky-400 border border-sky-500/20">
-                          {resource.category}
+                      {filter === '2026 Future Mentorship' && (
+                        <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/20 rounded-lg animate-pulse">
+                          Active Series
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-base md:text-xl font-black text-white tracking-tight uppercase italic">{CATEGORY_META[filter].title}</h2>
+                    <p className="text-[11px] md:text-xs text-neutral-400 font-medium leading-relaxed">{CATEGORY_META[filter].description}</p>
+                  </div>
+
+                  {/* Completion and Progress metrics box */}
+                  {filter !== 'ICT Notes' && filter !== 'PDF' && currentCategoryTotalCount > 0 && (
+                    <div className="flex flex-row md:flex-col gap-3 shrink-0 bg-[#070707]/60 p-3 border border-[#141414] rounded-xl items-center text-center justify-between md:justify-center min-w-full md:min-w-[160px]">
+                      <div className="text-left md:text-center space-y-0.5">
+                        <span className="text-[8px] font-semibold text-neutral-500 uppercase tracking-widest block font-sans">Syllabus Progress</span>
+                        <span className="text-[10px] font-black text-white block">
+                          {currentCategoryCompletedCount} / {currentCategoryTotalCount} Completed
                         </span>
                       </div>
+                      <div className="w-20 md:w-full h-1 bg-[#141414] rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-sky-400 to-sky-500 transition-all duration-500"
+                          style={{ width: `${Math.round((currentCategoryCompletedCount / currentCategoryTotalCount) * 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    
-                    <div className="p-8 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold mb-3 text-white group-hover:text-sky-400 transition-colors line-clamp-1">{resource.title}</h3>
-                      <p className="text-sm text-neutral-500 line-clamp-2 mb-8 flex-1 leading-relaxed">{resource.description}</p>
-                      
-                      <a 
-                        href={resource.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-3 w-full py-4 bg-[#0a0a0a] border border-[#262626] hover:bg-sky-500 hover:text-black hover:border-sky-500 rounded-2xl font-black uppercase tracking-widest text-xs transition-all transform group-hover:translate-y-[-2px]"
-                      >
-                        {youtubeId ? 'Watch on YouTube' : 'View Resource'}
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {filteredResources.length === 0 && (
-                <div className="col-span-full py-20 text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#141414] mb-4">
-                    <BookOpen className="w-8 h-8 text-neutral-600" />
-                  </div>
-                  <p className="text-neutral-500 italic">No resources found in this category yet.</p>
+                  )}
                 </div>
-              )}
+              </div>
+            </ScrollReveal>
+          )}
+
+          {/* Conditional Workspaces Rendering */}
+          {filter === 'ICT Notes' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <ICTNotes />
+            </motion.div>
+          ) : filter === 'PDF' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <PDFLibrary />
+            </motion.div>
+          ) : (
+            /* Cinematic LMS double panel: Main video screen + interactive playlist */
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 items-start">
+              
+              {/* Cinematic Viewing Theater */}
+              <div className="space-y-3">
+                {activeVideo ? (
+                  <div className="bg-[#080808] border border-[#131313] rounded-2xl overflow-hidden p-2.5 md:p-4 space-y-4 shadow-sm">
+                    {/* 16:9 Widescreen stage */}
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black border border-[#181818]">
+                      {isPlaying && activeYtId ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${activeYtId}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
+                          title={activeVideo.title}
+                          className="absolute inset-0 w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full relative group">
+                          {activeYtId ? (
+                            <>
+                              <img 
+                                src={`https://img.youtube.com/vi/${activeYtId}/maxresdefault.jpg`} 
+                                alt={activeVideo.title}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${activeYtId}/hqdefault.jpg`;
+                                }}
+                                className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700 pointer-events-none"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/15 pointer-events-none" />
+                            </>
+                          ) : (
+                            <div className="absolute inset-0 bg-[#050505] flex items-center justify-center pointer-events-none" />
+                          )}
+
+                          {/* Glowing pulse play hook */}
+                          <button 
+                            onClick={() => setIsPlaying(true)}
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center p-4 md:p-5 rounded-full bg-sky-500 text-black shadow-2xl shadow-sky-500/30 hover:scale-110 hover:bg-sky-400 active:scale-95 transition-all duration-300 z-10"
+                          >
+                            <PlayCircle className="w-7 h-7 md:w-8 md:h-8 fill-black text-black" />
+                          </button>
+
+                          {/* Top Tag */}
+                          <div className="absolute top-4 left-4 z-10">
+                            <span className="px-2 py-0.5 bg-black/80 backdrop-blur-md rounded-md text-[8px] font-black uppercase tracking-widest text-sky-400 border border-sky-500/10">
+                              Lecture {activeVideo.id}
+                            </span>
+                          </div>
+
+                          <div className="absolute bottom-5 left-5 right-5 text-left pointer-events-none z-10">
+                            <h4 className="text-xs md:text-base font-black text-white tracking-tight drop-shadow truncate">
+                              {activeVideo.title}
+                            </h4>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Metadata controls block */}
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#141414] pb-4">
+                        <div>
+                          <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest block">Currently Playing</span>
+                          <h3 className="text-base md:text-lg font-bold text-white tracking-tight mt-0.5">{activeVideo.title}</h3>
+                        </div>
+
+                        {/* Interactive trigger tools */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => toggleVideoCompleted(activeVideo.id)}
+                            className={cn(
+                              "flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all duration-300",
+                              completedVideos.includes(activeVideo.id)
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15"
+                                : "bg-white/5 text-neutral-400 border-[#1f1f1f] hover:text-white hover:bg-white/10"
+                            )}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            {completedVideos.includes(activeVideo.id) ? "Lesson Done" : "Mark Complete"}
+                          </button>
+
+                          <a 
+                            href={activeVideo.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 bg-[#0c0c0c] hover:bg-[#111] border border-[#1a1a1a] text-neutral-400 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all duration-300"
+                          >
+                            Watch On YouTube
+                            <ExternalLink className="w-3" />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Brief description box */}
+                      <div className="p-4 bg-[#050505] rounded-2xl border border-[#111]">
+                        <span className="text-[9px] font-semibold text-neutral-500 uppercase tracking-widest block mb-1">Details & Core Target</span>
+                        <p className="text-xs text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
+                          {activeVideo.description || "Detailed conceptual breakdown and strategic summary for this specific program module."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#080808] border border-[#131313] rounded-3xl h-[360px] flex flex-col items-center justify-center text-center p-6">
+                    <div className="w-14 h-14 rounded-2xl bg-[#0e0e0e] flex items-center justify-center border border-[#1a1a1a] text-neutral-500 mb-3 animate-pulse">
+                      <PlayCircle className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-black text-white uppercase italic">No Active Video</h4>
+                    <p className="text-[11px] text-neutral-500 max-w-xs mt-1">
+                      Choose any session module in the list playlist to begin high-end classroom streaming.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Course Playlist Pane */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Syllabus Playlist</span>
+                  <span className="text-[9px] font-black text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-500/10 shrink-0 uppercase tracking-widest">
+                    {activeVideosList.length} Lessons
+                  </span>
+                </div>
+
+                {/* Flat structure list for single level categories vs Grouped nested for TTT */}
+                {filter === 'TTT' ? (
+                  <div className="space-y-5 bg-[#050505] border border-[#131313] rounded-3xl p-3 max-h-[520px] overflow-y-auto scrollbar-none">
+                    
+                    {/* Chapter toggler/options for TTT */}
+                    <div className="flex p-1 bg-[#0a0a0a] border border-[#181818] rounded-2xl shrink-0">
+                      {(['Basic', 'Premium'] as const).map((sub) => (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setTttSubFilter(sub);
+                          }}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                            tttSubFilter === sub 
+                              ? "bg-sky-500 text-black shadow-md shadow-sky-500/10 font-black" 
+                              : "text-neutral-500 hover:text-white"
+                          )}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Grouped nested TTT layout */}
+                    <div className="space-y-5">
+                      {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => {
+                        return (
+                          <div key={section.title} className="space-y-2">
+                            <div className="sticky top-0 bg-[#050505]/95 backdrop-blur-md z-10 py-1.5 flex items-center justify-between border-b border-[#121212]">
+                              <span className="text-[9px] font-black text-neutral-400 uppercase tracking-widest truncate max-w-[200px]">
+                                {sIdx + 1}. {section.title}
+                              </span>
+                              <span className="text-[8px] font-black text-neutral-500 bg-[#0e0e0e] px-1.5 py-0.5 rounded border border-[#161616]">
+                                {section.videos.length} items
+                              </span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {section.videos.map((video) => {
+                                const isSelected = activeVideo?.id === video.id;
+                                const videoYoutubeId = getYouTubeId(video.url);
+                                const isDone = completedVideos.includes(video.id);
+
+                                return (
+                                  <button
+                                    key={video.id}
+                                    onClick={() => {
+                                      setActiveVideo(video);
+                                      setIsPlaying(true);
+                                    }}
+                                    className={cn(
+                                      "w-full p-2 rounded-xl flex items-center gap-3 transition-all duration-300 text-left group border shrink-0",
+                                      isSelected
+                                        ? "bg-sky-500/10 border-sky-500/25 text-sky-450"
+                                        : "bg-[#080808] border-[#101010] hover:border-[#1b1b1b] text-neutral-300 hover:bg-[#0c0c0c] hover:text-white"
+                                    )}
+                                  >
+                                    <div className="relative w-11 h-8 aspect-video rounded-lg overflow-hidden bg-black border border-[#141414] shrink-0">
+                                      {videoYoutubeId ? (
+                                        <img
+                                          src={`https://img.youtube.com/vi/${videoYoutubeId}/hqdefault.jpg`}
+                                          alt={video.title}
+                                          className="w-full h-full object-cover opacity-50"
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full bg-[#121212]" />
+                                      )}
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                        <PlayCircle className="w-3.5 h-3.5 text-white opacity-80" />
+                                      </div>
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <h5 className={cn(
+                                          "text-[10px] font-bold truncate leading-tight",
+                                          isSelected ? "text-sky-400 font-extrabold" : "text-white"
+                                        )}>
+                                          {video.title}
+                                        </h5>
+                                        {isDone && (
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                        )}
+                                      </div>
+                                      <p className="text-[8px] text-neutral-500 truncate mt-0.5">
+                                        {video.description || "Video chapter segment."}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-[#050505] border border-[#131313] rounded-3xl p-2.5 max-h-[480px] overflow-y-auto scrollbar-none space-y-1.5">
+                    {activeVideosList.map((video, idx) => {
+                      const isSelected = activeVideo?.id === video.id;
+                      const videoYoutubeId = getYouTubeId(video.url);
+                      const isDone = completedVideos.includes(video.id);
+
+                      return (
+                        <button
+                          key={video.id}
+                          onClick={() => {
+                            setActiveVideo(video);
+                            setIsPlaying(true);
+                          }}
+                          className={cn(
+                            "w-full p-2.5 rounded-2xl flex items-center gap-3 transition-all duration-300 text-left group border shrink-0",
+                            isSelected
+                              ? "bg-sky-500/10 border-sky-500/20 text-sky-400"
+                              : "bg-[#080808] border-[#101010] hover:border-[#1c1c1c] text-neutral-300 hover:bg-[#0c0c0c] hover:text-white"
+                          )}
+                        >
+                          <div className="relative w-12 h-8 aspect-video rounded-xl overflow-hidden bg-black border border-[#141414] shrink-0">
+                            {videoYoutubeId ? (
+                              <img
+                                src={`https://img.youtube.com/vi/${videoYoutubeId}/hqdefault.jpg`}
+                                alt={video.title}
+                                className="w-full h-full object-cover opacity-60"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-[#121212]" />
+                            )}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                              <PlayCircle className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-bold text-neutral-500 select-none font-mono shrink-0">
+                                {String(idx + 1).padStart(2, '0')}
+                              </span>
+                              <h5 className={cn(
+                                "text-[11px] font-bold truncate leading-tight",
+                                isSelected ? "text-sky-400 font-black" : "text-white"
+                              )}>
+                                {video.title}
+                              </h5>
+                              {isDone && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[9px] text-neutral-500 truncate mt-0.5">
+                              {video.description || "Video master lecture session."}
+                            </p>
+                          </div>
+                          
+                          <ArrowRight className="w-3.5 h-3.5 text-neutral-600 group-hover:text-white transition-colors ml-auto pl-0.5 shrink-0" />
+                        </button>
+                      );
+                    })}
+
+                    {activeVideosList.length === 0 && (
+                      <div className="py-12 text-center">
+                        <span className="text-[10px] text-neutral-600 block italic">No matching videos in this playlist.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
-          </div>
-        )}
-      </>
-    )}
-  </div>
-);
+          )}
+
+        </div>
+
+      </div>
+    </div>
+  );
 }

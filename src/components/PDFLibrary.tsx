@@ -377,7 +377,7 @@ export default function PDFLibrary() {
                 className="bg-[#141414] border border-[#262626] rounded-2xl overflow-hidden hover:border-sky-500/30 transition-all group flex flex-col shadow-sm hover:shadow-xl hover:shadow-sky-500/5"
               >
                 {/* Book Cover */}
-                <div className="relative aspect-[3/4] overflow-hidden bg-[#0a0a0a]">
+                <div className="relative aspect-[4/5] overflow-hidden bg-[#0a0a0a]">
                   {file.thumbnail ? (
                     <img 
                       src={file.thumbnail} 
@@ -399,8 +399,8 @@ export default function PDFLibrary() {
                   </div>
                 </div>
 
-                <div className="p-4 flex flex-col flex-1">
-                  <div className="space-y-1 mb-4 flex-1">
+                <div className="p-3 flex flex-col flex-1">
+                  <div className="space-y-1 mb-3 flex-1">
                     <h3 className="text-[11px] font-bold text-white line-clamp-2 group-hover:text-sky-400 transition-colors uppercase tracking-tight leading-tight">{file.name}</h3>
                   </div>
 
