@@ -422,12 +422,16 @@ export default function AISummary() {
       const cacheKey = `ai_analysis_${user.id}_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
       localStorage.setItem(cacheKey, JSON.stringify(data));
 
-      setResult(data);
+      setProgress(100);
       toast.success(t.toastSuccessAnalysis, { id: toastId });
+      
+      setTimeout(() => {
+        setResult(data);
+        setAnalyzing(false);
+      }, 800);
     } catch (error: any) {
       console.error("AI Generation failed:", error);
       toast.error(error.message || t.toastErrorAnalyzing, { id: toastId });
-    } finally {
       setAnalyzing(false);
     }
   };
@@ -741,7 +745,7 @@ export default function AISummary() {
                   </div>
                   <div className="space-y-2.5">
                     <h2 className="text-xl font-bold text-white tracking-tight">{t.analyzingTitle}</h2>
-                    <p className="text-neutral-400 max-w-sm mx-auto text-xs leading-relaxed">
+                    <p className="text-neutral-400 max-w-sm mx-auto text-sm leading-relaxed">
                       {t.analyzingDesc}
                     </p>
                   </div>
@@ -877,7 +881,7 @@ export default function AISummary() {
                             {selectedLanguage === 'my' ? "Prime Time (ကုန်သွယ်ရန် အကောင်းဆုံးအချိန်)" : "Prime Time (Best Trading Time)"}
                           </span>
                         </div>
-                        <p className="text-xs text-neutral-300 leading-relaxed font-semibold whitespace-pre-wrap">
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
                           {result.primeTime}
                         </p>
                       </div>
@@ -892,7 +896,7 @@ export default function AISummary() {
                             {selectedLanguage === 'my' ? "Unsuitable Time (မသင့်တော်သောအချိန်)" : "Unsuitable Time (Worst Trading Time)"}
                           </span>
                         </div>
-                        <p className="text-xs text-neutral-300 leading-relaxed font-semibold whitespace-pre-wrap">
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
                           {result.unsuitableTime}
                         </p>
                       </div>
@@ -908,7 +912,7 @@ export default function AISummary() {
                           {selectedLanguage === 'my' ? "အချိန်နှင့် Trade ကြာချိန် ခွဲခြားပြသမှု (Detailed Time & Holding Analysis)" : "Detailed Time & Holding Analysis"}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
+                      <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
                         {result.timeAnalysisDetails}
                       </p>
                     </div>
@@ -925,7 +929,7 @@ export default function AISummary() {
                       </div>
                       <ul className="space-y-3.5">
                         {result.strengths.map((str, idx) => (
-                           <li key={idx} className="flex items-start gap-3 text-xs text-neutral-300 leading-normal font-medium">
+                           <li key={idx} className="flex items-start gap-3 text-sm text-neutral-300 leading-relaxed font-medium">
                             <span className="text-emerald-500 font-bold block mt-0.5">•</span>
                             <span className="flex-1">{str}</span>
                           </li>
@@ -942,7 +946,7 @@ export default function AISummary() {
                       </div>
                       <ul className="space-y-3.5">
                         {result.weaknesses.map((weak, idx) => (
-                          <li key={idx} className="flex items-start gap-3 text-xs text-neutral-300 leading-normal font-medium">
+                          <li key={idx} className="flex items-start gap-3 text-sm text-neutral-300 leading-relaxed font-medium">
                             <span className="text-rose-500 font-bold block mt-0.5">•</span>
                             <span className="flex-1">{weak}</span>
                           </li>
@@ -959,7 +963,7 @@ export default function AISummary() {
                       </div>
                       <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.tradingEdgeTitle}</h3>
                     </div>
-                    <p className="text-xs text-neutral-300 leading-relaxed font-semibold">
+                    <p className="text-sm text-neutral-300 leading-relaxed font-medium">
                       {result.tradingEdge}
                     </p>
                   </div>
@@ -976,7 +980,7 @@ export default function AISummary() {
                       {result.recommendations.map((rec, idx) => (
                         <div key={idx} className="flex gap-4 p-4 bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl relative overflow-hidden group">
                           <div className="text-lg font-black text-neutral-700 select-none">#{idx + 1}</div>
-                          <p className="text-xs text-neutral-300 leading-relaxed font-medium flex-1 m-0">{rec}</p>
+                          <p className="text-sm text-neutral-300 leading-relaxed font-medium flex-1 m-0">{rec}</p>
                         </div>
                       ))}
                     </div>
@@ -991,7 +995,7 @@ export default function AISummary() {
                       <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.overviewTitle}</h3>
                     </div>
                     <div className="p-4 bg-[#0c0c0c] border border-[#1a1a1a] rounded-2xl">
-                      <p className="text-xs text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
+                      <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap">
                         {result.overview}
                       </p>
                     </div>
@@ -1010,7 +1014,7 @@ export default function AISummary() {
                   </div>
                   <div className="space-y-4">
                     <h2 className="text-2xl font-bold text-white tracking-tight">{t.readyTitle}</h2>
-                    <p className="text-neutral-500 max-w-sm mx-auto text-xs leading-relaxed">
+                    <p className="text-neutral-500 max-w-sm mx-auto text-sm leading-relaxed">
                       {t.readyDesc}
                     </p>
                   </div>

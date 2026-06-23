@@ -102,6 +102,8 @@ export default function Dashboard() {
       try {
         setLoading(true);
         setError(null);
+        setTrades([]);
+        setDailyPnls([]);
         await fetchDashboardData(selectedAccountId);
       } catch (err: any) {
         if (isActive) setError(err.message || 'Failed to load dashboard data');
@@ -160,6 +162,27 @@ export default function Dashboard() {
     }
   }, [trades]);
 
+  const derivedDailyPnls = React.useMemo(() => {
+    const closedTrades = trades.filter(t => t.status === 'CLOSED');
+    const dayMap: Record<string, number> = {};
+    closedTrades.forEach(t => {
+      const dateToUse = t.exit_date || t.entry_date;
+      if (!dateToUse) return;
+      try {
+        const d = typeof dateToUse === 'string' ? new Date(dateToUse) : dateToUse;
+        if (isNaN(d.getTime())) return;
+        const dateStr = d.toISOString().split('T')[0];
+        dayMap[dateStr] = (dayMap[dateStr] || 0) + (Number(t.pnl) || 0);
+      } catch (err) {
+        console.error('Error parsing date for daily pnl:', err);
+      }
+    });
+    return Object.entries(dayMap).map(([date, pnl]) => ({
+      date,
+      pnl
+    }));
+  }, [trades]);
+
   const stats = React.useMemo(() => {
     if (!selectedAccount) return null;
     
@@ -183,8 +206,8 @@ export default function Dashboard() {
     const winLossRatio = avgLoss === 0 ? (avgWin > 0 ? 9.99 : 0) : Math.min(9.99, avgWin / avgLoss);
 
     // Day win % calculation
-    const profitableDays = dailyPnls.filter(p => p.pnl > 0).length;
-    const losingDays = dailyPnls.filter(p => p.pnl < 0).length;
+    const profitableDays = derivedDailyPnls.filter(p => p.pnl > 0).length;
+    const losingDays = derivedDailyPnls.filter(p => p.pnl < 0).length;
     const totalDaysWithTrades = profitableDays + losingDays;
     const dayWinRate = totalDaysWithTrades > 0 ? (profitableDays / totalDaysWithTrades) * 100 : 0;
 
@@ -203,7 +226,7 @@ export default function Dashboard() {
     const consistencyRules = selectedAccount.consistency_rules;
     const hasConsistencyRule = consistencyRules !== 'No Consistency';
     const consistencyLimit = hasConsistencyRule ? (parseFloat(consistencyRules) || 50) : 0;
-    const maxDayProfit = Math.max(...dailyPnls.map(p => p.pnl), 0);
+    const maxDayProfit = Math.max(...derivedDailyPnls.map(p => p.pnl), 0);
     
     const currentConsistencyRatio = totalPnl > 0 ? (maxDayProfit / totalPnl) : 0;
     const isConsistent = !hasConsistencyRule || (currentConsistencyRatio * 100) <= consistencyLimit;
@@ -253,9 +276,10 @@ export default function Dashboard() {
       initialBalance: selectedAccount.initial_balance,
       currentBalance,
       consistencyLimit,
-      currentConsistencyRatio
+      currentConsistencyRatio,
+      maxDayProfit
     };
-  }, [trades, selectedAccount, dailyPnls]);
+  }, [trades, selectedAccount, derivedDailyPnls]);
 
   const chartData = React.useMemo(() => {
     if (!selectedAccount) return [];
@@ -308,7 +332,11 @@ export default function Dashboard() {
   }, []);
 
   const getDayPnL = (date: Date) => {
-    return dailyPnls.find(p => isSameDay(new Date(p.date), date))?.pnl || 0;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const localDateStr = `${year}-${month}-${day}`;
+    return derivedDailyPnls.find(p => p.date === localDateStr)?.pnl || 0;
   };
 
   if (loading || accountsLoading) {
@@ -813,6 +841,26 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] mt-2 italic">Consistency</p>
+                      
+                      {/* Detailed Breakdown */}
+                      <div className="w-full px-5 mt-4 space-y-2 border-t border-[#1f1f1f] pt-3 text-[10px] font-bold text-neutral-400">
+                        <div className="flex justify-between items-center">
+                          <span>Max Daily Profit:</span>
+                          <span className="text-white font-black">{formatCurrency(stats?.maxDayProfit || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>Total Net Profit:</span>
+                          <span className="text-white font-black">{formatCurrency(stats?.totalPnl || 0)}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-t border-[#121212] pt-1 text-sky-400">
+                          <span>Ratio (Max Day / Total):</span>
+                          <span className="font-black">{((stats?.currentConsistencyRatio || 0) * 100).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between items-center text-neutral-500">
+                          <span>Ratio (Total / Max Day):</span>
+                          <span className="font-black">{stats?.maxDayProfit && stats.maxDayProfit > 0 ? (stats.totalPnl / stats.maxDayProfit).toFixed(2) : '0.00'}x</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

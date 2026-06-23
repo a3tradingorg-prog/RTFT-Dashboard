@@ -222,28 +222,54 @@ export default function Accounts() {
     if (!confirmDeleteId) return;
     
     try {
-      // First, we should attempt to delete all related records if foreign keys aren't set to cascade
-      // Supabase usually has constraints, so we delete in order if cascade isn't available
-      // But we'll try the direct delete first as most schemas in this env use CASCADE
-      
-      const { error } = await supabase
+      // 1. Fetch trades associated with the account to delete their exits first
+      const { data: tradesToDelete, error: fetchError } = await supabase
+        .from('trades')
+        .select('id')
+        .eq('account_id', confirmDeleteId);
+
+      if (fetchError) throw fetchError;
+
+      if (tradesToDelete && tradesToDelete.length > 0) {
+        const tradeIds = tradesToDelete.map(t => t.id);
+        
+        // 2. Delete related trade exits
+        const { error: exitsDeleteError } = await supabase
+          .from('trade_exits')
+          .delete()
+          .in('trade_id', tradeIds);
+        
+        if (exitsDeleteError) throw exitsDeleteError;
+        
+        // 3. Delete related trades
+        const { error: tradesDeleteError } = await supabase
+          .from('trades')
+          .delete()
+          .eq('account_id', confirmDeleteId);
+          
+        if (tradesDeleteError) throw tradesDeleteError;
+      }
+
+      // 4. Delete related daily_pnl
+      const { error: pnlDeleteError } = await supabase
+        .from('daily_pnl')
+        .delete()
+        .eq('account_id', confirmDeleteId);
+        
+      if (pnlDeleteError) throw pnlDeleteError;
+
+      // 5. Finally delete the account itself
+      const { error: accountDeleteError } = await supabase
         .from('accounts')
         .delete()
         .eq('id', confirmDeleteId);
 
-      if (error) {
-        // If it fails due to foreign key, we show a better error
-        if (error.code === '23503') {
-          toast.error("Cannot delete account. Please delete all trades associated with this account first.");
-        } else {
-          toast.error(`Failed to delete account: ${error.message}`);
-        }
-      } else {
-        toast.success('Account deleted successfully');
-        refreshAccounts().catch(err => console.error('Refresh global accounts error after delete:', err));
-      }
+      if (accountDeleteError) throw accountDeleteError;
+
+      toast.success('Account and all associated trade data completely deleted');
+      refreshAccounts().catch(err => console.error('Refresh global accounts error after delete:', err));
     } catch (err: any) {
-      console.error('Error deleting account:', err);
+      console.error('Error deleting account completely:', err);
       toast.error(`An unexpected error occurred while deleting: ${err.message}`);
     } finally {
       setConfirmDeleteId(null);
@@ -938,15 +964,17 @@ export default function Accounts() {
       </AnimatePresence>
 
       {confirmDeleteId && createPortal(
-        <ConfirmDialog
-          isOpen={!!confirmDeleteId}
-          title="Delete Account"
-          message="Are you sure you want to delete this account? All associated trades and data will be permanently removed. This action cannot be undone."
-          onConfirm={executeDelete}
-          onCancel={() => setConfirmDeleteId(null)}
-        />,
-        document.body
-      )}
+         <ConfirmDialog
+           isOpen={!!confirmDeleteId}
+           title="Totally Delete Account?"
+           message="သင့်အကောင့်ကို Totally Delete ပြုလုပ်မှာ သေချာပါသလား? အကောင့်ဖျက်လိုက်ပါက ၎င်းနှင့် ပတ်သက်သည့် trades ၊ exits နှင့် ဒေတာများအားလုံးကို အပြီးတိုင် ဖျက်ဆီးသွားမည်ဖြစ်ပြီး ပြန်လည်ဆယ်ယူ၍ (recover) ရတော့မည် မဟုတ်ပါ။ Are you sure you want to Totally Delete this account? All associated trades, exits, and PnL data will be permanently and totally removed. This action cannot be undone and files/data cannot be recovered."
+           confirmText="Totally Delete"
+           cancelText="Cancel"
+           onConfirm={executeDelete}
+           onCancel={() => setConfirmDeleteId(null)}
+         />,
+         document.body
+       )}
     </div>
   );
 }

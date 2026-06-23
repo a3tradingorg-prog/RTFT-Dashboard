@@ -238,9 +238,9 @@ export default function Journal() {
         });
       });
 
-      const tradesToInsert = Object.values(groupedTrades);
+      const tradesToInsert = Object.values(groupedTrades).filter((t: any) => t.accountName === firstAccountName);
       if (tradesToInsert.length === 0) {
-        throw new Error('No valid trades found in CSV');
+        throw new Error('No valid trades found for account ' + firstAccountName + ' in CSV');
       }
 
       // 1. Resolve Account
@@ -347,8 +347,18 @@ export default function Journal() {
           }
 
           totalPnLForImport += dbTrade.pnl;
-          const dateStr = format(new Date(dbTrade.entry_date), 'yyyy-MM-dd');
-          dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + dbTrade.pnl;
+          const dateToUse = dbTrade.exit_date || dbTrade.entry_date;
+          if (dateToUse) {
+            try {
+              const d = typeof dateToUse === 'string' ? new Date(dateToUse) : dateToUse;
+              if (!isNaN(d.getTime())) {
+                const dateStr = d.toISOString().split('T')[0];
+                dailyPnlsToUpdate[dateStr] = (dailyPnlsToUpdate[dateStr] || 0) + dbTrade.pnl;
+              }
+            } catch (err) {
+              console.error('Error parsing date on import:', err);
+            }
+          }
         });
       }
 
@@ -569,10 +579,21 @@ export default function Journal() {
       await supabase.from('accounts').update({ current_balance: newBalance }).eq('id', selectedAccountId);
       
       // Revert daily PnL
-      const dateStr = format(new Date(trade.entry_date), 'yyyy-MM-dd');
-      const existingPnL = dailyPnls.find(p => p.date === dateStr);
-      if (existingPnL) {
-        await supabase.from('daily_pnl').update({ pnl: Number(existingPnL.pnl) - Number(trade.pnl) }).eq('id', existingPnL.id);
+      let dateStr = '';
+      const dateToUse = trade.exit_date || trade.entry_date;
+      if (dateToUse) {
+        try {
+          const d = typeof dateToUse === 'string' ? new Date(dateToUse) : dateToUse;
+          if (!isNaN(d.getTime())) {
+            dateStr = d.toISOString().split('T')[0];
+          }
+        } catch {}
+      }
+      if (dateStr) {
+        const existingPnL = dailyPnls.find(p => p.date === dateStr);
+        if (existingPnL) {
+          await supabase.from('daily_pnl').update({ pnl: Number(existingPnL.pnl) - Number(trade.pnl) }).eq('id', existingPnL.id);
+        }
       }
       
       toast.success('Trade deleted successfully');

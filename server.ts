@@ -307,9 +307,9 @@ async function startServer() {
         return timeB - timeA;
       });
 
-      // Limit to 150 most recent closed trades to ensure highly stable response times under Cloud Run timeouts
-      if (processedTradesInput.length > 150) {
-        processedTradesInput = processedTradesInput.slice(0, 150);
+      // Limit to 1000 most recent closed trades to ensure highly stable response times under Cloud Run timeouts
+      if (processedTradesInput.length > 1000) {
+        processedTradesInput = processedTradesInput.slice(0, 1000);
       }
 
       // Pre-calculate exact session performance statistics to pass as ground truth
@@ -584,8 +584,8 @@ PRE-CALCULATED ACTUAL SESSION STATISTICS (USE THIS AS THE ABSOLUTE TRUTH SOURCE 
    - Losing Trades (Losses): ${pmStats.losingTrades}
    - Net Profit/Loss (PnL): $${pmStats.netPnL.toFixed(2)}
    - Win Rate: ${pmStats.winRate}%
-   - Average Trade Holding Duration (Wins): ${amStats.avgDurationWinMin} minutes
-   - Average Trade Holding Duration (Losses): ${amStats.avgDurationLossMin} minutes
+   - Average Trade Holding Duration (Wins): ${pmStats.avgDurationWinMin} minutes
+   - Average Trade Holding Duration (Losses): ${pmStats.avgDurationLossMin} minutes
 
 PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN (FROM INSTANT INDIVIDUAL TRADE TIMESTAMPS):
 Profitable hour slots (Net PnL > 0):

@@ -49,6 +49,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           if (!savedId || !exists) {
             setSelectedAccountId(uniqueAccounts[0].id);
           }
+        } else {
+          setSelectedAccountIdState(null);
+          localStorage.removeItem('selectedAccountId');
         }
       }
     } catch (err) {
