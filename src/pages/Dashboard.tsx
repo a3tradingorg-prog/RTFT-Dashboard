@@ -379,23 +379,23 @@ export default function Dashboard() {
 
   if (accounts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[75vh] py-12 px-4">
+      <div className="flex flex-col items-center justify-center min-h-[75vh] py-12 px-4 sm:px-6">
         <ScrollReveal>
-          <div className="text-center space-y-4 mb-12">
-            <div className="w-20 h-20 bg-sky-500/10 border border-sky-500/20 rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-sky-500/10">
-              <Zap className="w-10 h-10 text-sky-500 animate-pulse" />
+          <div className="text-center space-y-4 mb-10">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-sky-500/10 border border-sky-500/20 rounded-[20px] sm:rounded-[32px] flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-sky-500/10">
+              <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-sky-500 animate-pulse" />
             </div>
-            <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase">Welcome to RTFT</h2>
-            <p className="text-neutral-500 max-w-lg mx-auto text-lg font-medium">
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tighter italic uppercase">Welcome to RTFT</h2>
+            <p className="text-neutral-500 max-w-lg mx-auto text-sm sm:text-lg font-medium leading-relaxed">
               Unlock your edge in the markets. Watch our quick tour to master the platform and scale your trading career.
             </p>
           </div>
         </ScrollReveal>
 
         <ScrollReveal delay={0.05}>
-          <div className="w-full max-w-3xl mx-auto mb-16 relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 to-emerald-500/20 rounded-[33px] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-            <div className="relative aspect-video rounded-[32px] overflow-hidden border border-white/[0.05] bg-black shadow-2xl">
+          <div className="w-full max-w-3xl mx-auto mb-12 relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-sky-500/20 to-emerald-500/20 rounded-2xl sm:rounded-[33px] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="relative aspect-video rounded-2xl sm:rounded-[32px] overflow-hidden border border-white/[0.05] bg-black shadow-2xl">
               <iframe 
                 src="https://www.youtube.com/embed/vPj-nAgqEik" 
                 title="RTFT Website Tour"
@@ -411,21 +411,21 @@ export default function Dashboard() {
           </div>
         </ScrollReveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 max-w-6xl w-full">
           <ScrollReveal delay={0.1}>
             <Link to="/accounts" className="group">
-              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-sky-500/30 hover:bg-[#121212] relative overflow-hidden">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-2xl sm:rounded-[32px] p-6 sm:p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-sky-500/30 hover:bg-[#121212] relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Plus className="w-24 h-24 text-sky-500" />
+                  <Plus className="w-20 h-20 sm:w-24 sm:h-24 text-sky-500" />
                 </div>
-                <div className="w-16 h-16 bg-sky-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-sky-500/20 group-hover:scale-110 transition-transform">
-                  <Plus className="w-8 h-8 text-black" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-sky-500 rounded-2xl flex items-center justify-center mb-5 sm:mb-6 shadow-lg shadow-sky-500/20 group-hover:scale-110 transition-transform">
+                  <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-black" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Create Account</h3>
-                <p className="text-neutral-500 text-sm leading-relaxed">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Create Account</h3>
+                <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed">
                   Setup your first Challenge or Funded account to start tracking your performance metrics.
                 </p>
-                <div className="mt-8 px-6 py-2 bg-sky-500/10 text-sky-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-sky-500 group-hover:text-black transition-all">
+                <div className="mt-6 sm:mt-8 px-5 py-2 bg-sky-500/10 text-sky-500 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-sky-500 group-hover:text-black transition-all">
                   Get Started
                 </div>
               </div>
@@ -434,38 +434,38 @@ export default function Dashboard() {
 
           <ScrollReveal delay={0.2}>
             <Link to="/campus" className="group">
-              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-emerald-500/30 hover:bg-[#121212] relative overflow-hidden">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-2xl sm:rounded-[32px] p-6 sm:p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-emerald-500/30 hover:bg-[#121212] relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <GraduationCap className="w-24 h-24 text-emerald-500" />
+                  <GraduationCap className="w-20 h-20 sm:w-24 sm:h-24 text-emerald-500" />
                 </div>
-                <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                  <GraduationCap className="w-8 h-8 text-black" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mb-5 sm:mb-6 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                  <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8 text-black" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Explore Campus</h3>
-                <p className="text-neutral-500 text-sm leading-relaxed">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Explore Campus</h3>
+                <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed">
                   Access tutorials, strategy guides, and resources to help you master Future trading and propfirm rules.
                 </p>
-                <div className="mt-8 px-6 py-2 bg-emerald-500/10 text-emerald-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                <div className="mt-6 sm:mt-8 px-5 py-2 bg-emerald-500/10 text-emerald-500 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-emerald-500 group-hover:text-black transition-all">
                   Start Learning
                 </div>
               </div>
             </Link>
           </ScrollReveal>
 
-          <ScrollReveal delay={0.3}>
+          <ScrollReveal delay={0.3} className="sm:col-span-2 md:col-span-1">
             <Link to="/profile" className="group">
-              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-amber-500/30 hover:bg-[#121212] relative overflow-hidden">
+              <div className="h-full bg-[#0f0f0f] border border-white/[0.03] rounded-2xl sm:rounded-[32px] p-6 sm:p-8 flex flex-col items-center text-center transition-all duration-300 hover:border-amber-500/30 hover:bg-[#121212] relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <User className="w-24 h-24 text-amber-500" />
+                  <User className="w-20 h-20 sm:w-24 sm:h-24 text-amber-500" />
                 </div>
-                <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
-                  <User className="w-8 h-8 text-black" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-amber-500 rounded-2xl flex items-center justify-center mb-5 sm:mb-6 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                  <User className="w-7 h-7 sm:w-8 sm:h-8 text-black" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-3 tracking-tight">Setup Profile</h3>
-                <p className="text-neutral-500 text-sm leading-relaxed">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Setup Profile</h3>
+                <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed">
                   Customize your personal profile and preferences to make the journal truly yours.
                 </p>
-                <div className="mt-8 px-6 py-2 bg-amber-500/10 text-amber-500 text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-amber-500 group-hover:text-black transition-all">
+                <div className="mt-6 sm:mt-8 px-5 py-2 bg-amber-500/10 text-amber-500 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full group-hover:bg-amber-500 group-hover:text-black transition-all">
                   Go to Profile
                 </div>
               </div>
@@ -477,29 +477,29 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 md:space-y-10">
       {/* Header */}
       <ScrollReveal>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 border-b border-white/[0.02] pb-6">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white uppercase tracking-tighter italic">Dashboard</h1>
-            <p className="text-neutral-500 mt-0.5 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase tracking-tighter italic">Dashboard</h1>
+            <p className="text-neutral-500 mt-1 text-xs font-medium uppercase tracking-widest">Performance analytics for your selected account.</p>
           </div>
         </div>
       </ScrollReveal>
 
       {/* Performance Section */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         <ScrollReveal delay={0.05}>
           <div className="flex items-center gap-3">
             <div className="bg-sky-500/10 p-1.5 rounded-lg border border-sky-500/20">
-              <TrendingUp className="w-5 h-5 text-sky-400" />
+              <TrendingUp className="w-4 h-4 text-sky-400" />
             </div>
-            <h3 className="text-xl font-black text-white uppercase tracking-[0.2em] italic">Performance Overview</h3>
+            <h3 className="text-sm font-black text-white uppercase tracking-[0.2em] italic">Performance Overview</h3>
           </div>
         </ScrollReveal>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
           {/* Gauges Grid - Dynamic span based on account type */}
           <div className={cn(
             "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5",
@@ -609,49 +609,49 @@ export default function Dashboard() {
       </div>
 
       {/* Secondary Stats & Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2">
           <ScrollReveal delay={0.5}>
             <motion.div 
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="bg-[#0f0f0f] border border-white/[0.03] rounded-[32px] p-8 shadow-sm h-full"
+              className="bg-[#0f0f0f] border border-white/[0.03] rounded-2xl md:rounded-[32px] p-5 md:p-8 shadow-sm h-full"
             >
               <div className="flex flex-col space-y-6 mb-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                   {/* Left: Balance Info */}
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center shrink-0">
                       <Wallet className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mb-1">Balance</p>
-                      <h3 className="text-3xl font-black text-white italic tracking-tighter">
+                      <h3 className="text-2xl md:text-3xl font-black text-white italic tracking-tighter">
                         {formatCurrency(stats?.currentBalance || 0)}
                       </h3>
                     </div>
                   </div>
 
-                  {/* Right: Date Selectors */}
-                  <div className="flex items-center gap-4">
-                    <div className="space-y-1">
+                  {/* Right: Date Selectors (Fully Stacked on mobile & Flex Row on Tablet+) */}
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-4 w-full sm:w-auto mt-2 sm:mt-0">
+                    <div className="space-y-1 w-full">
                       <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest pl-1">Start Date</p>
                       <div className="relative group">
                         <input 
                           type="date" 
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="bg-[#141414] border border-[#262626] rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
+                          className="w-full bg-[#141414] border border-[#262626] rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
                         />
                       </div>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 w-full">
                       <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest pl-1">End Date</p>
                       <div className="relative group">
                         <input 
                           type="date" 
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="bg-[#141414] border border-[#262626] rounded-xl px-4 py-2.5 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
+                          className="w-full bg-[#141414] border border-[#262626] rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-sky-500/50 transition-all cursor-pointer appearance-none"
                         />
                       </div>
                     </div>
@@ -659,7 +659,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex flex-wrap items-center gap-6 pt-4">
+                <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4 border-t border-white/[0.02]">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full bg-sky-500 ring-4 ring-sky-500/10" />
                     <span className="text-[10px] font-black text-neutral-400 uppercase tracking-widest">Account Balance</span>
@@ -675,7 +675,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="h-[400px] w-full">
+              <div className="h-[280px] sm:h-[320px] md:h-[380px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                     <defs>
@@ -761,12 +761,12 @@ export default function Dashboard() {
           </ScrollReveal>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6 md:space-y-8">
           {/* Advanced Metrics & Edge Score */}
           <ScrollReveal delay={0.6}>
             <motion.div 
               whileHover={{ y: -4, transition: { duration: 0.2 } }}
-              className="bg-[#141414] border border-[#262626] rounded-3xl p-8 space-y-8"
+              className="bg-[#141414] border border-[#262626] rounded-2xl md:rounded-3xl p-5 md:p-8 space-y-6 md:space-y-8"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white">Edge Score</h3>
@@ -912,9 +912,9 @@ function PerformanceGauge({ title, value, redLabel, greenLabel, percent, details
   const redDetail = details?.find((d: any) => d.color.includes('rose') || d.label.toLowerCase().includes('loss'));
 
   return (
-    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-5 flex flex-col items-center h-full transition-all duration-300 hover:border-sky-500/20 hover:bg-[#121212] relative group">
+    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-xl sm:rounded-[24px] p-4 sm:p-5 flex flex-col items-center h-full transition-all duration-300 hover:border-sky-500/20 hover:bg-[#121212] relative group">
       <div className="w-full text-center mb-1">
-        <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] italic opacity-80 group-hover:text-sky-400 transition-colors">
+        <p className="text-[9px] sm:text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em] italic opacity-80 group-hover:text-sky-400 transition-colors">
           {title}
         </p>
       </div>
@@ -1019,13 +1019,13 @@ function ProfitTargetVisual({ stats }: { stats: any }) {
   const targetEquity = stats.initialBalance + stats.profitTarget;
   
   return (
-    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-[24px] p-6 flex flex-col justify-between h-full group hover:border-sky-500/20 transition-all relative overflow-hidden">
+    <div className="bg-[#0f0f0f] border border-white/[0.03] rounded-2xl md:rounded-[24px] p-5 md:p-6 flex flex-col justify-between h-full group hover:border-sky-500/20 transition-all relative overflow-hidden">
       {/* Abstract Background Decoration */}
       <div className="absolute -top-16 -right-16 w-32 h-32 bg-sky-500/[0.02] blur-[60px] rounded-full group-hover:bg-sky-500/5 transition-colors" />
       
       <div className="space-y-1 relative z-10">
         <p className="text-[9px] font-black text-neutral-500 uppercase tracking-[0.15em] opacity-60 italic">Goal Tracking</p>
-        <h3 className="text-3xl font-black text-white tracking-tighter italic flex items-baseline gap-2">
+        <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tighter italic flex items-baseline gap-2">
           {formatCurrency(stats.profitTarget)}
           <span className="text-[9px] font-black text-neutral-600 not-italic uppercase tracking-widest leading-none opacity-40">Target</span>
         </h3>
