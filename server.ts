@@ -291,7 +291,7 @@ async function startServer() {
   // AI Proxy routes: Objective Trade Log and Trader Level Analyzer
   app.post("/api/gemini/analyze", async (req, res) => {
     try {
-      const { trades, accounts, language } = req.body;
+      const { trades, accounts, language, profileName } = req.body;
       if (!trades || !Array.isArray(trades)) {
         return res.status(400).json({ error: "No trade logs provided for analysis." });
       }
@@ -614,6 +614,10 @@ Requirements:
    - You MUST identify the specific hourly range(s) from the "PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN" above that suffer from the highest net losses or lowest win rates (e.g. negative Net PnL, highest losses count) and explicitly present them as peak unsuitable trading hours/sessions to avoid (ရှောင်ကြဉ်သင့်သော Trading Session များ / Trade session များ).
    - In your analysis (specifically in the "unsuitableTime" and "timeAnalysisDetails" fields in Burmese/English), clearly state these exact hour range(s), their total loss amount, and trade counts.
    - Provide direct feedback on why these specific hours are so risky and recommend actionable solutions to completely stay out of the market during these high-loss hourly slots.
+8. IMPORTANT TERMINOLOGY REQUIREMENT (CRITICAL USER REQUEST):
+   - You are STRICTLY FORBIDDEN from using the Burmese/Myanmar word "ကုန်သည်" or "ကုန်သည်ကြီး" to refer to the trader or user in any part of the generated text fields/reports.
+   - Instead, you MUST refer to the trader strictly using the English word "Trader" or, even better, using the specific trader's profile display name: "${profileName || 'Trader'}".
+   - For example, write sentences like: "ဒီ Trader (${profileName || 'Trader'}) ဟာ..." or "Trader (${profileName || 'Trader'}) အနေနဲ့..." instead of "ကုန်သည်သည်...". This applies to all sections, including primeTime, unsuitableTime, strengths, weaknesses, tradingEdge, recommendations, overview, levelDescription, etc.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys

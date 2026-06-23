@@ -390,7 +390,8 @@ export default function AISummary() {
         body: JSON.stringify({
           trades: filteredTrades,
           accounts: filteredAccounts,
-          language: selectedLanguage
+          language: selectedLanguage,
+          profileName: profileName
         }),
       });
 
