@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { useAccount } from '../lib/AccountContext';
+import { Link } from 'react-router-dom';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { TradingAccount, Trade, DailyPnL, TradeExit, Strategy } from '../types';
 import { 
@@ -182,8 +183,8 @@ export default function Journal() {
       return;
     }
 
-    if (!selectedAccountId || !user) {
-      toast.error('Please select an account first');
+    if (!user) {
+      toast.error('Please log in first');
       return;
     }
 
@@ -447,6 +448,12 @@ export default function Journal() {
       fetchStrategies().catch(err => console.error('Initial strategies fetch error:', err));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!accountsLoading && !selectedAccountId) {
+      setLoading(false);
+    }
+  }, [accountsLoading, selectedAccountId]);
 
   const fetchStrategies = async () => {
     try {
@@ -1001,6 +1008,48 @@ export default function Journal() {
 
       {loading ? (
         <LoadingState message="Decoding trade logs..." />
+      ) : !selectedAccountId || accounts.length === 0 ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative max-w-2xl mx-auto my-12 border border-[#262626] rounded-[40px] p-8 md:p-12 bg-gradient-to-br from-[#121212] to-[#080808] text-center space-y-8 shadow-2xl overflow-hidden"
+        >
+          {/* Decorative background gradients */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-l from-sky-500/5 to-transparent pointer-events-none blur-3xl rounded-full" />
+          <div className="absolute -bottom-24 -left-12 w-64 h-64 bg-sky-500/5 rounded-full blur-[85px] pointer-events-none" />
+
+          {/* Central Icon */}
+          <div className="mx-auto w-20 h-20 bg-sky-500/10 rounded-2xl flex items-center justify-center border border-sky-500/15 shadow-inner">
+            <Book className="w-10 h-10 text-sky-400" />
+          </div>
+
+          {/* Texts */}
+          <div className="space-y-3">
+            <h2 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tight">No Trade Logs Logged</h2>
+            <p className="text-xs md:text-sm text-neutral-400 font-medium leading-relaxed max-w-md mx-auto">
+              We couldn&apos;t find any trading accounts or active trade history. Get started by importing your trade logs from a CSV file or setting up a manual account in the Accounts section.
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-400/20 transition-all flex items-center justify-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              {isImporting ? "Importing..." : "Import CSV Logs"}
+            </button>
+            <Link 
+              to="/accounts"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs uppercase tracking-wider border border-[#262626] hover:border-neutral-700 transition-all flex items-center justify-center gap-2"
+            >
+              <Wallet className="w-4 h-4 text-sky-400" />
+              Manage Accounts
+            </Link>
+          </div>
+        </motion.div>
       ) : (
         <div className="space-y-12">
           <motion.div 
