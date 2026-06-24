@@ -60,9 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return timeB - timeA;
     });
 
-    // Limit to 150 most recent closed trades to ensure highly stable response times under Cloud Run/Vercel timeouts
-    if (processedTradesInput.length > 150) {
-      processedTradesInput = processedTradesInput.slice(0, 150);
+    // Limit to 1000 most recent closed trades to ensure highly stable response times under Cloud Run/Vercel timeouts
+    if (processedTradesInput.length > 1000) {
+      processedTradesInput = processedTradesInput.slice(0, 1000);
     }
 
     // Pre-calculate exact session performance statistics to pass as ground truth
