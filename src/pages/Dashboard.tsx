@@ -324,6 +324,33 @@ export default function Dashboard() {
     return allPoints;
   }, [trades, selectedAccount, startDate, endDate]);
 
+  const chartYDomain = React.useMemo(() => {
+    if (chartData.length === 0) return [0, 100000];
+    
+    const values: number[] = [];
+    chartData.forEach(p => {
+      if (typeof p.balance === 'number') values.push(p.balance);
+      if (typeof p.floor === 'number') values.push(p.floor);
+    });
+
+    if (selectedAccount?.account_type === 'Challenge' && stats?.profitTarget) {
+      values.push(stats.initialBalance + stats.profitTarget);
+    }
+
+    if (values.length === 0) return [0, 100000];
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min;
+    
+    // Add nice padding to the top and bottom
+    const padding = range === 0 ? min * 0.05 : range * 0.1;
+    const finalMin = Math.max(0, min - padding);
+    const finalMax = max + padding;
+
+    return [finalMin, finalMax];
+  }, [chartData, selectedAccount, stats]);
+
   const calendarDays = React.useMemo(() => {
     const today = new Date();
     const start = startOfMonth(today);
@@ -701,7 +728,14 @@ export default function Dashboard() {
                       fontWeight={800}
                       tickLine={false} 
                       axisLine={false}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
+                      domain={chartYDomain}
+                      tickFormatter={(value) => {
+                        const range = chartYDomain[1] - chartYDomain[0];
+                        if (range < 5000) {
+                          return `$${(value / 1000).toFixed(1)}K`;
+                        }
+                        return `$${(value / 1000).toFixed(0)}K`;
+                      }}
                       dx={-10}
                     />
                     <Tooltip 
