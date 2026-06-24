@@ -563,10 +563,71 @@ async function startServer() {
         strictlyUnprofitableText = "No specific hour slots with net losses found.";
       }
 
+      // Mathematically calculate precise Trading Edge parameters on server to guarantee 100% logical correctness
+      const closedTrades = processedTradesInput.filter((t: any) => t.status === 'CLOSED');
+      const totalTradesCount = closedTrades.length;
+      const winningTradesCount = closedTrades.filter((t: any) => (Number(t.pnl) || 0) > 0).length;
+      const losingTradesCount = closedTrades.filter((t: any) => (Number(t.pnl) || 0) <= 0).length;
+      const overallWinRate = totalTradesCount > 0 ? Math.round((winningTradesCount / totalTradesCount) * 100) : 0;
+      const overallNetPnL = closedTrades.reduce((sum: number, t: any) => sum + (Number(t.pnl) || 0), 0);
+
+      const winningPnLs = closedTrades.filter((t: any) => (Number(t.pnl) || 0) > 0).map((t: any) => Number(t.pnl) || 0);
+      const losingPnLs = closedTrades.filter((t: any) => (Number(t.pnl) || 0) <= 0).map((t: any) => Number(t.pnl) || 0);
+
+      const avgWin = winningPnLs.length > 0 ? winningPnLs.reduce((a, b) => a + b, 0) / winningPnLs.length : 0;
+      const avgLoss = losingPnLs.length > 0 ? Math.abs(losingPnLs.reduce((a, b) => a + b, 0) / losingPnLs.length) : 0;
+
+      const expectancy = totalTradesCount > 0 ? overallNetPnL / totalTradesCount : 0;
+
+      // A trader has a trading edge if overall net profit is positive and expectancy is positive
+      const mathHasTradingEdge = overallNetPnL > 0 && expectancy > 0 && (overallWinRate >= 40 || expectancy > avgLoss * 0.1);
+
+      let mathTradingEdgePercentage = 0;
+      if (totalTradesCount > 0) {
+        if (mathHasTradingEdge) {
+          const totalWinsAmount = winningPnLs.reduce((a, b) => a + b, 0);
+          const totalLossesAmount = losingPnLs.length > 0 ? Math.abs(losingPnLs.reduce((a, b) => a + b, 0)) : 1;
+          const profitFactor = totalWinsAmount / totalLossesAmount;
+
+          // Score based on win rate (up to 50 points)
+          const winRateScore = overallWinRate * 0.5;
+
+          // Score based on profit factor (up to 50 points)
+          let pfScore = 0;
+          if (profitFactor >= 2.5) {
+            pfScore = 50;
+          } else if (profitFactor >= 1.5) {
+            pfScore = 35 + (profitFactor - 1.5) * 15;
+          } else if (profitFactor >= 1.0) {
+            pfScore = 15 + (profitFactor - 1.0) * 40;
+          } else {
+            pfScore = profitFactor * 15;
+          }
+
+          const combinedScore = winRateScore + pfScore;
+          // Clamp between 36% (incipient edge) and 100%
+          mathTradingEdgePercentage = Math.max(36, Math.min(100, Math.round(combinedScore)));
+        } else {
+          // No edge
+          if (overallNetPnL > -100 && overallWinRate >= 40) {
+            mathTradingEdgePercentage = Math.max(25, Math.min(35, Math.round(overallWinRate * 0.7)));
+          } else {
+            mathTradingEdgePercentage = Math.max(0, Math.min(24, Math.round(overallWinRate * 0.4)));
+          }
+        }
+      }
+
       const prompt = `You are an expert AI trading coach and quantitative analyst. Analyze the following trading logs and account setups to provide a completely objective, honest, and professional evaluation of the trader's level, strategy, trading edge, strengths, weaknesses, and actionable recommendations.
 
 Account setups:
 ${JSON.stringify(formattedAccounts, null, 2)}
+
+PRE-CALCULATED MATHEMATICAL TRADING EDGE EVALUATION (USE THIS AS THE ONLY GROUND TRUTH SOURCE FOR EDGE FIELDS):
+- Has Trading Edge: ${mathHasTradingEdge}
+- Trading Edge Score: ${mathTradingEdgePercentage}%
+- Overall Win Rate: ${overallWinRate}%
+- Total Net PnL: $${overallNetPnL.toFixed(2)}
+- Profit Factor: ${(winningPnLs.reduce((a, b) => a + b, 0) / (losingPnLs.length > 0 ? Math.abs(losingPnLs.reduce((a, b) => a + b, 0)) : 1)).toFixed(2)}
 
 PRE-CALCULATED ACTUAL SESSION STATISTICS (USE THIS AS THE ABSOLUTE TRUTH SOURCE FOR TIME ANALYSIS):
 1. US Morning AM Session (09:30 AM - 11:30 AM EST):
@@ -618,6 +679,14 @@ Requirements:
    - You are STRICTLY FORBIDDEN from using the Burmese/Myanmar word "ကုန်သည်" or "ကုန်သည်ကြီး" to refer to the trader or user in any part of the generated text fields/reports.
    - Instead, you MUST refer to the trader strictly using the English word "Trader" or, even better, using the specific trader's profile display name: "${profileName || 'Trader'}".
    - For example, write sentences like: "ဒီ Trader (${profileName || 'Trader'}) ဟာ..." or "Trader (${profileName || 'Trader'}) အနေနဲ့..." instead of "ကုန်သည်သည်...". This applies to all sections, including primeTime, unsuitableTime, strengths, weaknesses, tradingEdge, recommendations, overview, levelDescription, etc.
+9. TRADING EDGE PERCENTAGE DIRECTIVE:
+   - You MUST use the exact pre-calculated "Has Trading Edge" value (${mathHasTradingEdge}) and "Trading Edge Score" value (${mathTradingEdgePercentage}%) provided in the "PRE-CALCULATED MATHEMATICAL TRADING EDGE EVALUATION" section above for the output fields "hasTradingEdge" and "tradingEdgePercentage" to guarantee absolute consistency with the trader's actual logs. Do not generate or compute any other values for these specific fields.
+10. TRADING EDGE IMPROVEMENT ACTIONS (DO's & DON'Ts):
+    - You MUST identify 3-5 specific actionable practices the trader should execute (edgeActionsTodo) and 3-5 negative habits/actions the trader must avoid (edgeActionsAvoid) to establish, maintain, or grow an active Trading Edge.
+    - Ground these recommendations strictly on their actual logs (e.g. if they lose in Afternoon, "do" should include avoiding the afternoon session, and "avoid" should include trading after 1:30 PM EST).
+11. TRADER PSYCHOLOGY & EMOTIONAL DISCIPLINES ANALYSIS:
+    - You MUST perform a deep, rigorous psychology review (psychologyAnalysis) based on actual trading numbers. Look for indicators of FOMO (entering late on big candles), Revenge Trading (multiple rapid trades after a big loss), Overtrading (high trade volume in short spans), Greed/Fear (cutting winners too early, holding massive losses).
+    - Address why these happen (e.g., trying to recover losses, fear of losing money, lack of structured plan) and provide actionable, direct, step-by-step methods to overcome these psychological hurdles (e.g., hard stop limits, breathing exercises, pre-trade check lists, trading rules). Write this analysis in-depth, completely matching the user's selected language.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
@@ -674,6 +743,14 @@ ${languageInstructions}`;
             type: Type.STRING,
             description: "An objective analysis of their strategy, asset preference, and timing that seems to yield positive results (their trading edge).",
           },
+          hasTradingEdge: {
+            type: Type.BOOLEAN,
+            description: "Whether the trader mathematically has an active trading edge (true/false) based on overall profitability and consistency.",
+          },
+          tradingEdgePercentage: {
+            type: Type.INTEGER,
+            description: "An integer from 0 to 100 indicating the computed quality/strength score of their trading edge.",
+          },
           strengths: {
             type: Type.ARRAY,
             items: { type: Type.STRING },
@@ -704,6 +781,20 @@ ${languageInstructions}`;
           timeAnalysisDetails: {
             type: Type.STRING,
             description: "A highly detailed, comprehensive breakdown of profits/losses, win rates, and holding times across different time brackets or trading sessions.",
+          },
+          edgeActionsTodo: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "List of 3-5 specific actions or rules the trader should DO to get, improve, or sustain their trading edge.",
+          },
+          edgeActionsAvoid: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "List of 3-5 negative actions, times, or behaviors the trader must AVOID to prevent ruining their edge.",
+          },
+          psychologyAnalysis: {
+            type: Type.STRING,
+            description: "A deep, thorough psychological and discipline review of the trader based on actual data. Diagnose FOMO, revenge trading, greed, fear, or overtrading, explain why they happen, and provide explicit steps to overcome them.",
           }
         },
         required: [
@@ -715,13 +806,18 @@ ${languageInstructions}`;
           "traderLevel",
           "levelDescription",
           "tradingEdge",
+          "hasTradingEdge",
+          "tradingEdgePercentage",
           "strengths",
           "weaknesses",
           "recommendations",
           "overview",
           "primeTime",
           "unsuitableTime",
-          "timeAnalysisDetails"
+          "timeAnalysisDetails",
+          "edgeActionsTodo",
+          "edgeActionsAvoid",
+          "psychologyAnalysis"
         ]
       };
 
@@ -763,7 +859,7 @@ ${languageInstructions}`;
             try {
               console.log(`[AI Analysis Fallback] Attempting plain text fallback with model: ${modelName}`);
               const ai = new GoogleGenAI({ apiKey });
-              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails".`;
+              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "hasTradingEdge", "tradingEdgePercentage", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails", "edgeActionsTodo", "edgeActionsAvoid", "psychologyAnalysis".`;
               const response = await ai.models.generateContent({
                 model: modelName,
                 contents: fallbackPrompt
@@ -801,6 +897,11 @@ ${languageInstructions}`;
 
       const sanitizedResponse = cleanModelJsonString(successResponseText.trim());
       const parsedData = JSON.parse(sanitizedResponse);
+
+      // Ensure 100% mathematical accuracy by overriding with computed truth fields
+      parsedData.hasTradingEdge = mathHasTradingEdge;
+      parsedData.tradingEdgePercentage = mathTradingEdgePercentage;
+
       res.json(parsedData);
     } catch (error: any) {
       console.error("AI Analysis final endpoint failure:", error);

@@ -36,6 +36,8 @@ interface AIResult {
   traderLevel: string;
   levelDescription: string;
   tradingEdge: string;
+  hasTradingEdge: boolean;
+  tradingEdgePercentage: number;
   strengths: string[];
   weaknesses: string[];
   recommendations: string[];
@@ -43,6 +45,9 @@ interface AIResult {
   primeTime: string;
   unsuitableTime: string;
   timeAnalysisDetails: string;
+  edgeActionsTodo: string[];
+  edgeActionsAvoid: string[];
+  psychologyAnalysis: string;
 }
 
 const translations: Record<string, any> = {
@@ -79,9 +84,17 @@ const translations: Record<string, any> = {
     totalTradesLabel: "Total Trades",
     winsLossesLabel: "Wins / Losses",
     netPnlLabel: "Total Net PnL",
+    tradingEdgeScoreLabel: "Trading Edge Score",
+    hasEdgeLabel: "Trading Edge ရှိမရှိ",
+    hasEdgeYes: "ရှိပါသည်",
+    hasEdgeNo: "မရှိပါ",
     strengthsTitle: "ကျွမ်းကျင်မှု အားသာချက်များ (Strengths)",
     weaknessesTitle: "ပြတ်ယွင်းချက် အားနည်းချက်များ (Weaknesses)",
     tradingEdgeTitle: "Trading Edge & Strategy Consistency",
+    edgeImprovementTitle: "Trading Edge ပိုကောင်းလာစေရန် ပြင်ဆင်ချက်များ (Do's & Don'ts)",
+    edgeDoLabel: "ဆောင်ရွက်ရမည့် အချက်များ (Do's)",
+    edgeAvoidLabel: "ရှောင်ကြဉ်ရမည့် အချက်များ (Avoids)",
+    psychologyTitle: "ကုန်သွယ်သူ၏ စိတ်ဓာတ်ပိုင်းဆိုင်ရာ ဆန်းစစ်ချက် (Trader Psychology Analysis)",
     recommendationsTitle: "အကြံပြု ပြုပြင်ချက်များ (Recommendations)",
     overviewTitle: "ပြုပြင်တိုးတက်မှု သုံးသပ်ချက်အနှစ်ချုပ် (Overview Report)",
     readyTitle: "AI Report ဆန်းစစ်မှုစတင်ရန် အဆင်သင့်ရှိပါသည်",
@@ -130,9 +143,17 @@ const translations: Record<string, any> = {
     totalTradesLabel: "Total Trades",
     winsLossesLabel: "Wins / Losses",
     netPnlLabel: "Total Net PnL",
+    tradingEdgeScoreLabel: "Trading Edge Score",
+    hasEdgeLabel: "Has Trading Edge",
+    hasEdgeYes: "Yes",
+    hasEdgeNo: "No",
     strengthsTitle: "Trading Strengths",
     weaknessesTitle: "Areas of Weakness",
     tradingEdgeTitle: "Trading Edge & Strategy Consistency",
+    edgeImprovementTitle: "Trading Edge Improvement Guidelines (Do's & Don'ts)",
+    edgeDoLabel: "Actions to Do (Establish Edge)",
+    edgeAvoidLabel: "Actions to Avoid (Protect Edge)",
+    psychologyTitle: "Trader Psychology & Discipline Analysis",
     recommendationsTitle: "Actionable Recommendations",
     overviewTitle: "Overview Performance Report",
     readyTitle: "AI Diagnostic Analysis Ready",
@@ -181,9 +202,17 @@ const translations: Record<string, any> = {
     totalTradesLabel: "จำนวนบันทึกเทรดทั้งหมด",
     winsLossesLabel: "ชนะ / แพ้",
     netPnlLabel: "กำไรขาดทุนสุทธิสะสม",
+    tradingEdgeScoreLabel: "คะแนนแต้มต่อกลยุทธ์ (Trading Edge Score)",
+    hasEdgeLabel: "มีแต้มต่อระบบเทรด (Has Edge)",
+    hasEdgeYes: "มีแต้มต่อ (Yes)",
+    hasEdgeNo: "ไม่มีแต้มต่อ (No)",
     strengthsTitle: "จุดแข็งและการเข้าออเดอร์ที่ดี (Strengths)",
     weaknessesTitle: "จุดบกพร่องที่ควรระวังปรับปรุง (Weaknesses)",
     tradingEdgeTitle: "การรักษาความสสม่ำเสมอของกลยุทธ์ (Trading Edge)",
+    edgeImprovementTitle: "แนวทางปรับปรุงแต้มต่อระบบเทรด (Do's & Don'ts)",
+    edgeDoLabel: "สิ่งที่ควรปฏิบัติ (Do's)",
+    edgeAvoidLabel: "สิ่งที่ควรหลีกเลี่ยง (Avoids)",
+    psychologyTitle: "การวิเคราะห์สภาวะทางอารมณ์และจิตวิทยาของเทรดเดอร์ (Trader Psychology)",
     recommendationsTitle: "คำแนะนำและการปฏิบัติตัว (Recommendations)",
     overviewTitle: "บทสรุปและรายงานเชิงคุณภาพ (Overview Report)",
     readyTitle: "พร้อมวิเคราะห์ผลงานเทรดของท่านแล้ว",
@@ -330,8 +359,16 @@ export default function AISummary() {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setResult(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        // If it's an old cached result that does not have the new fields, invalidate and delete it
+        if (!parsed || typeof parsed !== 'object' || !parsed.psychologyAnalysis || !parsed.edgeActionsTodo) {
+          localStorage.removeItem(cacheKey);
+          setResult(null);
+        } else {
+          setResult(parsed);
+        }
       } catch (e) {
+        localStorage.removeItem(cacheKey);
         setResult(null);
       }
     } else {
@@ -860,6 +897,78 @@ export default function AISummary() {
                     </div>
                   </div>
 
+                  {/* Trading Edge Performance Indicator */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Has Edge Card */}
+                    <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 flex items-center justify-between relative overflow-hidden">
+                      <div className="space-y-1.5 z-10">
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">{t.hasEdgeLabel}</span>
+                        <div className="flex items-center gap-2.5">
+                          {result.hasTradingEdge ? (
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-xl font-extrabold text-emerald-400 uppercase tracking-tight">{t.hasEdgeYes}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                              <span className="text-xl font-extrabold text-rose-400 uppercase tracking-tight">{t.hasEdgeNo}</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-neutral-400 font-medium">
+                          {result.hasTradingEdge 
+                            ? (selectedLanguage === 'my' ? "စာရင်းဇယားအရ ဈေးကွက်ထက် သာလွန်သော အားသာချက်ရှိသည်" : "Statistical data confirms positive market expectancy")
+                            : (selectedLanguage === 'my' ? "စာရင်းဇယားအရ ဈေးကွက်ထက် သာလွန်သော အားသာချက် မတွေ့ရှိသေးပါ" : "No distinct positive expectancy identified in this period")
+                          }
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-[#1b1b1b] border border-[#2d2d2d] rounded-xl flex items-center justify-center">
+                        {result.hasTradingEdge ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                        ) : (
+                          <XCircle className="w-6 h-6 text-rose-500" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Edge Score Card */}
+                    <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 flex flex-col justify-between space-y-3 relative overflow-hidden">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">{t.tradingEdgeScoreLabel}</span>
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                          result.tradingEdgePercentage >= 76 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                          result.tradingEdgePercentage >= 51 ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
+                          result.tradingEdgePercentage >= 36 ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-400" :
+                          "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                        )}>
+                          {result.tradingEdgePercentage >= 76 ? (selectedLanguage === 'my' ? "အလွန်ကောင်းမွန်" : "Outstanding") :
+                           result.tradingEdgePercentage >= 51 ? (selectedLanguage === 'my' ? "အားကောင်းသော" : "Strong") :
+                           result.tradingEdgePercentage >= 36 ? (selectedLanguage === 'my' ? "အသင့်အတင့်" : "Incipient") :
+                           (selectedLanguage === 'my' ? "မရှိသေးပါ" : "No Edge")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl font-black text-white tracking-tight leading-none">
+                          {result.tradingEdgePercentage || 0}%
+                        </span>
+                        <div className="flex-1 bg-[#1a1a1a] h-2.5 rounded-full overflow-hidden p-[1px] border border-[#2a2a2a] relative">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-1000",
+                              result.tradingEdgePercentage >= 76 ? "bg-gradient-to-r from-emerald-500 to-teal-500" :
+                              result.tradingEdgePercentage >= 51 ? "bg-gradient-to-r from-cyan-500 to-blue-500" :
+                              result.tradingEdgePercentage >= 36 ? "bg-gradient-to-r from-amber-500 to-yellow-500" :
+                              "bg-gradient-to-r from-rose-500 to-red-500"
+                            )}
+                            style={{ width: `${result.tradingEdgePercentage || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Time-Based Performance Analysis (ကုန်သွယ်ချိန် ဆန်းစစ်ချက်) */}
                   <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-6">
                     <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
@@ -967,6 +1076,76 @@ export default function AISummary() {
                     <p className="text-sm text-neutral-300 leading-relaxed font-medium">
                       {result.tradingEdge}
                     </p>
+                  </div>
+
+                  {/* Trading Edge Improvement Actions (Do's & Don'ts) */}
+                  <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-6">
+                    <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                      <div className="w-7 h-7 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/15">
+                        <Sparkles className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                        {t.edgeImprovementTitle}
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Do's (ဆောင်ရန်များ) */}
+                      <div className="bg-[#101914] border border-emerald-950/40 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+                        <div className="flex items-center gap-2 border-b border-emerald-950/30 pb-2.5">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          <h4 className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest">
+                            {t.edgeDoLabel}
+                          </h4>
+                        </div>
+                        <ul className="space-y-3">
+                          {(result.edgeActionsTodo || []).map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-neutral-200 leading-relaxed font-medium">
+                              <span className="text-emerald-400 font-bold block mt-0.5">•</span>
+                              <span className="flex-1">{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Don'ts / Avoids (ရှောင်ရန်များ) */}
+                      <div className="bg-[#1c1214] border border-rose-950/40 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+                        <div className="flex items-center gap-2 border-b border-rose-950/30 pb-2.5">
+                          <XCircle className="w-5 h-5 text-rose-400" />
+                          <h4 className="text-xs font-extrabold text-rose-400 uppercase tracking-widest">
+                            {t.edgeAvoidLabel}
+                          </h4>
+                        </div>
+                        <ul className="space-y-3">
+                          {(result.edgeActionsAvoid || []).map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-neutral-200 leading-relaxed font-medium">
+                              <span className="text-rose-400 font-bold block mt-0.5">•</span>
+                              <span className="flex-1">{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trader Psychology Analysis Block */}
+                  <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-5">
+                    <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                      <div className="w-7 h-7 bg-indigo-500/10 rounded-lg flex items-center justify-center border border-indigo-500/10">
+                        <Brain className="w-4 h-4 text-indigo-400" />
+                      </div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                        {t.psychologyTitle}
+                      </h3>
+                    </div>
+                    <div className="p-5 bg-[#0b0c10] border border-[#1a1b22] rounded-2xl relative overflow-hidden">
+                      <div className="absolute right-4 top-4 opacity-[0.02]">
+                        <Brain className="w-36 h-36 text-indigo-400" />
+                      </div>
+                      <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                        {result.psychologyAnalysis}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Actionable Recommendations Layout */}

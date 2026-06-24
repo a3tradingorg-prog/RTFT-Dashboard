@@ -52,7 +52,7 @@ export default function Trades() {
 
   useEffect(() => {
     if (!user) return;
-    fetchTrades().catch(err => console.error('Initial trades fetch error:', err));
+    fetchTrades(true).catch(err => console.error('Initial trades fetch error:', err));
     fetchAccounts().catch(err => console.error('Initial accounts fetch error in trades:', err));
 
     // Subscribe to realtime changes for trades
@@ -64,7 +64,7 @@ export default function Trades() {
         table: 'trades',
         filter: `user_id=eq.${user.id}`
       }, () => {
-        fetchTrades().catch(err => console.error('Realtime trades fetch error:', err));
+        fetchTrades(false).catch(err => console.error('Realtime trades fetch error:', err));
       })
       .subscribe();
 
@@ -92,8 +92,10 @@ export default function Trades() {
     }
   };
 
-  const fetchTrades = async () => {
-    setLoading(true);
+  const fetchTrades = async (showSpinner = true) => {
+    if (showSpinner) {
+      setLoading(true);
+    }
     try {
       const { data, error } = await supabase
         .from('trades')
@@ -109,7 +111,9 @@ export default function Trades() {
     } catch (error) {
       console.error('Error fetching trades:', error);
     } finally {
-      setLoading(false);
+      if (showSpinner) {
+        setLoading(false);
+      }
     }
   };
 
