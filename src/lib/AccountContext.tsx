@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './AuthContext';
-import { TradingAccount } from '../types';
+import { TradingAccount, Trade, DailyPnL } from '../types';
 
 interface AccountContextType {
   accounts: TradingAccount[];
@@ -10,6 +10,10 @@ interface AccountContextType {
   selectedAccount: TradingAccount | undefined;
   loading: boolean;
   refreshAccounts: () => Promise<void>;
+  cachedTrades: Record<string, Trade[]>;
+  setCachedTrades: (accountId: string, trades: Trade[]) => void;
+  cachedDailyPnls: Record<string, DailyPnL[]>;
+  setCachedDailyPnls: (accountId: string, dailyPnls: DailyPnL[]) => void;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
@@ -19,10 +23,20 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [selectedAccountId, setSelectedAccountIdState] = useState<string | null>(localStorage.getItem('selectedAccountId'));
   const [loading, setLoading] = useState(true);
+  const [cachedTrades, setCachedTradesState] = useState<Record<string, Trade[]>>({});
+  const [cachedDailyPnls, setCachedDailyPnlsState] = useState<Record<string, DailyPnL[]>>({});
 
   const setSelectedAccountId = (id: string) => {
     setSelectedAccountIdState(id);
     localStorage.setItem('selectedAccountId', id);
+  };
+
+  const setCachedTrades = (accountId: string, trades: Trade[]) => {
+    setCachedTradesState(prev => ({ ...prev, [accountId]: trades }));
+  };
+
+  const setCachedDailyPnls = (accountId: string, dailyPnls: DailyPnL[]) => {
+    setCachedDailyPnlsState(prev => ({ ...prev, [accountId]: dailyPnls }));
   };
 
   const fetchAccounts = async () => {
@@ -92,7 +106,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setSelectedAccountId, 
       selectedAccount, 
       loading,
-      refreshAccounts: fetchAccounts
+      refreshAccounts: fetchAccounts,
+      cachedTrades,
+      setCachedTrades,
+      cachedDailyPnls,
+      setCachedDailyPnls
     }}>
       {children}
     </AccountContext.Provider>

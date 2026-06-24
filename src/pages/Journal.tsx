@@ -65,7 +65,18 @@ const multipliers: Record<string, number> = {
 
 export default function Journal() {
   const { user } = useAuth();
-  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount, refreshAccounts, loading: accountsLoading } = useAccount();
+  const { 
+    accounts, 
+    selectedAccountId, 
+    setSelectedAccountId, 
+    selectedAccount, 
+    refreshAccounts, 
+    loading: accountsLoading,
+    cachedTrades,
+    setCachedTrades,
+    cachedDailyPnls,
+    setCachedDailyPnls
+  } = useAccount();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
@@ -474,7 +485,16 @@ export default function Journal() {
 
   useEffect(() => {
     if (selectedAccountId) {
-      fetchJournalData().catch(err => console.error('Initial journal data fetch error:', err));
+      const hasCache = cachedTrades[selectedAccountId] && cachedDailyPnls[selectedAccountId];
+      if (hasCache) {
+        setTrades(cachedTrades[selectedAccountId]);
+        setDailyPnls(cachedDailyPnls[selectedAccountId]);
+        setLoading(false);
+        // Silent update in background
+        fetchJournalData(true).catch(err => console.error('Silent background journal data fetch error:', err));
+      } else {
+        fetchJournalData(false).catch(err => console.error('Initial journal data fetch error:', err));
+      }
 
       const tradesSubscription = supabase
         .channel(`journal_trades_${selectedAccountId}`)
@@ -485,7 +505,7 @@ export default function Journal() {
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
           if (isImportingRef.current) return;
-          fetchJournalData().catch(err => console.error('Realtime trades fetch error:', err));
+          fetchJournalData(true).catch(err => console.error('Realtime trades fetch error:', err));
         })
         .subscribe();
 
@@ -499,7 +519,7 @@ export default function Journal() {
           // Since we can't easily filter by account_id on the exit table directly without a join in the filter
           // we'll just refresh if any exit changes. For better performance, we could filter by trade_ids.
           if (isImportingRef.current) return;
-          fetchJournalData().catch(err => console.error('Realtime exit fetch error:', err));
+          fetchJournalData(true).catch(err => console.error('Realtime exit fetch error:', err));
         })
         .subscribe();
 
@@ -512,7 +532,7 @@ export default function Journal() {
           filter: `account_id=eq.${selectedAccountId}`
         }, () => {
           if (isImportingRef.current) return;
-          fetchJournalData().catch(err => console.error('Realtime pnl fetch error:', err));
+          fetchJournalData(true).catch(err => console.error('Realtime pnl fetch error:', err));
         })
         .subscribe();
 
@@ -555,8 +575,12 @@ export default function Journal() {
           new Map(mappedTrades.map((t: any) => [t.id, t])).values()
         ) as Trade[];
         setTrades(uniqueTrades);
+        setCachedTrades(selectedAccountId, uniqueTrades);
       }
-      if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);
+      if (dailyPnlsRes.data) {
+        setDailyPnls(dailyPnlsRes.data);
+        setCachedDailyPnls(selectedAccountId, dailyPnlsRes.data);
+      }
     } catch (error) {
       console.error('Error fetching journal data:', error);
     } finally {

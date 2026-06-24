@@ -48,7 +48,16 @@ import { LoadingState } from '../components/LoadingState';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { accounts, selectedAccountId, selectedAccount, loading: accountsLoading } = useAccount();
+  const { 
+    accounts, 
+    selectedAccountId, 
+    selectedAccount, 
+    loading: accountsLoading,
+    cachedTrades,
+    setCachedTrades,
+    cachedDailyPnls,
+    setCachedDailyPnls
+  } = useAccount();
   const [trades, setTrades] = useState<Trade[]>([]);
   const [dailyPnls, setDailyPnls] = useState<DailyPnL[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +65,10 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  const fetchDashboardData = async (accId: string) => {
+  const fetchDashboardData = async (accId: string, silent = false) => {
     if (!accId) return;
     
+    if (!silent) setLoading(true);
     try {
       // Use specific columns to reduce data transfer size
       const [tradesRes, dailyPnlsRes] = await Promise.all([
@@ -78,13 +88,15 @@ export default function Dashboard() {
 
       if (tradesRes.data) {
         setTrades(tradesRes.data as Trade[]);
+        setCachedTrades(accId, tradesRes.data as Trade[]);
       }
       if (dailyPnlsRes.data) {
         setDailyPnls(dailyPnlsRes.data as DailyPnL[]);
+        setCachedDailyPnls(accId, dailyPnlsRes.data as DailyPnL[]);
       }
     } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
-      setError(err.message || 'Failed to load dashboard data');
+      if (!silent) setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -99,14 +111,25 @@ export default function Dashboard() {
         return;
       }
 
+      const hasCache = cachedTrades[selectedAccountId] && cachedDailyPnls[selectedAccountId];
+
       try {
-        setLoading(true);
-        setError(null);
-        setTrades([]);
-        setDailyPnls([]);
-        await fetchDashboardData(selectedAccountId);
+        if (hasCache) {
+          setTrades(cachedTrades[selectedAccountId]);
+          setDailyPnls(cachedDailyPnls[selectedAccountId]);
+          setLoading(false);
+          setError(null);
+          // Fetch update in the background silently
+          await fetchDashboardData(selectedAccountId, true);
+        } else {
+          setLoading(true);
+          setError(null);
+          setTrades([]);
+          setDailyPnls([]);
+          await fetchDashboardData(selectedAccountId, false);
+        }
       } catch (err: any) {
-        if (isActive) setError(err.message || 'Failed to load dashboard data');
+        if (isActive && !hasCache) setError(err.message || 'Failed to load dashboard data');
       }
     };
 
@@ -121,7 +144,7 @@ export default function Dashboard() {
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
         }, (payload: any) => {
-          if (isActive) fetchDashboardData(selectedAccountId);
+          if (isActive) fetchDashboardData(selectedAccountId, true);
         })
         .subscribe();
 
@@ -133,7 +156,7 @@ export default function Dashboard() {
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
         }, (payload: any) => {
-          if (isActive) fetchDashboardData(selectedAccountId);
+          if (isActive) fetchDashboardData(selectedAccountId, true);
         })
         .subscribe();
 
