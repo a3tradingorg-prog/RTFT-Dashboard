@@ -553,7 +553,7 @@ export default function Journal() {
         // Deduplicate trades by ID to prevent duplicate key errors
         const uniqueTrades = Array.from(
           new Map(mappedTrades.map((t: any) => [t.id, t])).values()
-        );
+        ) as Trade[];
         setTrades(uniqueTrades);
       }
       if (dailyPnlsRes.data) setDailyPnls(dailyPnlsRes.data);

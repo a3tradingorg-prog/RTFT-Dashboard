@@ -186,9 +186,10 @@ export default function Dashboard() {
   const stats = React.useMemo(() => {
     if (!selectedAccount) return null;
     
+    const initialBalance = Number(selectedAccount.initial_balance) || 0;
     const closedTrades = trades.filter(t => t.status === 'CLOSED');
     const totalPnl = closedTrades.reduce((acc, t) => acc + (Number(t.pnl) || 0), 0);
-    const currentBalance = selectedAccount.initial_balance + totalPnl;
+    const currentBalance = initialBalance + totalPnl;
     
     const winRate = closedTrades.length > 0 
       ? (closedTrades.filter(t => (Number(t.pnl) || 0) > 0).length / closedTrades.length) * 100 
@@ -232,19 +233,19 @@ export default function Dashboard() {
     const isConsistent = !hasConsistencyRule || (currentConsistencyRatio * 100) <= consistencyLimit;
 
     // Profit Target
-    const profitTarget = selectedAccount.profit_target || (selectedAccount.initial_balance * 0.1);
+    const profitTarget = Number(selectedAccount.profit_target) || (initialBalance * 0.1);
     const targetProgress = Math.min(100, Math.max(0, (totalPnl / profitTarget) * 100));
     const amountLeft = Math.max(0, profitTarget - totalPnl);
 
     // Trailing Drawdown
-    let peakBalance = selectedAccount.initial_balance;
-    let runningBal = selectedAccount.initial_balance;
+    let peakBalance = initialBalance;
+    let runningBal = initialBalance;
     trades.forEach(t => {
-      runningBal += (t.pnl || 0);
+      runningBal += (Number(t.pnl) || 0);
       if (runningBal > peakBalance) peakBalance = runningBal;
     });
     
-    const maxAllowedDrawdown = selectedAccount.max_drawdown || selectedAccount.initial_balance * 0.05;
+    const maxAllowedDrawdown = Number(selectedAccount.max_drawdown) || initialBalance * 0.05;
     const drawdownFloor = peakBalance - maxAllowedDrawdown;
     const distanceToFloor = Math.max(0, currentBalance - drawdownFloor);
     const drawdownPercent = ((peakBalance - currentBalance) / maxAllowedDrawdown) * 100;
@@ -284,16 +285,18 @@ export default function Dashboard() {
   const chartData = React.useMemo(() => {
     if (!selectedAccount) return [];
     
-    let currentBalance = selectedAccount.initial_balance;
-    let peakBalance = selectedAccount.initial_balance;
-    const maxDrawdown = selectedAccount.max_drawdown || selectedAccount.initial_balance * 0.05;
+    const initialBalance = Number(selectedAccount.initial_balance) || 0;
+    let currentBalance = initialBalance;
+    let peakBalance = initialBalance;
+    const maxDrawdown = Number(selectedAccount.max_drawdown) || initialBalance * 0.05;
+    const profitTarget = Number(selectedAccount.profit_target) || (initialBalance * 0.1);
     
     const allPoints = [{
       timestamp: 0,
       date: 'Start',
       balance: currentBalance,
       floor: currentBalance - maxDrawdown,
-      target: selectedAccount.initial_balance + (selectedAccount.profit_target || 0)
+      target: initialBalance + profitTarget
     }];
     
     const sortedTrades = [...trades]
@@ -310,7 +313,7 @@ export default function Dashboard() {
         date: format(tradeDate, 'MMM dd'),
         balance: currentBalance,
         floor: peakBalance - maxDrawdown,
-        target: selectedAccount.initial_balance + (selectedAccount.profit_target || 0)
+        target: initialBalance + profitTarget
       });
     });
 
@@ -329,12 +332,16 @@ export default function Dashboard() {
     
     const values: number[] = [];
     chartData.forEach(p => {
-      if (typeof p.balance === 'number') values.push(p.balance);
-      if (typeof p.floor === 'number') values.push(p.floor);
+      const b = Number(p.balance);
+      const f = Number(p.floor);
+      if (!isNaN(b)) values.push(b);
+      if (!isNaN(f)) values.push(f);
     });
 
     if (selectedAccount?.account_type === 'Challenge' && stats?.profitTarget) {
-      values.push(stats.initialBalance + stats.profitTarget);
+      const initBal = Number(selectedAccount.initial_balance) || 0;
+      const targetVal = initBal + Number(stats.profitTarget);
+      if (!isNaN(targetVal)) values.push(targetVal);
     }
 
     if (values.length === 0) return [0, 100000];
@@ -343,8 +350,8 @@ export default function Dashboard() {
     const max = Math.max(...values);
     const range = max - min;
     
-    // Add nice padding to the top and bottom
-    const padding = range === 0 ? min * 0.05 : range * 0.1;
+    // Add tight padding to the top and bottom so fluctuations are extremely clear
+    const padding = range === 0 ? min * 0.01 : range * 0.05;
     const finalMin = Math.max(0, min - padding);
     const finalMax = max + padding;
 

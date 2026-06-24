@@ -41,8 +41,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       if (data) {
-        const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values());
-        setAccounts(uniqueAccounts as TradingAccount[]);
+        const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values()) as TradingAccount[];
+        setAccounts(uniqueAccounts);
         if (uniqueAccounts.length > 0) {
           const savedId = localStorage.getItem('selectedAccountId');
           const exists = uniqueAccounts.some(a => a.id === savedId);
