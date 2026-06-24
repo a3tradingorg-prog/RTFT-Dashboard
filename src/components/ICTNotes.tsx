@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { 
   Zap, 
   Clock, 
@@ -7,12 +8,16 @@ import {
   TrendingUp, 
   ArrowRight, 
   Info, 
-  Calendar,
-  Activity,
-  Globe,
-  ShieldCheck,
-  MousePointer2,
-  ChevronRight
+  Calendar, 
+  Activity, 
+  Globe, 
+  ShieldCheck, 
+  MousePointer2, 
+  ChevronRight,
+  Download,
+  Copy,
+  Check,
+  FileCode
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScrollReveal } from './ScrollReveal';
@@ -90,9 +95,234 @@ const SESSIONS: SessionInfo[] = [
   }
 ];
 
+const FALLBACK_RTFT_SCRIPT = `//@version=5
+indicator("RTFT Time windows", overlay=true)
+
+// Group & Input settings
+show_asia     = input.bool(true, "Show Asia Session", group="Time Windows")
+asia_time     = input.string("1900-2100", "Asia Hours (NY Time)", group="Time Windows")
+asia_color    = input.color(color.new(#0ea5e9, 95), "Asia BG Color", group="Time Windows")
+
+show_london   = input.bool(true, "Show London Session", group="Time Windows")
+london_time   = input.string("0200-0500", "London Hours (NY Time)", group="Time Windows")
+london_color  = input.color(color.new(#10b981, 95), "London BG Color", group="Time Windows")
+
+show_preny    = input.bool(true, "Show Pre-NY Session", group="Time Windows")
+preny_time    = input.string("0700-0930", "Pre-NY Hours (NY Time)", group="Time Windows")
+preny_color   = input.color(color.new(#f59e0b, 95), "Pre-NY BG Color", group="Time Windows")
+
+show_nyam     = input.bool(true, "Show NY AM Session", group="Time Windows")
+nyam_time     = input.string("0930-1130", "NY AM Hours (NY Time)", group="Time Windows")
+nyam_color    = input.color(color.new(#ef4444, 95), "NY AM BG Color", group="Time Windows")
+
+show_pm       = input.bool(true, "Show PM Session", group="Time Windows")
+pm_time       = input.string("1330-1530", "PM Hours (NY Time)", group="Time Windows")
+pm_color      = input.color(color.new(#8b5cf6, 95), "PM BG Color", group="Time Windows")
+
+// Time-based check (America/New_York is standard)
+in_session(sess_time) =>
+    not na(time(timeframe.period, sess_time + ":23456", "America/New_York"))
+
+// Background coloring for each session
+bgcolor(in_session(asia_time) and show_asia ? asia_color : na, title="Asia Session")
+bgcolor(in_session(london_time) and show_london ? london_color : na, title="London Session")
+bgcolor(in_session(preny_time) and show_preny ? preny_color : na, title="Pre-NY Session")
+bgcolor(in_session(nyam_time) and show_nyam ? nyam_color : na, title="NY AM Session")
+bgcolor(in_session(pm_time) and show_pm ? pm_color : na, title="PM Session")
+`;
+
+const FALLBACK_SESSION_SCRIPT = `//@version=5
+indicator("Session indicator", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// Inputs
+show_asia     = input.bool(true, "Show Asia Session", group="Asia Session")
+asia_time     = input.string("1900-0000", "Asia Time Range", group="Asia Session")
+asia_color    = input.color(color.new(#0ea5e9, 93), "Asia Box Color", group="Asia Session")
+
+show_london   = input.bool(true, "Show London Session", group="London Session")
+london_time   = input.string("0200-0500", "London Time Range", group="London Session")
+london_color  = input.color(color.new(#10b981, 93), "London Box Color", group="London Session")
+
+show_ny       = input.bool(true, "Show NY Session", group="NY Session")
+ny_time       = input.string("0800-1200", "NY Time Range", group="NY Session")
+ny_color      = input.color(color.new(#ef4444, 93), "NY Box Color", group="NY Session")
+
+show_nyop     = input.bool(true, "Show True Day Open (NY Midnight Open)", group="True Day Open")
+nyop_color    = input.color(color.white, "NYOP Line Color", group="True Day Open")
+
+// Checking session time
+in_session_range(sess_time) =>
+    not na(time(timeframe.period, sess_time + ":23456", "America/New_York"))
+
+// Function to draw session boxes
+draw_session_box(show, sess_time, sess_color) =>
+    var box s_box = na
+    in_sess = in_session_range(sess_time) and show
+    is_new = in_sess and not in_sess[1]
+    
+    if is_new
+        s_box := box.new(left=bar_index, top=high, right=bar_index, bottom=low, bgcolor=sess_color, border_color=color.new(sess_color, 40), border_style=line.style_solid)
+    else if in_sess and not na(s_box)
+        box.set_right(s_box, bar_index)
+        box.set_top(s_box, math.max(box.get_top(s_box), high))
+        box.set_bottom(s_box, math.min(box.get_bottom(s_box), low))
+
+draw_session_box(show_asia, asia_time, asia_color)
+draw_session_box(show_london, london_time, london_color)
+draw_session_box(show_ny, ny_time, ny_color)
+
+// NY Midnight Open (00:00 New York Time)
+var float nyop_price = na
+var line nyop_line = na
+
+// Detect 00:00 NY open
+ny_midnight = time(timeframe.period, "0000-0005:23456", "America/New_York")
+is_new_ny_day = not na(ny_midnight) and na(ny_midnight[1])
+
+if is_new_ny_day
+    nyop_price := open
+    if show_nyop
+        nyop_line := line.new(bar_index, nyop_price, bar_index + 15, nyop_price, color=nyop_color, width=1, style=line.style_dashed)
+        label.new(bar_index, nyop_price, "True Day Open (NYOP)", color=color.new(color.black, 100), textcolor=nyop_color, style=label.style_label_lower_left, size=size.small)
+else if not na(nyop_line) and show_nyop
+    line.set_right(nyop_line, bar_index + 5)
+`;
+
 export default function ICTNotes() {
   const [activeSession, setActiveSession] = useState<string>(SESSIONS[0].name);
   const [showSeasonalInfo, setShowSeasonalInfo] = useState(false);
+  const [rtftScriptContent, setRtftScriptContent] = useState<string>(FALLBACK_RTFT_SCRIPT);
+  const [sessionScriptContent, setSessionScriptContent] = useState<string>(FALLBACK_SESSION_SCRIPT);
+  const [downloadingRtft, setDownloadingRtft] = useState(false);
+  const [downloadingSession, setDownloadingSession] = useState(false);
+  const [copiedRtft, setCopiedRtft] = useState(false);
+  const [copiedSession, setCopiedSession] = useState(false);
+
+  // Dynamically fetch both indicator scripts from user's Supabase bucket
+  React.useEffect(() => {
+    const fetchOfficialScripts = async () => {
+      // 1. Fetch RTFT Time windows
+      try {
+        const fileUrl = 'https://ewhzqililvghhbhhsosy.supabase.co/storage/v1/object/public/indicator%20scripts/RTFT%20Time%20windows.txt';
+        const response = await fetch(`/api/news-proxy?url=${encodeURIComponent(fileUrl)}`);
+        if (response.ok) {
+          const content = await response.text();
+          if (content && content.trim().length > 0 && !content.includes('<!DOCTYPE html>')) {
+            setRtftScriptContent(content);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch remote RTFT script, using fallback:", err);
+      }
+
+      // 2. Fetch Session indicator
+      try {
+        const fileUrl = 'https://ewhzqililvghhbhhsosy.supabase.co/storage/v1/object/public/indicator%20scripts/Session%20indicator.txt';
+        const response = await fetch(`/api/news-proxy?url=${encodeURIComponent(fileUrl)}`);
+        if (response.ok) {
+          const content = await response.text();
+          if (content && content.trim().length > 0 && !content.includes('<!DOCTYPE html>')) {
+            setSessionScriptContent(content);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch remote Session script, using fallback:", err);
+      }
+    };
+    fetchOfficialScripts();
+  }, []);
+
+  const triggerLocalDownload = (filename: string, contentToDownload: string) => {
+    const blob = new Blob([contentToDownload], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadRtft = async () => {
+    setDownloadingRtft(true);
+    try {
+      const fileUrl = 'https://ewhzqililvghhbhhsosy.supabase.co/storage/v1/object/public/indicator%20scripts/RTFT%20Time%20windows.txt';
+      const response = await fetch(`/api/news-proxy?url=${encodeURIComponent(fileUrl)}`);
+      if (response.ok) {
+        const content = await response.text();
+        if (content && content.trim().length > 0 && !content.includes('<!DOCTYPE html>')) {
+          triggerLocalDownload('RTFT_Time_windows.pine', content);
+          return;
+        }
+      }
+
+      const { data, error } = await supabase.storage
+        .from('indicator scripts')
+        .download('RTFT Time windows.txt');
+
+      if (error) {
+        console.warn("Could not fetch RTFT file from Supabase storage API:", error.message);
+        triggerLocalDownload('RTFT_Time_windows.pine', rtftScriptContent);
+      } else if (data) {
+        const text = await data.text();
+        triggerLocalDownload('RTFT_Time_windows.pine', text || rtftScriptContent);
+      } else {
+        triggerLocalDownload('RTFT_Time_windows.pine', rtftScriptContent);
+      }
+    } catch (err) {
+      console.error("Supabase Storage error:", err);
+      triggerLocalDownload('RTFT_Time_windows.pine', rtftScriptContent);
+    } finally {
+      setDownloadingRtft(false);
+    }
+  };
+
+  const handleDownloadSession = async () => {
+    setDownloadingSession(true);
+    try {
+      const fileUrl = 'https://ewhzqililvghhbhhsosy.supabase.co/storage/v1/object/public/indicator%20scripts/Session%20indicator.txt';
+      const response = await fetch(`/api/news-proxy?url=${encodeURIComponent(fileUrl)}`);
+      if (response.ok) {
+        const content = await response.text();
+        if (content && content.trim().length > 0 && !content.includes('<!DOCTYPE html>')) {
+          triggerLocalDownload('Session_indicator.pine', content);
+          return;
+        }
+      }
+
+      const { data, error } = await supabase.storage
+        .from('indicator scripts')
+        .download('Session indicator.txt');
+
+      if (error) {
+        console.warn("Could not fetch Session file from Supabase storage API:", error.message);
+        triggerLocalDownload('Session_indicator.pine', sessionScriptContent);
+      } else if (data) {
+        const text = await data.text();
+        triggerLocalDownload('Session_indicator.pine', text || sessionScriptContent);
+      } else {
+        triggerLocalDownload('Session_indicator.pine', sessionScriptContent);
+      }
+    } catch (err) {
+      console.error("Supabase Storage error:", err);
+      triggerLocalDownload('Session_indicator.pine', sessionScriptContent);
+    } finally {
+      setDownloadingSession(false);
+    }
+  };
+
+  const handleCopyRtft = () => {
+    navigator.clipboard.writeText(rtftScriptContent);
+    setCopiedRtft(true);
+    setTimeout(() => setCopiedRtft(false), 2000);
+  };
+
+  const handleCopySession = () => {
+    navigator.clipboard.writeText(sessionScriptContent);
+    setCopiedSession(true);
+    setTimeout(() => setCopiedSession(false), 2000);
+  };
 
   // Determine current time standard (DST vs ST)
   // DST in US: 2nd Sunday of March to 1st Sunday of Nov
@@ -324,6 +554,175 @@ export default function ICTNotes() {
               </AnimatePresence>
             </div>
           </div>
+        </div>
+
+        {/* TradingView Pine Script Indicators Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 1: RTFT Time windows */}
+          <ScrollReveal>
+            <div className="h-full bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-[#262626] hover:border-sky-500/20 rounded-[32px] p-6 md:p-8 space-y-6 transition-all relative overflow-hidden group flex flex-col justify-between">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-sky-500/10 transition-colors" />
+              <div className="space-y-6 relative z-10 flex-1">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-sky-500/10 text-sky-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-sky-500/20">
+                      Indicator Tool
+                    </span>
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
+                      Pine Script v5
+                    </span>
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight italic">
+                    RTFT Time windows
+                  </h3>
+                  <p className="text-sm text-neutral-400 leading-relaxed font-medium">
+                    သင့်ရဲ့ TradingView chart ပေါ်မှာ RTFT (Real Time Frame Trading) ရဲ့ အဓိက Time windows အချိန်အပိုင်းအခြားတွေကို အလိုအလျောက် သတ်မှတ်ပြသပေးမယ့် Indicator Pine Script ဖြစ်ပါတယ်။
+                  </p>
+                </div>
+
+                <div className="flex flex-row gap-3 w-full">
+                  <button
+                    onClick={handleDownloadRtft}
+                    disabled={downloadingRtft}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-sky-500 text-black font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-sky-400 transition-all shadow-[0_4px_20px_rgba(14,165,233,0.25)] active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {downloadingRtft ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Download
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleCopyRtft}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-900 border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-neutral-800 transition-all hover:border-neutral-700 active:scale-95 cursor-pointer"
+                  >
+                    {copiedRtft ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Script
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Instruction Steps */}
+              <div className="border-t border-[#262626]/60 pt-6 mt-auto">
+                <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-sky-500" />
+                  How to use in TradingView (အသုံးပြုနည်း)
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { step: "01", text: "Download သို့မဟုတ် Copy နှိပ်ပြီး ကုဒ်များကို ရယူပါ။" },
+                    { step: "02", text: "TradingView တွင် 'Pine Editor' Tab ကို ဖွင့်ပါ။" },
+                    { step: "03", text: "ကုဒ်ဟောင်းများကို ဖြတ်ပြီး အသစ်ကို Paste လုပ်ပါ။" },
+                    { step: "04", text: "'Add to chart' နှိပ်ပြီး အသုံးပြုနိုင်ပါပြီ။" }
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-3 bg-[#0d0d0d]/40 border border-[#262626]/40 rounded-xl space-y-1">
+                      <span className="text-[10px] font-black text-sky-500 font-mono tracking-widest">{item.step}</span>
+                      <p className="text-[11px] text-neutral-400 font-medium leading-tight">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Card 2: Session indicator */}
+          <ScrollReveal>
+            <div className="h-full bg-gradient-to-br from-[#141414] to-[#0d0d0d] border border-[#262626] hover:border-violet-500/20 rounded-[32px] p-6 md:p-8 space-y-6 transition-all relative overflow-hidden group flex flex-col justify-between">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-violet-500/10 transition-colors" />
+              <div className="space-y-6 relative z-10 flex-1">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 bg-violet-500/10 text-violet-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-violet-500/20">
+                      Classic Tool
+                    </span>
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
+                      Pine Script v5
+                    </span>
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight italic">
+                    Session indicator
+                  </h3>
+                  <p className="text-sm text-neutral-400 leading-relaxed font-medium">
+                    စတင်သင်ယူစဉ်က အသုံးပြုခဲ့သော Indicator ဖြစ်ပြီး Asia, London, NY Session များကို Box များနှင့်အတူ True Day Open (NY Midnight Open - NYOP) ကိုပါ တပါတည်း ဖော်ပြပေးမှာ ဖြစ်ပါတယ်။
+                  </p>
+                </div>
+
+                <div className="flex flex-row gap-3 w-full">
+                  <button
+                    onClick={handleDownloadSession}
+                    disabled={downloadingSession}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-violet-500 text-black font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-violet-400 transition-all shadow-[0_4px_20px_rgba(139,92,246,0.25)] active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {downloadingSession ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Download
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleCopySession}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-900 border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-neutral-800 transition-all hover:border-neutral-700 active:scale-95 cursor-pointer"
+                  >
+                    {copiedSession ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        Copy Script
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Instruction Steps */}
+              <div className="border-t border-[#262626]/60 pt-6 mt-auto">
+                <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-violet-500" />
+                  How to use in TradingView (အသုံးပြုနည်း)
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { step: "01", text: "Download သို့မဟုတ် Copy နှိပ်ပြီး ကုဒ်များကို ရယူပါ။" },
+                    { step: "02", text: "TradingView တွင် 'Pine Editor' Tab ကို ဖွင့်ပါ။" },
+                    { step: "03", text: "ကုဒ်ဟောင်းများကို ဖြတ်ပြီး အသစ်ကို Paste လုပ်ပါ။" },
+                    { step: "04", text: "'Add to chart' နှိပ်ပြီး အသုံးပြုနိုင်ပါပြီ။" }
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-3 bg-[#0d0d0d]/40 border border-[#262626]/40 rounded-xl space-y-1">
+                      <span className="text-[10px] font-black text-violet-500 font-mono tracking-widest">{item.step}</span>
+                      <p className="text-[11px] text-neutral-400 font-medium leading-tight">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
