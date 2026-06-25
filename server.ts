@@ -687,6 +687,10 @@ Requirements:
 11. TRADER PSYCHOLOGY & EMOTIONAL DISCIPLINES ANALYSIS:
     - You MUST perform a deep, rigorous psychology review (psychologyAnalysis) based on actual trading numbers. Look for indicators of FOMO (entering late on big candles), Revenge Trading (multiple rapid trades after a big loss), Overtrading (high trade volume in short spans), Greed/Fear (cutting winners too early, holding massive losses).
     - Address why these happen (e.g., trying to recover losses, fear of losing money, lack of structured plan) and provide actionable, direct, step-by-step methods to overcome these psychological hurdles (e.g., hard stop limits, breathing exercises, pre-trade check lists, trading rules). Write this analysis in-depth, completely matching the user's selected language.
+12. RISK MANAGEMENT ANALYSIS & DIRECTIVES (DO'S & DON'TS):
+    - You MUST perform an expert, quantitative risk management review (riskAnalysis) based on actual trading numbers. Look for indicators of average win-to-loss ratio (avgWin / avgLoss), position size stability (standard deviation in quantity traded), drawdown severity, stop-loss adherence, and capital preservation capability.
+    - Provide 3-5 specific positive Actions to Do (riskActionsTodo) for protecting capital and managing risk (e.g., set maximum risk per trade to 1%, place structured stop-losses, reduce position sizes).
+    - Provide 3-5 negative Habits/Behaviors to Avoid (riskActionsAvoid) relating to risk management (e.g., holding trades without a stop-loss, scaling into losing positions, using excessive leverage / quantities, trading when highly emotional).
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
@@ -795,6 +799,20 @@ ${languageInstructions}`;
           psychologyAnalysis: {
             type: Type.STRING,
             description: "A deep, thorough psychological and discipline review of the trader based on actual data. Diagnose FOMO, revenge trading, greed, fear, or overtrading, explain why they happen, and provide explicit steps to overcome them.",
+          },
+          riskAnalysis: {
+            type: Type.STRING,
+            description: "An expert, quantitative risk management review of the trader based on their logs (analyzing average win-to-loss ratio, position sizes, drawdowns, and stop-loss behaviors).",
+          },
+          riskActionsTodo: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "List of 3-5 specific positive risk-management actions/rules the trader should DO to protect capital.",
+          },
+          riskActionsAvoid: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "List of 3-5 negative habits or actions the trader must AVOID to prevent catastrophic risk losses.",
           }
         },
         required: [
@@ -817,7 +835,10 @@ ${languageInstructions}`;
           "timeAnalysisDetails",
           "edgeActionsTodo",
           "edgeActionsAvoid",
-          "psychologyAnalysis"
+          "psychologyAnalysis",
+          "riskAnalysis",
+          "riskActionsTodo",
+          "riskActionsAvoid"
         ]
       };
 
@@ -859,7 +880,7 @@ ${languageInstructions}`;
             try {
               console.log(`[AI Analysis Fallback] Attempting plain text fallback with model: ${modelName}`);
               const ai = new GoogleGenAI({ apiKey });
-              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "hasTradingEdge", "tradingEdgePercentage", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails", "edgeActionsTodo", "edgeActionsAvoid", "psychologyAnalysis".`;
+              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "hasTradingEdge", "tradingEdgePercentage", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails", "edgeActionsTodo", "edgeActionsAvoid", "psychologyAnalysis", "riskAnalysis", "riskActionsTodo", "riskActionsAvoid".`;
               const response = await ai.models.generateContent({
                 model: modelName,
                 contents: fallbackPrompt

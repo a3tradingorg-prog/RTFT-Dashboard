@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Trade, TradingAccount } from '../types';
@@ -20,12 +20,15 @@ import {
   BookOpen,
   ArrowRight,
   Database,
-  ChevronDown
+  ChevronDown,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScrollReveal } from '../components/ScrollReveal';
 import { formatCurrency, formatPercent, cn } from '../lib/utils';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface AIResult {
   winRate: number;
@@ -48,6 +51,9 @@ interface AIResult {
   edgeActionsTodo: string[];
   edgeActionsAvoid: string[];
   psychologyAnalysis: string;
+  riskAnalysis: string;
+  riskActionsTodo: string[];
+  riskActionsAvoid: string[];
 }
 
 const translations: Record<string, any> = {
@@ -108,7 +114,13 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "ရွေးချယ်ထားသော accounts များတွင် closed trades များ မရှိသေးပါ။ trade အသစ်များ အရင်ထည့်ပေးပါ။",
     toastSuccessAnalysis: "AI Analysis အသစ်ကို အောင်မြင်စွာ တင်ဆက်လိုက်ပါပြီ။",
     toastErrorAnalyzing: "AI Analysis အချက်အလက်များအား လုပ်ဆောင်ရာတွင် ချို့ယွင်းချက်ရှိခဲ့ပါသည်။",
-    preparingText: "AI Trading Insights ကို တိကျစွာ တွက်ချက်ဆန်းစစ်နေပါသည်။ ခေတ္တစောင့်ဆိုင်းပေးပါ..."
+    preparingText: "AI Trading Insights ကို တိကျစွာ တွက်ချက်ဆန်းစစ်နေပါသည်။ ခေတ္တစောင့်ဆိုင်းပေးပါ...",
+    riskTitle: "Risk Management ဆန်းစစ်ချက် (Risk Management)",
+    riskDoLabel: "ဘေးကင်းစေရန် လိုက်နာဆောင်ရွက်ရန်များ (Risk Do's)",
+    riskAvoidLabel: "လုံးဝရှောင်ကြဉ်ရမည့် အချက်များ (Risk Avoids)",
+    downloadReport: "PDF Report ဒေါင်းလုဒ်လုပ်ရန်",
+    downloadingReport: "PDF ဆွဲနေပါသည်...",
+    downloadSuccess: "PDF Report ကို အောင်မြင်စွာ ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ!"
   },
   en: {
     title: "AI Trader Insight",
@@ -167,7 +179,13 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "There are no closed trades in the selected accounts. Please add closed trades first.",
     toastSuccessAnalysis: "Successfully generated fresh AI trading diagnostics!",
     toastErrorAnalyzing: "Encountered an issue running the AI model analysis.",
-    preparingText: "Analyzing your trading performance data with AI. Please wait..."
+    preparingText: "Analyzing your trading performance data with AI. Please wait...",
+    riskTitle: "Risk Management & Capital Protection Analysis",
+    riskDoLabel: "Risk Actions to Do (Capital Protection)",
+    riskAvoidLabel: "Risk Actions to Avoid (Avoid Ruin)",
+    downloadReport: "Download PDF Report",
+    downloadingReport: "Generating PDF...",
+    downloadSuccess: "PDF Report downloaded successfully!"
   },
   th: {
     title: "ข้อมูลเชิงลึก AI Trader",
@@ -226,8 +244,131 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "ไม่พบบันทึกการเทรดที่ปิดไปแล้วในบัญชีที่รวบรวม โปรดจัดการข้อมูลก่อน",
     toastSuccessAnalysis: "ทำการสร้างรายงานการวิเคราะห์เทรดด้วย AI สำเร็จเสร็จสิ้น",
     toastErrorAnalyzing: "เกิดข้อผิดพลาดในการประมวลผล AI กรุณาลองใหม่อีกครั้ง",
-    preparingText: "ระบบกำลังจำลองการเทรดและวิเคราะห์ด้วย AI อย่างเป็นระบบ โปรดรอสักครู่..."
+    preparingText: "ระบบกำลังจำลองการเทรดและวิเคราะห์ด้วย AI อย่างเป็นระบบ โปรดรอสักครู่...",
+    riskTitle: "การวิเคราะห์การจัดการความเสี่ยง (Risk Management Analysis)",
+    riskDoLabel: "สิ่งที่ควรทำเพื่อป้องกันความเสี่ยง (Risk Do's)",
+    riskAvoidLabel: "สิ่งที่ควรหลีกเลี่ยงเพื่อจำกัดความเสี่ยง (Risk Avoids)",
+    downloadReport: "ดาวน์โหลดรายงาน PDF",
+    downloadingReport: "กำลังสร้าง PDF...",
+    downloadSuccess: "ดาวน์โหลดรายงาน PDF สำเร็จแล้ว!"
   }
+};
+
+const tailwindColors: Record<string, string> = {
+  'slate-50': '#f8fafc', 'slate-100': '#f1f5f9', 'slate-200': '#e2e8f0', 'slate-300': '#cbd5e1', 'slate-400': '#94a3b8', 'slate-500': '#64748b', 'slate-600': '#475569', 'slate-700': '#334155', 'slate-800': '#1e293b', 'slate-900': '#0f172a', 'slate-950': '#020617',
+  'zinc-50': '#fafafa', 'zinc-100': '#f4f4f5', 'zinc-200': '#e4e4e7', 'zinc-300': '#d4d4d8', 'zinc-400': '#a1a1aa', 'zinc-500': '#71717a', 'zinc-600': '#52525b', 'zinc-700': '#3f3f46', 'zinc-800': '#27272a', 'zinc-900': '#18181b', 'zinc-950': '#09090b',
+  'neutral-50': '#fafafa', 'neutral-100': '#f5f5f5', 'neutral-200': '#e5e5e5', 'neutral-300': '#d4d4d4', 'neutral-400': '#a3a3a3', 'neutral-500': '#737373', 'neutral-600': '#525252', 'neutral-700': '#404040', 'neutral-800': '#262626', 'neutral-900': '#171717', 'neutral-950': '#0a0a0a',
+  'emerald-50': '#ecfdf5', 'emerald-100': '#d1fae5', 'emerald-200': '#a7f3d0', 'emerald-300': '#6ee7b7', 'emerald-400': '#34d399', 'emerald-500': '#10b981', 'emerald-600': '#059669', 'emerald-700': '#047857', 'emerald-800': '#065f46', 'emerald-900': '#064e3b', 'emerald-950': '#022c22',
+  'rose-50': '#fff1f2', 'rose-100': '#ffe4e6', 'rose-200': '#fecdd3', 'rose-300': '#fda4af', 'rose-400': '#fb7185', 'rose-500': '#f43f5e', 'rose-600': '#e11d48', 'rose-700': '#be123c', 'rose-800': '#9f1239', 'rose-900': '#881337', 'rose-950': '#4c051e',
+  'red-50': '#fef2f2', 'red-100': '#fee2e2', 'red-200': '#fecaca', 'red-300': '#fca5a5', 'red-400': '#f87171', 'red-500': '#ef4444', 'red-600': '#dc2626', 'red-700': '#b91c1c', 'red-800': '#991b1b', 'red-900': '#7f1d1d', 'red-950': '#450a0a',
+  'orange-50': '#fff7ed', 'orange-100': '#ffedd5', 'orange-200': '#fed7aa', 'orange-300': '#fdba74', 'orange-400': '#fb923c', 'orange-500': '#f97316', 'orange-600': '#ea580c', 'orange-700': '#c2410c', 'orange-800': '#9a3412', 'orange-900': '#7c2d12', 'orange-950': '#431407',
+  'amber-50': '#fffbeb', 'amber-100': '#fef3c7', 'amber-200': '#fde68a', 'amber-300': '#fcd34d', 'amber-400': '#fbbf24', 'amber-500': '#f59e0b', 'amber-600': '#d97706', 'amber-700': '#b45309', 'amber-800': '#92400e', 'amber-900': '#78350f', 'amber-950': '#451a03',
+  'blue-50': '#eff6ff', 'blue-100': '#dbeafe', 'blue-200': '#bfdbfe', 'blue-300': '#93c5fd', 'blue-400': '#60a5fa', 'blue-500': '#3b82f6', 'blue-600': '#2563eb', 'blue-700': '#1d4ed8', 'blue-800': '#1e40af', 'blue-900': '#1e3a8a', 'blue-950': '#172554',
+};
+
+function cleanCssOfUnsupportedColors(css: string): string {
+  if (!css) return '';
+  
+  // 1. Map Tailwind v4 CSS variables
+  let sanitized = css.replace(/--color-([a-z]+)-([0-9]+)\s*:\s*(?:oklch|oklab)\([^;\}]+\)/g, (match, color, shade) => {
+    const key = `${color}-${shade}`;
+    const hex = tailwindColors[key];
+    return hex ? `--color-${color}-${shade}: ${hex}` : match;
+  });
+
+  // 2. Map standard tailwindColors keys explicitly to prevent variable resolver issues
+  for (const [key, hex] of Object.entries(tailwindColors)) {
+    const regex = new RegExp(`--color-${key}\\s*:\\s*(?:oklch|oklab|color-mix|light-dark)\\([^;\\}]+\\)`, 'g');
+    sanitized = sanitized.replace(regex, `--color-${key}: ${hex}`);
+  }
+
+  // 3. Replace traditional oklch(...), oklab(...), color-mix(...), and light-dark(...) with static fallbacks
+  // We'll replace them using a robust parser that handles nested parens
+  const colorFunctions = ['oklch(', 'oklab(', 'color-mix(', 'light-dark('];
+  for (const func of colorFunctions) {
+    let index = sanitized.indexOf(func);
+    while (index !== -1) {
+      let depth = 1;
+      let i = index + func.length;
+      while (i < sanitized.length && depth > 0) {
+        if (sanitized[i] === '(') depth++;
+        else if (sanitized[i] === ')') depth--;
+        i++;
+      }
+      if (depth === 0) {
+        sanitized = sanitized.substring(0, index) + '#1a1a1a' + sanitized.substring(i);
+      } else {
+        break;
+      }
+      index = sanitized.indexOf(func);
+    }
+  }
+
+  // 4. Remove any CSS declarations (property: value;) that still contain 'oklch', 'oklab', 'color-mix', or 'light-dark'
+  // This is a safety fallback to completely clear out anything the parser missed
+  sanitized = sanitized.replace(/[^:;{}]+:\s*[^;{}]+(?:oklch|oklab|color-mix|light-dark)[^;{}]*(?:;|$)/g, '');
+
+  return sanitized;
+}
+
+const prepareSanitizedStyles = async () => {
+  const nodes = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'));
+  const sanitizedReplacements: (string | null)[] = new Array(nodes.length).fill(null);
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    try {
+      let cssText = '';
+      if (node.tagName.toLowerCase() === 'style') {
+        const styleEl = node as HTMLStyleElement;
+        // Try getting rules first (handles CSSOM)
+        if (styleEl.sheet) {
+          try {
+            const rules = styleEl.sheet.cssRules || styleEl.sheet.rules;
+            if (rules && rules.length > 0) {
+              cssText = Array.from(rules).map(rule => rule.cssText).join('\n');
+            }
+          } catch (e) {
+            // CSSOM rule reading might throw security error for some external/cross-origin sheets loaded via style tags
+          }
+        }
+        if (!cssText) {
+          cssText = styleEl.textContent || '';
+        }
+      } else if (node.tagName.toLowerCase() === 'link') {
+        const linkEl = node as HTMLLinkElement;
+        if (linkEl.sheet) {
+          try {
+            const rules = linkEl.sheet.cssRules || linkEl.sheet.rules;
+            if (rules && rules.length > 0) {
+              cssText = Array.from(rules).map(rule => rule.cssText).join('\n');
+            }
+          } catch (e) {
+            // ignore CORS errors
+          }
+        }
+        if (!cssText && linkEl.href && linkEl.href.startsWith(window.location.origin)) {
+          try {
+            const res = await fetch(linkEl.href);
+            if (res.ok) {
+              cssText = await res.text();
+            }
+          } catch (e) {
+            console.warn("Could not fetch href:", linkEl.href, e);
+          }
+        }
+      }
+
+      if (cssText) {
+        let sanitized = cleanCssOfUnsupportedColors(cssText);
+        sanitizedReplacements[i] = sanitized;
+      }
+    } catch (err) {
+      console.warn("Error processing style node:", node, err);
+    }
+  }
+
+  return sanitizedReplacements;
 };
 
 export default function AISummary() {
@@ -251,6 +392,8 @@ export default function AISummary() {
   const [profileName, setProfileName] = useState('TRADER');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // Simulated progress bar controller
   useEffect(() => {
@@ -361,7 +504,7 @@ export default function AISummary() {
       try {
         const parsed = JSON.parse(cached);
         // If it's an old cached result that does not have the new fields, invalidate and delete it
-        if (!parsed || typeof parsed !== 'object' || !parsed.psychologyAnalysis || !parsed.edgeActionsTodo) {
+        if (!parsed || typeof parsed !== 'object' || !parsed.psychologyAnalysis || !parsed.edgeActionsTodo || !parsed.riskAnalysis || !parsed.riskActionsTodo) {
           localStorage.removeItem(cacheKey);
           setResult(null);
         } else {
@@ -474,6 +617,144 @@ export default function AISummary() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    if (!result || !reportRef.current) return;
+    setDownloading(true);
+    const toastId = toast.loading(t.downloadingReport || "Generating PDF report...");
+
+    let tempStyleEl: HTMLStyleElement | null = null;
+    let clonedContainer: HTMLDivElement | null = null;
+
+    try {
+      // 1. Prepare and apply sanitized styles to the document head temporarily
+      const sanitizedStyles = await prepareSanitizedStyles();
+      tempStyleEl = document.createElement('style');
+      tempStyleEl.id = 'pdf-temp-sanitized-styles';
+      tempStyleEl.textContent = sanitizedStyles.filter(Boolean).join('\n');
+      document.head.appendChild(tempStyleEl);
+
+      // 2. Clone the report container and force consistent desktop layout for premium formatting
+      const originalElement = reportRef.current;
+      clonedContainer = document.createElement('div');
+      clonedContainer.id = 'pdf-cloned-container';
+      clonedContainer.innerHTML = originalElement.innerHTML;
+      
+      // Style the offscreen container to render as desktop width (1024px)
+      clonedContainer.style.width = '1024px';
+      clonedContainer.style.position = 'fixed';
+      clonedContainer.style.left = '-9999px';
+      clonedContainer.style.top = '0';
+      clonedContainer.style.padding = '24px';
+      clonedContainer.style.backgroundColor = '#0a0a0a';
+      clonedContainer.style.boxSizing = 'border-box';
+      clonedContainer.style.display = 'flex';
+      clonedContainer.style.flexDirection = 'column';
+      clonedContainer.style.gap = '24px'; // Matches 'space-y-6'
+      
+      document.body.appendChild(clonedContainer);
+
+      // 3. Extract all direct child card/section elements from the cloned container
+      const children = Array.from(clonedContainer.children) as HTMLElement[];
+
+      // 4. Initialize jsPDF (A4 is 210mm x 297mm)
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const marginX = 12;
+      const marginY = 12;
+      const imgWidth = 210 - (marginX * 2); // 186mm width
+      const pageHeight = 297;
+      const maxContentHeight = pageHeight - marginY; // 285mm
+      const cardGap = 5; // 5mm spacing between elements on the PDF page
+
+      let currentY = marginY;
+      let isFirstPage = true;
+
+      // Helper function to paint dark theme background on a PDF page
+      const paintDarkBackground = (doc: jsPDF) => {
+        doc.setFillColor(10, 10, 10); // #0a0a0a
+        doc.rect(0, 0, 210, 297, 'F');
+      };
+
+      // Paint dark theme background for the very first page
+      paintDarkBackground(pdf);
+
+      // 5. Render each child block using html2canvas and append intelligently
+      for (const child of children) {
+        if (!child || child.offsetHeight === 0) continue;
+
+        // Strip unsupported color formats inside the cloned child elements
+        const allSubElements = child.getElementsByTagName('*');
+        for (let i = 0; i < allSubElements.length; i++) {
+          const el = allSubElements[i] as HTMLElement;
+          const styleAttr = el.getAttribute('style');
+          if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab') || styleAttr.includes('color-mix') || styleAttr.includes('light-dark'))) {
+            el.setAttribute('style', cleanCssOfUnsupportedColors(styleAttr));
+          }
+          const fillAttr = el.getAttribute('fill');
+          if (fillAttr && (fillAttr.includes('oklch') || fillAttr.includes('oklab') || fillAttr.includes('color-mix') || fillAttr.includes('light-dark'))) {
+            el.setAttribute('fill', '#1a1a1a');
+          }
+          const strokeAttr = el.getAttribute('stroke');
+          if (strokeAttr && (strokeAttr.includes('oklch') || strokeAttr.includes('oklab') || strokeAttr.includes('color-mix') || strokeAttr.includes('light-dark'))) {
+            el.setAttribute('stroke', '#1a1a1a');
+          }
+        }
+
+        // Render the single card/block to a high-resolution canvas (scale 2.0 for crisp text/borders)
+        const canvas = await html2canvas(child, {
+          scale: 2.0,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: '#141414', // Default dark card color
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // If this element exceeds the remaining height on the current page, start a fresh page
+        if (currentY + imgHeight > maxContentHeight && !isFirstPage) {
+          pdf.addPage();
+          paintDarkBackground(pdf);
+          currentY = marginY;
+        }
+
+        // Add the image to the current PDF page
+        pdf.addImage(imgData, 'PNG', marginX, currentY, imgWidth, imgHeight, undefined, 'FAST');
+        currentY += imgHeight + cardGap;
+        isFirstPage = false;
+      }
+
+      // 6. Filename: account_name + Date_Timestamp
+      const selectedAccounts = accounts.filter(a => selectedAccountIds.includes(a.id));
+      const accountName = selectedAccounts.length > 0 
+        ? selectedAccounts.map(a => a.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_')).join('_')
+        : 'Accounts';
+      
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+      const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const timestamp = `${dateStr}_${timeStr}`;
+      
+      const filename = `${accountName}_${timestamp}.pdf`;
+      
+      pdf.save(filename);
+      toast.success(t.downloadSuccess || "PDF Report downloaded successfully!", { id: toastId });
+    } catch (err) {
+      console.error("PDF download error:", err);
+      toast.error("Failed to generate PDF download.", { id: toastId });
+    } finally {
+      // Clean up temporary elements and restore styles
+      if (tempStyleEl) {
+        tempStyleEl.remove();
+      }
+      if (clonedContainer) {
+        clonedContainer.remove();
+      }
+      setDownloading(false);
+    }
+  };
+
   const selectedTradesCount = trades.filter(t => selectedAccountIds.includes(t.account_id)).length;
 
   return (
@@ -493,18 +774,31 @@ export default function AISummary() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {result && (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={runAnalysis}
-                disabled={analyzing || !selectedLanguage || selectedAccountIds.length === 0}
-                className="flex items-center gap-2 bg-[#1a1a1a] hover:bg-[#222] text-neutral-300 border border-[#262626] px-5 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={cn("w-4 h-4", analyzing && "animate-spin")} />
-                {t.reAnalyze}
-              </motion.button>
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDownloadPDF}
+                  disabled={downloading}
+                  className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white border border-orange-700/50 px-5 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-orange-500/10"
+                >
+                  <FileDown className="w-4 h-4" />
+                  {t.downloadReport}
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={runAnalysis}
+                  disabled={analyzing || !selectedLanguage || selectedAccountIds.length === 0}
+                  className="flex items-center gap-2 bg-[#1a1a1a] hover:bg-[#222] text-neutral-300 border border-[#262626] px-5 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={cn("w-4 h-4", analyzing && "animate-spin")} />
+                  {t.reAnalyze}
+                </motion.button>
+              </>
             )}
           </div>
         </div>
@@ -817,6 +1111,8 @@ export default function AISummary() {
                 </motion.div>
               ) : result ? (
                 <motion.div
+                  ref={reportRef}
+                  data-pdf-content="true"
                   key="result"
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1145,6 +1441,64 @@ export default function AISummary() {
                       <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
                         {result.psychologyAnalysis}
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Risk Management Analysis Block */}
+                  <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-6">
+                    <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                      <div className="w-7 h-7 bg-red-500/10 rounded-lg flex items-center justify-center border border-red-500/15">
+                        <ShieldAlert className="w-4 h-4 text-red-400" />
+                      </div>
+                      <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                        {t.riskTitle}
+                      </h3>
+                    </div>
+
+                    {/* Detailed Analysis Paragraph */}
+                    <div className="p-5 bg-[#0b0c10] border border-[#1a1b22] rounded-2xl relative overflow-hidden">
+                      <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                        {result.riskAnalysis}
+                      </p>
+                    </div>
+
+                    {/* Do's & Don'ts grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Risk Do's */}
+                      <div className="bg-[#101914] border border-emerald-950/40 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+                        <div className="flex items-center gap-2 border-b border-emerald-950/30 pb-2.5">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          <h4 className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest">
+                            {t.riskDoLabel}
+                          </h4>
+                        </div>
+                        <ul className="space-y-3">
+                          {(result.riskActionsTodo || []).map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-neutral-200 leading-relaxed font-medium">
+                              <span className="text-emerald-400 font-bold block mt-0.5">•</span>
+                              <span className="flex-1">{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Risk Don'ts / Avoids */}
+                      <div className="bg-[#1c1214] border border-rose-950/40 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+                        <div className="flex items-center gap-2 border-b border-rose-950/30 pb-2.5">
+                          <XCircle className="w-5 h-5 text-rose-400" />
+                          <h4 className="text-xs font-extrabold text-rose-400 uppercase tracking-widest">
+                            {t.riskAvoidLabel}
+                          </h4>
+                        </div>
+                        <ul className="space-y-3">
+                          {(result.riskActionsAvoid || []).map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-xs text-neutral-200 leading-relaxed font-medium">
+                              <span className="text-rose-400 font-bold block mt-0.5">•</span>
+                              <span className="flex-1">{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { useAccount } from '../lib/AccountContext';
@@ -189,8 +190,12 @@ export default function Journal() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      toast.error('Please upload a valid CSV file');
+    const fileName = file.name.toLowerCase();
+    const isCsv = fileName.endsWith('.csv');
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
+    if (!isCsv && !isExcel) {
+      toast.error('Please upload a valid CSV or Excel file (.csv, .xlsx, .xls)');
       return;
     }
 
@@ -203,23 +208,46 @@ export default function Journal() {
     const toastId = toast.loading('Importing trade logs...');
 
     try {
-      const text = await file.text();
-      const lines = text.trim().split('\n');
+      let lines: string[] = [];
+
+      if (isCsv) {
+        const text = await file.text();
+        lines = text.trim().split('\n');
+      } else {
+        // Read Excel file using SheetJS (XLSX)
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert Sheet to semicolon-separated rows to reuse our robust CSV parsing
+        const csvContent = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
+        lines = csvContent.trim().split('\n');
+      }
+
       if (lines.length < 2) {
-        throw new Error('CSV file is empty or missing data');
+        throw new Error('File is empty or missing data');
       }
 
       // Check header
       const header = lines[0].toLowerCase();
       if (!header.includes('entry') || !header.includes('price')) {
-        throw new Error('Invalid CSV format. Please ensure the file has correct headers.');
+        throw new Error('Invalid file format. Please ensure the file has correct headers.');
       }
 
       const groupedTrades: any = {};
       let firstAccountName = '';
 
       lines.slice(1).forEach(line => {
-        const parts = line.split(';');
+        // Strip potential carriage returns and split by semicolon
+        const parts = line.split(';').map(part => {
+          let trimmed = part.trim();
+          // Strip any outer double quotes often produced in CSV conversions
+          if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            trimmed = trimmed.substring(1, trimmed.length - 1);
+          }
+          return trimmed;
+        });
         if (parts.length < 11) return;
 
         const [accountName, symbol, contract, entryDate, entryPrice, exitDate, exitPrice, side, qty, grossPnl, netPnl] = parts;
@@ -1005,13 +1033,13 @@ export default function Journal() {
               type="file" 
               ref={fileInputRef}
               onChange={handleImportLogs}
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               className="hidden"
             />
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
-              title="Import Trade Logs (CSV)"
+              title="Import Trade Logs (CSV / Excel)"
               className="w-10 h-10 bg-neutral-800 text-neutral-400 rounded-xl flex items-center justify-center hover:bg-neutral-700 hover:text-white transition-all border border-[#262626] disabled:opacity-50"
             >
               <Upload className={cn("w-5 h-5", isImporting && "animate-pulse")} />
@@ -1063,7 +1091,7 @@ export default function Journal() {
               className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-400/20 transition-all flex items-center justify-center gap-2"
             >
               <Upload className="w-4 h-4" />
-              {isImporting ? "Importing..." : "Import CSV Logs"}
+              {isImporting ? "Importing..." : "Import CSV / Excel Logs"}
             </button>
             <Link 
               to="/accounts"
