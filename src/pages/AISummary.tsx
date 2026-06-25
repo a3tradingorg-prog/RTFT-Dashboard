@@ -602,6 +602,11 @@ export default function AISummary() {
                   if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
                     const currentJoined = [...selectedAccountIds].sort().join('_');
                     const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
+                    
+                    // Always cache the restored report under the target specific cache key so Part B finds it instantly
+                    const targetSpecificKey = `ai_analysis_${user.id}_${savedJoined}_${parsed.selectedLanguage || selectedLanguage}`;
+                    localStorage.setItem(targetSpecificKey, JSON.stringify(parsed));
+
                     if (currentJoined !== savedJoined) {
                       setSelectedAccountIds(parsed.selectedAccountIds);
                     }

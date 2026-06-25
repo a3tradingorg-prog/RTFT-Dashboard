@@ -225,55 +225,151 @@ export default function Journal() {
         lines = csvContent.trim().split('\n');
       }
 
-      if (lines.length < 2) {
+      if (lines.length < 1) {
         throw new Error('File is empty or missing data');
       }
 
-      // Check header
-      const header = lines[0].toLowerCase();
-      if (!header.includes('entry') || !header.includes('price')) {
-        throw new Error('Invalid file format. Please ensure the file has correct headers.');
+      const parseLine = (lineStr: string): string[] => {
+        const cleanLine = lineStr.replace(/\r/g, '').trim();
+        if (!cleanLine) return [];
+
+        let commaCount = 0;
+        let semiCount = 0;
+        let inQuotes = false;
+        for (let i = 0; i < cleanLine.length; i++) {
+          const char = cleanLine[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (!inQuotes) {
+            if (char === ',') commaCount++;
+            else if (char === ';') semiCount++;
+          }
+        }
+        const delimiter = semiCount > commaCount ? ';' : ',';
+
+        const partsList: string[] = [];
+        let current = '';
+        inQuotes = false;
+        for (let i = 0; i < cleanLine.length; i++) {
+          const char = cleanLine[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === delimiter && !inQuotes) {
+            partsList.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        partsList.push(current);
+
+        return partsList.map(part => {
+          let trimmed = part.trim();
+          if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            trimmed = trimmed.substring(1, trimmed.length - 1).trim();
+          }
+          return trimmed;
+        });
+      };
+
+      const cleanNumber = (val: string): number => {
+        if (!val) return 0;
+        const cleaned = val.replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+      };
+
+      // Determine if there is a header row or if the first row is already data
+      let startIdx = 1;
+      const firstLineParts = parseLine(lines[0]);
+      let isFirstRowData = false;
+
+      if (firstLineParts.length >= 11) {
+        const p1 = cleanNumber(firstLineParts[4]);
+        const p2 = cleanNumber(firstLineParts[6]);
+        if (p1 > 0 && p2 > 0) {
+          isFirstRowData = true;
+          startIdx = 0; // First row is already data
+        }
+      }
+
+      if (!isFirstRowData) {
+        if (lines.length < 2) {
+          throw new Error('File only contains a header and no trading data.');
+        }
+        const headerLower = lines[0].toLowerCase();
+        const hasCommonKeywords = headerLower.includes('entry') || headerLower.includes('price') || headerLower.includes('symbol') || headerLower.includes('pnl') || headerLower.includes('trade');
+        if (!hasCommonKeywords) {
+          throw new Error('Invalid file format. Please ensure the file has correct headers or column alignment.');
+        }
       }
 
       const groupedTrades: any = {};
       let firstAccountName = '';
 
-      lines.slice(1).forEach(line => {
-        // Strip potential carriage returns and split by semicolon
-        const parts = line.split(';').map(part => {
-          let trimmed = part.trim();
-          // Strip any outer double quotes often produced in CSV conversions
-          if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-            trimmed = trimmed.substring(1, trimmed.length - 1);
-          }
-          return trimmed;
-        });
+      const dataLines = lines.slice(startIdx);
+      dataLines.forEach(line => {
+        const parts = parseLine(line);
         if (parts.length < 11) return;
 
-        const [accountName, symbol, contract, entryDate, entryPrice, exitDate, exitPrice, side, qty, grossPnl, netPnl] = parts;
+        const accountName = parts[0];
+        const symbol = parts[1];
+        const contract = parts[2];
+        const entryDate = parts[3];
+        const entryPrice = parts[4];
+        const exitDate = parts[5];
+        const exitPrice = parts[6];
+        const side = parts[7];
+        let qty = '';
+        let grossPnl = '';
+        let netPnl = '';
+
+        if (parts.length >= 12) {
+          qty = parts[9];
+          grossPnl = parts[10];
+          netPnl = parts[11];
+        } else {
+          qty = parts[8];
+          grossPnl = parts[9];
+          netPnl = parts[10];
+        }
+
+        if (!accountName || !symbol || !entryDate || !entryPrice || !exitDate || !exitPrice) {
+          return; // Skip invalid rows
+        }
+
         if (!firstAccountName) firstAccountName = accountName;
         
         const key = `${accountName}-${symbol}-${entryDate}`;
         
+        const sideUpper = (side || '').toUpperCase();
+        const contractUpper = (contract || '').toUpperCase();
+        const isBuy = sideUpper.includes('BUY') || sideUpper.includes('LONG') || contractUpper.includes('BUY') || contractUpper.includes('LONG');
+        const tradeType = isBuy ? 'LONG' : 'SHORT';
+
+        const entryPriceNum = cleanNumber(entryPrice);
+        const exitPriceNum = cleanNumber(exitPrice);
+        const qtyNum = Math.abs(cleanNumber(qty)) || 1;
+        const netPnlNum = cleanNumber(netPnl);
+
         if (!groupedTrades[key]) {
           groupedTrades[key] = {
             accountName,
             asset: symbol.includes('NQ') ? 'MNQ' : symbol.includes('ES') ? 'MES' : symbol.includes('GC') ? 'MGC' : symbol,
             entry_date: entryDate,
-            entry_price: parseFloat(entryPrice),
-            type: side.toUpperCase().includes('BUY') ? 'LONG' : 'SHORT',
+            entry_price: entryPriceNum,
+            type: tradeType,
             contract_size: 0,
             total_pnl: 0,
             exits: []
           };
         }
         
-        const exitQty = Math.abs(parseFloat(qty));
-        groupedTrades[key].contract_size += exitQty;
-        groupedTrades[key].total_pnl += parseFloat(netPnl.replace(',', '')) || 0;
+        groupedTrades[key].contract_size += qtyNum;
+        groupedTrades[key].total_pnl += netPnlNum;
         groupedTrades[key].exits.push({
-          exit_price: parseFloat(exitPrice),
-          closed_contract: exitQty,
+          exit_price: exitPriceNum,
+          closed_contract: qtyNum,
           exit_date: exitDate
         });
       });
