@@ -928,6 +928,28 @@ ${languageInstructions}`;
       parsedData.losingTrades = losingTradesCount;
       parsedData.totalPnL = overallNetPnL;
 
+      // Server-side robust fallback defaults to prevent any empty UI elements
+      if (typeof parsedData.riskAnalysis !== 'string' || !parsedData.riskAnalysis.trim()) {
+        parsedData.riskAnalysis = "Based on the trade history, the trader exhibits standard trading risk patterns. Keep a stable risk-to-reward ratio and strictly adhere to defined stop-losses for capital preservation.";
+      }
+      if (!Array.isArray(parsedData.riskActionsTodo) || parsedData.riskActionsTodo.length === 0) {
+        parsedData.riskActionsTodo = [
+          "Set a maximum risk per trade of 1% to 2% of total account capital.",
+          "Ensure every trade has a hard stop-loss set at the time of entry.",
+          "Maintain position size consistency across similar setups to avoid oversized losses."
+        ];
+      }
+      if (!Array.isArray(parsedData.riskActionsAvoid) || parsedData.riskActionsAvoid.length === 0) {
+        parsedData.riskActionsAvoid = [
+          "Avoid holding trades without an active, defined stop-loss.",
+          "Avoid scaling into losing positions or revenge trading after a series of losses.",
+          "Avoid using excessive leverage or trading during highly volatile macroeconomic news events."
+        ];
+      }
+      if (typeof parsedData.psychologyAnalysis !== 'string' || !parsedData.psychologyAnalysis.trim()) {
+        parsedData.psychologyAnalysis = "The psychological profile indicates standard emotional pressures like FOMO or revenge trading. It is highly recommended to implement a pre-trade checklist to ensure logical execution.";
+      }
+
       res.json(parsedData);
     } catch (error: any) {
       console.error("AI Analysis final endpoint failure:", error);

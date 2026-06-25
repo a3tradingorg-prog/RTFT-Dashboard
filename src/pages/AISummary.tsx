@@ -54,6 +54,8 @@ interface AIResult {
   riskAnalysis: string;
   riskActionsTodo: string[];
   riskActionsAvoid: string[];
+  selectedAccountIds?: string[];
+  selectedLanguage?: string;
 }
 
 const translations: Record<string, any> = {
@@ -544,6 +546,18 @@ export default function AISummary() {
     };
   }, [user]);
 
+  const isValidAIResult = (parsed: any): parsed is AIResult => {
+    return (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.traderLevel === 'string' &&
+      typeof parsed.riskAnalysis === 'string' &&
+      parsed.riskAnalysis.trim().length > 0 &&
+      Array.isArray(parsed.riskActionsTodo) &&
+      parsed.riskActionsTodo.length > 0
+    );
+  };
+
   // Cached AI Result loader & robust fallback selector
   useEffect(() => {
     if (loading || !user) return;
@@ -567,7 +581,7 @@ export default function AISummary() {
           if (cached) {
             try {
               const parsed = JSON.parse(cached);
-              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+              if (isValidAIResult(parsed)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -595,7 +609,7 @@ export default function AISummary() {
 
             if (dbData && dbData.length > 0) {
               const parsed = dbData[0].analysis_json as any;
-              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+              if (isValidAIResult(parsed)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -615,7 +629,7 @@ export default function AISummary() {
           if (fallbackCached) {
             try {
               const parsed = JSON.parse(fallbackCached);
-              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+              if (isValidAIResult(parsed)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -656,7 +670,7 @@ export default function AISummary() {
 
             if (dbLatest && dbLatest.length > 0) {
               const parsed = dbLatest[0].analysis_json as any;
-              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+              if (isValidAIResult(parsed)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -702,7 +716,7 @@ export default function AISummary() {
           if (cached) {
             try {
               const parsed = JSON.parse(cached);
-              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+              if (isValidAIResult(parsed)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   matched = true;
@@ -727,7 +741,7 @@ export default function AISummary() {
 
               if (dbData && dbData.length > 0) {
                 const parsed = dbData[0].analysis_json as any;
-                if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
+                if (isValidAIResult(parsed)) {
                   if (isSubscribed) {
                     setResult(parsed);
                     matched = true;
