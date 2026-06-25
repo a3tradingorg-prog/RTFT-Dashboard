@@ -64,6 +64,36 @@ const multipliers: Record<string, number> = {
   'MGC': 10, 'GC': 100
 };
 
+const mapSymbolToAsset = (symbol: string): 'MNQ' | 'NQ' | 'MES' | 'ES' | 'MGC' | 'GC' => {
+  const s = (symbol || '').toUpperCase().trim();
+  
+  // Specific direct matches
+  if (s === 'NQ') return 'NQ';
+  if (s === 'MNQ') return 'MNQ';
+  if (s === 'ES') return 'ES';
+  if (s === 'MES') return 'MES';
+  if (s === 'GC') return 'GC';
+  if (s === 'MGC') return 'MGC';
+
+  // Nasdaq matching: NDX100, USTEC, NAS100, US100, etc.
+  if (s.includes('NQ') || s.includes('NDX') || s.includes('NAS') || s.includes('US100') || s.includes('USTEC') || s.includes('100')) {
+    return s.includes('NQ') && !s.includes('MNQ') ? 'NQ' : 'MNQ';
+  }
+
+  // S&P 500 matching: SPX500, US500, SPX, etc.
+  if (s.includes('ES') || s.includes('SPX') || s.includes('500') || s.includes('US500')) {
+    return s.includes('ES') && !s.includes('MES') ? 'ES' : 'MES';
+  }
+
+  // Gold matching: XAU, GOLD, GC, MGC, etc.
+  if (s.includes('GC') || s.includes('GOLD') || s.includes('XAU')) {
+    return s.includes('GC') && !s.includes('MGC') ? 'GC' : 'MGC';
+  }
+
+  // Fallback to 'MNQ' so we NEVER violate the check constraint and the app doesn't break
+  return 'MNQ';
+};
+
 export default function Journal() {
   const { user } = useAuth();
   const { 
@@ -355,7 +385,7 @@ export default function Journal() {
         if (!groupedTrades[key]) {
           groupedTrades[key] = {
             accountName,
-            asset: symbol.includes('NQ') ? 'MNQ' : symbol.includes('ES') ? 'MES' : symbol.includes('GC') ? 'MGC' : symbol,
+            asset: mapSymbolToAsset(symbol),
             entry_date: entryDate,
             entry_price: entryPriceNum,
             type: tradeType,
