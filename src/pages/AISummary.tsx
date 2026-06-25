@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { Trade, TradingAccount } from '../types';
@@ -388,7 +388,29 @@ export default function AISummary() {
   });
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<AIResult | null>(null);
+  const [rawResult, setResult] = useState<AIResult | null>(null);
+  const result = useMemo(() => {
+    if (!rawResult) return null;
+    
+    const filteredTrades = trades.filter(t => selectedAccountIds.includes(t.account_id));
+    const totalTradesCount = filteredTrades.length;
+    
+    if (totalTradesCount === 0) return rawResult;
+    
+    const winningTradesCount = filteredTrades.filter(t => (Number(t.pnl) || 0) > 0).length;
+    const losingTradesCount = filteredTrades.filter(t => (Number(t.pnl) || 0) <= 0).length;
+    const overallWinRate = totalTradesCount > 0 ? Math.round((winningTradesCount / totalTradesCount) * 100) : 0;
+    const overallNetPnL = filteredTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+    
+    return {
+      ...rawResult,
+      totalTrades: totalTradesCount,
+      winningTrades: winningTradesCount,
+      losingTrades: losingTradesCount,
+      winRate: overallWinRate,
+      totalPnL: overallNetPnL,
+    };
+  }, [rawResult, trades, selectedAccountIds]);
   const [profileName, setProfileName] = useState('TRADER');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [progress, setProgress] = useState(0);

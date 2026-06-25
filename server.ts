@@ -922,6 +922,11 @@ ${languageInstructions}`;
       // Ensure 100% mathematical accuracy by overriding with computed truth fields
       parsedData.hasTradingEdge = mathHasTradingEdge;
       parsedData.tradingEdgePercentage = mathTradingEdgePercentage;
+      parsedData.winRate = overallWinRate;
+      parsedData.totalTrades = totalTradesCount;
+      parsedData.winningTrades = winningTradesCount;
+      parsedData.losingTrades = losingTradesCount;
+      parsedData.totalPnL = overallNetPnL;
 
       res.json(parsedData);
     } catch (error: any) {
