@@ -545,7 +545,7 @@ export default function AISummary() {
           if (cached) {
             try {
               const parsed = JSON.parse(cached);
-              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -573,7 +573,7 @@ export default function AISummary() {
 
             if (dbData && dbData.length > 0) {
               const parsed = dbData[0].analysis_json as any;
-              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -593,7 +593,7 @@ export default function AISummary() {
           if (fallbackCached) {
             try {
               const parsed = JSON.parse(fallbackCached);
-              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -634,7 +634,7 @@ export default function AISummary() {
 
             if (dbLatest && dbLatest.length > 0) {
               const parsed = dbLatest[0].analysis_json as any;
-              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   resultLoaded = true;
@@ -680,7 +680,7 @@ export default function AISummary() {
           if (cached) {
             try {
               const parsed = JSON.parse(cached);
-              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+              if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                 if (isSubscribed) {
                   setResult(parsed);
                   matched = true;
@@ -705,7 +705,7 @@ export default function AISummary() {
 
               if (dbData && dbData.length > 0) {
                 const parsed = dbData[0].analysis_json as any;
-                if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+                if (parsed && typeof parsed === 'object' && (parsed.winRate !== undefined || parsed.traderLevel !== undefined)) {
                   if (isSubscribed) {
                     setResult(parsed);
                     matched = true;
