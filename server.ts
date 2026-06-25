@@ -579,6 +579,36 @@ async function startServer() {
 
       const expectancy = totalTradesCount > 0 ? overallNetPnL / totalTradesCount : 0;
 
+      // Mathematically calculate precise LONG vs SHORT trading metrics
+      const longTrades = closedTrades.filter((t: any) => String(t.type).toUpperCase() === 'LONG');
+      const shortTrades = closedTrades.filter((t: any) => String(t.type).toUpperCase() === 'SHORT');
+
+      const longTotal = longTrades.length;
+      const longWins = longTrades.filter((t: any) => (Number(t.pnl) || 0) > 0).length;
+      const longLosses = longTotal - longWins;
+      const longWinRate = longTotal > 0 ? Math.round((longWins / longTotal) * 100) : 0;
+      const longPnL = longTrades.reduce((sum: number, t: any) => sum + (Number(t.pnl) || 0), 0);
+
+      const shortTotal = shortTrades.length;
+      const shortWins = shortTrades.filter((t: any) => (Number(t.pnl) || 0) > 0).length;
+      const shortLosses = shortTotal - shortWins;
+      const shortWinRate = shortTotal > 0 ? Math.round((shortWins / shortTotal) * 100) : 0;
+      const shortPnL = shortTrades.reduce((sum: number, t: any) => sum + (Number(t.pnl) || 0), 0);
+
+      // Determine stronger side mathematically
+      let precalculatedBiasAdvantage: 'LONG' | 'SHORT' | 'NEUTRAL' = 'NEUTRAL';
+      if (longTotal > 0 || shortTotal > 0) {
+        if (longPnL > shortPnL && longWinRate > shortWinRate) {
+          precalculatedBiasAdvantage = 'LONG';
+        } else if (shortPnL > longPnL && shortWinRate > longWinRate) {
+          precalculatedBiasAdvantage = 'SHORT';
+        } else if (longPnL > shortPnL) {
+          precalculatedBiasAdvantage = 'LONG';
+        } else if (shortPnL > longPnL) {
+          precalculatedBiasAdvantage = 'SHORT';
+        }
+      }
+
       // A trader has a trading edge if overall net profit is positive and expectancy is positive
       const mathHasTradingEdge = overallNetPnL > 0 && expectancy > 0 && (overallWinRate >= 40 || expectancy > avgLoss * 0.1);
 
@@ -648,6 +678,19 @@ PRE-CALCULATED ACTUAL SESSION STATISTICS (USE THIS AS THE ABSOLUTE TRUTH SOURCE 
    - Average Trade Holding Duration (Wins): ${pmStats.avgDurationWinMin} minutes
    - Average Trade Holding Duration (Losses): ${pmStats.avgDurationLossMin} minutes
 
+PRE-CALCULATED DIRECTIONAL BIAS (LONG vs SHORT) PERFORMANCE:
+- LONG Trades:
+  - Total Trades: ${longTotal}
+  - Wins: ${longWins}, Losses: ${longLosses}
+  - Win Rate: ${longWinRate}%
+  - Net Profit/Loss (PnL): $${longPnL.toFixed(2)}
+- SHORT Trades:
+  - Total Trades: ${shortTotal}
+  - Wins: ${shortWins}, Losses: ${shortLosses}
+  - Win Rate: ${shortWinRate}%
+  - Net Profit/Loss (PnL): $${shortPnL.toFixed(2)}
+- Recommended Advantage: ${precalculatedBiasAdvantage}
+
 PRE-CALCULATED EXTRACTED HOURLY PERFORMANCE BREAKDOWN (FROM INSTANT INDIVIDUAL TRADE TIMESTAMPS):
 Profitable hour slots (Net PnL > 0):
 ${strictlyProfitableText}
@@ -691,6 +734,15 @@ Requirements:
     - You MUST perform an expert, quantitative risk management review (riskAnalysis) based on actual trading numbers. Look for indicators of average win-to-loss ratio (avgWin / avgLoss), position size stability (standard deviation in quantity traded), drawdown severity, stop-loss adherence, and capital preservation capability.
     - Provide 3-5 specific positive Actions to Do (riskActionsTodo) for protecting capital and managing risk (e.g., set maximum risk per trade to 1%, place structured stop-losses, reduce position sizes).
     - Provide 3-5 negative Habits/Behaviors to Avoid (riskActionsAvoid) relating to risk management (e.g., holding trades without a stop-loss, scaling into losing positions, using excessive leverage / quantities, trading when highly emotional).
+13. DIRECTIONAL BIAS ANALYSIS (LONG VS SHORT):
+    - Analyze the trader's LONG vs SHORT trade statistics (from the "PRE-CALCULATED DIRECTIONAL BIAS PERFORMANCE" section above).
+    - Provide a detailed, deep professional evaluation (biasAnalysis) of their directional behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.
+    - Set the 'biasAdvantage' field exactly to one of: 'LONG', 'SHORT', or 'NEUTRAL'.
+14. PRIMARY TRADING PROBLEM DIAGNOSIS AND FIXING METHODOLOGY:
+    - You MUST identify the trader's absolute biggest issue / failure point based on their log patterns.
+    - Set the 'primaryIssueGroup' field exactly to one of: 'Entry Model' (ဝင်ပေါက် ပြဿနာ / Setup execution), 'Psychology Problem' (စိတ်ပိုင်းဆိုင်ရာ ပြဿနာ / FOMO / revenge), 'Risk Management' (Risk စီမံခန့်ခွဲမှု / oversize / no SL), or 'Trade Management' (Trade စီမံခန့်ခွဲမှု / cutting winners early / holding losers).
+    - Provide a highly direct, honest, and professional explanation (primaryIssueDescription) of why this specific problem area was diagnosed (e.g. if they have negative profit despite high winrate, they have poor Trade Management / Risk Management; if they overtrade, they have Psychology Problem).
+    - Provide 3-5 concrete, step-by-step actionable methods/rules/solutions (primaryIssueFixSteps) that the trader MUST immediately implement to fix and resolve this primary issue. Write this strictly in the user's selected language.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
@@ -813,6 +865,27 @@ ${languageInstructions}`;
             type: Type.ARRAY,
             items: { type: Type.STRING },
             description: "List of 3-5 negative habits or actions the trader must AVOID to prevent catastrophic risk losses.",
+          },
+          biasAnalysis: {
+            type: Type.STRING,
+            description: "Detailed evaluation of LONG vs SHORT trading behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.",
+          },
+          biasAdvantage: {
+            type: Type.STRING,
+            description: "Categorize the trader's directional advantage: must be exactly one of 'LONG', 'SHORT', or 'NEUTRAL'.",
+          },
+          primaryIssueGroup: {
+            type: Type.STRING,
+            description: "Diagnose the primary problem area of the trader. Must be exactly one of 'Entry Model', 'Psychology Problem', 'Risk Management', 'Trade Management'.",
+          },
+          primaryIssueDescription: {
+            type: Type.STRING,
+            description: "A detailed explanation of why this primary issue was diagnosed based on their trade patterns.",
+          },
+          primaryIssueFixSteps: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "List of 3-5 specific, actionable step-by-step methods (နည်းလမ်းများ) to resolve and fix this primary diagnosed problem.",
           }
         },
         required: [
@@ -838,7 +911,12 @@ ${languageInstructions}`;
           "psychologyAnalysis",
           "riskAnalysis",
           "riskActionsTodo",
-          "riskActionsAvoid"
+          "riskActionsAvoid",
+          "biasAnalysis",
+          "biasAdvantage",
+          "primaryIssueGroup",
+          "primaryIssueDescription",
+          "primaryIssueFixSteps"
         ]
       };
 
@@ -880,7 +958,7 @@ ${languageInstructions}`;
             try {
               console.log(`[AI Analysis Fallback] Attempting plain text fallback with model: ${modelName}`);
               const ai = new GoogleGenAI({ apiKey });
-              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "hasTradingEdge", "tradingEdgePercentage", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails", "edgeActionsTodo", "edgeActionsAvoid", "psychologyAnalysis", "riskAnalysis", "riskActionsTodo", "riskActionsAvoid".`;
+              const fallbackPrompt = `${prompt}\n\nIMPORTANT: Return ONLY a raw JSON string matching the expected structure. No markdown backticks, no comments, no extra words. Object keys must be exactly: "winRate", "totalTrades", "winningTrades", "losingTrades", "totalPnL", "traderLevel", "levelDescription", "tradingEdge", "hasTradingEdge", "tradingEdgePercentage", "strengths", "weaknesses", "recommendations", "overview", "primeTime", "unsuitableTime", "timeAnalysisDetails", "edgeActionsTodo", "edgeActionsAvoid", "psychologyAnalysis", "riskAnalysis", "riskActionsTodo", "riskActionsAvoid", "biasAnalysis", "biasAdvantage", "primaryIssueGroup", "primaryIssueDescription", "primaryIssueFixSteps".`;
               const response = await ai.models.generateContent({
                 model: modelName,
                 contents: fallbackPrompt
@@ -948,6 +1026,66 @@ ${languageInstructions}`;
       }
       if (typeof parsedData.psychologyAnalysis !== 'string' || !parsedData.psychologyAnalysis.trim()) {
         parsedData.psychologyAnalysis = "The psychological profile indicates standard emotional pressures like FOMO or revenge trading. It is highly recommended to implement a pre-trade checklist to ensure logical execution.";
+      }
+
+      // Fallbacks for Directional Bias and Diagnosis
+      if (typeof parsedData.biasAnalysis !== 'string' || !parsedData.biasAnalysis.trim()) {
+        parsedData.biasAnalysis = `LONG trades win rate is ${longWinRate}% (PnL: $${longPnL.toFixed(2)}) compared to SHORT trades win rate of ${shortWinRate}% (PnL: $${shortPnL.toFixed(2)}). The Trader performs best on ${precalculatedBiasAdvantage === 'NEUTRAL' ? 'both sides equally' : precalculatedBiasAdvantage + ' setups'}.`;
+      }
+      if (!parsedData.biasAdvantage || !['LONG', 'SHORT', 'NEUTRAL'].includes(parsedData.biasAdvantage)) {
+        parsedData.biasAdvantage = precalculatedBiasAdvantage;
+      }
+
+      // Default diagnosis
+      const validIssues = ['Entry Model', 'Psychology Problem', 'Risk Management', 'Trade Management'];
+      if (!parsedData.primaryIssueGroup || !validIssues.includes(parsedData.primaryIssueGroup)) {
+        if (overallNetPnL <= 0 && avgLoss > avgWin) {
+          parsedData.primaryIssueGroup = 'Risk Management';
+        } else if (overallNetPnL <= 0 && overallWinRate < 40) {
+          parsedData.primaryIssueGroup = 'Entry Model';
+        } else {
+          parsedData.primaryIssueGroup = 'Psychology Problem';
+        }
+      }
+
+      if (typeof parsedData.primaryIssueDescription !== 'string' || !parsedData.primaryIssueDescription.trim()) {
+        if (parsedData.primaryIssueGroup === 'Risk Management') {
+          parsedData.primaryIssueDescription = "The trader struggles with managing downside risk. Average loss sizes exceed average win sizes, or position sizes vary heavily, leading to oversized losses.";
+        } else if (parsedData.primaryIssueGroup === 'Entry Model') {
+          parsedData.primaryIssueDescription = "The trader struggles with high-quality trade entries. Win rate is below 40%, indicating trades are often entered at unfavorable price points or without fully aligned confirmations.";
+        } else if (parsedData.primaryIssueGroup === 'Trade Management') {
+          parsedData.primaryIssueDescription = "The trader struggles with managing active trades. Large winning trades are cut too early, or losing trades are held far too long past original invalidation levels.";
+        } else {
+          parsedData.primaryIssueDescription = "The trader exhibits emotional trading behaviors. Frequent overtrading, revenge trading after losses, or entering late due to FOMO are negatively affecting performance.";
+        }
+      }
+
+      if (!Array.isArray(parsedData.primaryIssueFixSteps) || parsedData.primaryIssueFixSteps.length === 0) {
+        if (parsedData.primaryIssueGroup === 'Risk Management') {
+          parsedData.primaryIssueFixSteps = [
+            "Always pre-calculate your position size to ensure risk is limited to exactly 1% of capital.",
+            "Use a hard stop-loss on every single execution and never move it wider.",
+            "De-leverage / reduce position size by 50% during losing streaks until consistency is restored."
+          ];
+        } else if (parsedData.primaryIssueGroup === 'Entry Model') {
+          parsedData.primaryIssueFixSteps = [
+            "Write a strict pre-trade checklist requiring at least 3 distinct structural confirmations.",
+            "Limit your entries to high-probability sessions (e.g. US Morning AM Session).",
+            "Backtest your setup 50 times and document the exact trigger candles before live execution."
+          ];
+        } else if (parsedData.primaryIssueGroup === 'Trade Management') {
+          parsedData.primaryIssueFixSteps = [
+            "Implement a clear partial profit take-profit target at 1:1 or 1.5:1 risk-reward.",
+            "Move stop-loss to break-even once price reaches the first major target structure.",
+            "Leave the trade alone (set-and-forget) to let the mathematical edge play out without emotional intervention."
+          ];
+        } else {
+          parsedData.primaryIssueFixSteps = [
+            "Implement a maximum limit of 3 trades per day; close the platform immediately once reached.",
+            "Wait at least 15 minutes after a losing trade before considering another setup to cool down.",
+            "Keep a physical journal beside your desk and write down your current emotion (Fear, Greed, Calm) before clicking buy or sell."
+          ];
+        }
       }
 
       res.json(parsedData);

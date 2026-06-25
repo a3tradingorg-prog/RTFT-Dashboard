@@ -54,6 +54,11 @@ interface AIResult {
   riskAnalysis: string;
   riskActionsTodo: string[];
   riskActionsAvoid: string[];
+  biasAnalysis?: string;
+  biasAdvantage?: 'LONG' | 'SHORT' | 'NEUTRAL';
+  primaryIssueGroup?: 'Entry Model' | 'Psychology Problem' | 'Risk Management' | 'Trade Management';
+  primaryIssueDescription?: string;
+  primaryIssueFixSteps?: string[];
   selectedAccountIds?: string[];
   selectedLanguage?: string;
 }
@@ -565,170 +570,39 @@ export default function AISummary() {
     let isSubscribed = true;
 
     const loadCacheOrFallback = async () => {
-      // Setup keys
-      const hasSelection = selectedAccountIds.length > 0 && selectedLanguage;
-      const specificCacheKey = hasSelection 
-        ? `ai_analysis_${user.id}_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`
-        : null;
+      try {
+        // Setup keys
+        const hasSelection = selectedAccountIds.length > 0 && selectedLanguage;
+        const specificCacheKey = hasSelection 
+          ? `ai_analysis_${user.id}_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`
+          : null;
 
-      // Part A: If page has NOT initialized its cache yet, find the best available report to show the user
-      if (!hasAttemptedInitialLoad.current) {
-        let resultLoaded = false;
+        // Part A: If page has NOT initialized its cache yet, find the best available report to show the user
+        if (!hasAttemptedInitialLoad.current) {
+          let resultLoaded = false;
 
-        // 1. Try specific selection cache from localStorage
-        if (specificCacheKey) {
-          const cached = localStorage.getItem(specificCacheKey);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (isValidAIResult(parsed)) {
-                if (isSubscribed) {
-                  setResult(parsed);
-                  resultLoaded = true;
+          // 1. Try specific selection cache from localStorage
+          if (specificCacheKey) {
+            const cached = localStorage.getItem(specificCacheKey);
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached);
+                if (isValidAIResult(parsed)) {
+                  if (isSubscribed) {
+                    setResult(parsed);
+                    resultLoaded = true;
+                  }
+                } else {
+                  localStorage.removeItem(specificCacheKey);
                 }
-              } else {
+              } catch (e) {
                 localStorage.removeItem(specificCacheKey);
               }
-            } catch (e) {
-              localStorage.removeItem(specificCacheKey);
-            }
-          }
-        }
-
-        // 2. Try specific selection cache from Supabase database
-        if (!resultLoaded && hasSelection && specificCacheKey) {
-          try {
-            const dateRangeKey = `ai_summary_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
-            const { data: dbData } = await supabase
-              .from('news_analyses')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('date_range', dateRangeKey)
-              .order('created_at', { ascending: false })
-              .limit(1);
-
-            if (dbData && dbData.length > 0) {
-              const parsed = dbData[0].analysis_json as any;
-              if (isValidAIResult(parsed)) {
-                if (isSubscribed) {
-                  setResult(parsed);
-                  resultLoaded = true;
-                  localStorage.setItem(specificCacheKey, JSON.stringify(parsed));
-                }
-              }
-            }
-          } catch (dbErr) {
-            console.error("Failed to query specific AI summary from Supabase:", dbErr);
-          }
-        }
-
-        // 3. Fallback to the latest analysis from localStorage fallback
-        if (!resultLoaded) {
-          const fallbackKey = `ai_analysis_latest_${user.id}`;
-          const fallbackCached = localStorage.getItem(fallbackKey);
-          if (fallbackCached) {
-            try {
-              const parsed = JSON.parse(fallbackCached);
-              if (isValidAIResult(parsed)) {
-                if (isSubscribed) {
-                  setResult(parsed);
-                  resultLoaded = true;
-
-                  // Restore selections to match the loaded fallback
-                  if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
-                    const currentJoined = [...selectedAccountIds].sort().join('_');
-                    const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
-                    
-                    // Always cache the restored report under the target specific cache key so Part B finds it instantly
-                    const targetSpecificKey = `ai_analysis_${user.id}_${savedJoined}_${parsed.selectedLanguage || selectedLanguage}`;
-                    localStorage.setItem(targetSpecificKey, JSON.stringify(parsed));
-
-                    if (currentJoined !== savedJoined) {
-                      setSelectedAccountIds(parsed.selectedAccountIds);
-                    }
-                  }
-                  if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
-                    setSelectedLanguage(parsed.selectedLanguage);
-                  }
-                }
-              }
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-
-        // 4. Fallback to latest analysis from Supabase database (across any accounts)
-        if (!resultLoaded) {
-          try {
-            const { data: dbLatest } = await supabase
-              .from('news_analyses')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(1);
-
-            if (dbLatest && dbLatest.length > 0) {
-              const parsed = dbLatest[0].analysis_json as any;
-              if (isValidAIResult(parsed)) {
-                if (isSubscribed) {
-                  setResult(parsed);
-                  resultLoaded = true;
-
-                  const fallbackKey = `ai_analysis_latest_${user.id}`;
-                  localStorage.setItem(fallbackKey, JSON.stringify(parsed));
-
-                  if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
-                    const newCacheKey = `ai_analysis_${user.id}_${[...parsed.selectedAccountIds].sort().join('_')}_${parsed.selectedLanguage || selectedLanguage}`;
-                    localStorage.setItem(newCacheKey, JSON.stringify(parsed));
-
-                    const currentJoined = [...selectedAccountIds].sort().join('_');
-                    const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
-                    if (currentJoined !== savedJoined) {
-                      setSelectedAccountIds(parsed.selectedAccountIds);
-                    }
-                  }
-                  if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
-                    setSelectedLanguage(parsed.selectedLanguage);
-                  }
-                }
-              }
-            }
-          } catch (dbErr) {
-            console.error("Failed to query latest fallback AI summary from Supabase:", dbErr);
-          }
-        }
-
-        // Complete initial cache load attempt
-        if (isSubscribed) {
-          hasAttemptedInitialLoad.current = true;
-          if (!resultLoaded) {
-            setResult(null);
-          }
-        }
-
-      } else {
-        // Part B: The user has already initialized the page and is now actively changing selections
-        let matched = false;
-
-        if (specificCacheKey) {
-          const cached = localStorage.getItem(specificCacheKey);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (isValidAIResult(parsed)) {
-                if (isSubscribed) {
-                  setResult(parsed);
-                  matched = true;
-                }
-              }
-            } catch (e) {
-              // ignore
             }
           }
 
-          if (!matched) {
-            // Check DB for this specific selection
+          // 2. Try specific selection cache from Supabase database
+          if (!resultLoaded && hasSelection && specificCacheKey) {
             try {
               const dateRangeKey = `ai_summary_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
               const { data: dbData } = await supabase
@@ -744,20 +618,155 @@ export default function AISummary() {
                 if (isValidAIResult(parsed)) {
                   if (isSubscribed) {
                     setResult(parsed);
-                    matched = true;
+                    resultLoaded = true;
                     localStorage.setItem(specificCacheKey, JSON.stringify(parsed));
                   }
                 }
               }
-            } catch (err) {
-              console.error("Error loading specific cache from DB:", err);
+            } catch (dbErr) {
+              console.error("Failed to query specific AI summary from Supabase:", dbErr);
             }
           }
-        }
 
-        if (isSubscribed && !matched) {
-          setResult(null);
+          // 3. Fallback to the latest analysis from localStorage fallback
+          if (!resultLoaded) {
+            const fallbackKey = `ai_analysis_latest_${user.id}`;
+            const fallbackCached = localStorage.getItem(fallbackKey);
+            if (fallbackCached) {
+              try {
+                const parsed = JSON.parse(fallbackCached);
+                if (isValidAIResult(parsed)) {
+                  if (isSubscribed) {
+                    setResult(parsed);
+                    resultLoaded = true;
+
+                    // Restore selections to match the loaded fallback
+                    if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
+                      const currentJoined = [...selectedAccountIds].sort().join('_');
+                      const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
+                      
+                      // Always cache the restored report under the target specific cache key so Part B finds it instantly
+                      const targetSpecificKey = `ai_analysis_${user.id}_${savedJoined}_${parsed.selectedLanguage || selectedLanguage}`;
+                      localStorage.setItem(targetSpecificKey, JSON.stringify(parsed));
+
+                      if (currentJoined !== savedJoined) {
+                        setSelectedAccountIds(parsed.selectedAccountIds);
+                      }
+                    }
+                    if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
+                      setSelectedLanguage(parsed.selectedLanguage);
+                    }
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+          }
+
+          // 4. Fallback to latest analysis from Supabase database (across any accounts)
+          if (!resultLoaded) {
+            try {
+              const { data: dbLatest } = await supabase
+                .from('news_analyses')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+              if (dbLatest && dbLatest.length > 0) {
+                const parsed = dbLatest[0].analysis_json as any;
+                if (isValidAIResult(parsed)) {
+                  if (isSubscribed) {
+                    setResult(parsed);
+                    resultLoaded = true;
+
+                    const fallbackKey = `ai_analysis_latest_${user.id}`;
+                    localStorage.setItem(fallbackKey, JSON.stringify(parsed));
+
+                    if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
+                      const newCacheKey = `ai_analysis_${user.id}_${[...parsed.selectedAccountIds].sort().join('_')}_${parsed.selectedLanguage || selectedLanguage}`;
+                      localStorage.setItem(newCacheKey, JSON.stringify(parsed));
+
+                      const currentJoined = [...selectedAccountIds].sort().join('_');
+                      const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
+                      if (currentJoined !== savedJoined) {
+                        setSelectedAccountIds(parsed.selectedAccountIds);
+                      }
+                    }
+                    if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
+                      setSelectedLanguage(parsed.selectedLanguage);
+                    }
+                  }
+                }
+              }
+            } catch (dbErr) {
+              console.error("Failed to query latest fallback AI summary from Supabase:", dbErr);
+            }
+          }
+
+          // Complete initial cache load attempt
+          if (isSubscribed) {
+            hasAttemptedInitialLoad.current = true;
+            if (!resultLoaded) {
+              setResult(null);
+            }
+          }
+
+        } else {
+          // Part B: The user has already initialized the page and is now actively changing selections
+          let matched = false;
+
+          if (specificCacheKey) {
+            const cached = localStorage.getItem(specificCacheKey);
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached);
+                if (isValidAIResult(parsed)) {
+                  if (isSubscribed) {
+                    setResult(parsed);
+                    matched = true;
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+
+            if (!matched) {
+              // Check DB for this specific selection
+              try {
+                const dateRangeKey = `ai_summary_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
+                const { data: dbData } = await supabase
+                  .from('news_analyses')
+                  .select('*')
+                  .eq('user_id', user.id)
+                  .eq('date_range', dateRangeKey)
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+
+                if (dbData && dbData.length > 0) {
+                  const parsed = dbData[0].analysis_json as any;
+                  if (isValidAIResult(parsed)) {
+                    if (isSubscribed) {
+                      setResult(parsed);
+                      matched = true;
+                      localStorage.setItem(specificCacheKey, JSON.stringify(parsed));
+                    }
+                  }
+                }
+              } catch (err) {
+                console.error("Error loading specific cache from DB:", err);
+              }
+            }
+          }
+
+          if (isSubscribed && !matched) {
+            setResult(null);
+          }
         }
+      } catch (globalErr) {
+        console.error("Unhandled error inside loadCacheOrFallback:", globalErr);
       }
     };
 
@@ -1534,6 +1543,183 @@ export default function AISummary() {
                             style={{ width: `${result.tradingEdgePercentage || 0}%` }}
                           />
                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Primary Diagnostic & Action Plan Block */}
+                  {result.primaryIssueGroup && (
+                    <div className="bg-[#141414] border-2 border-amber-500/20 rounded-3xl p-6 space-y-6 shadow-[0_0_25px_rgba(245,158,11,0.03)] relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -z-10" />
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1f1f1f] pb-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 bg-amber-500/10 rounded-xl flex items-center justify-center border border-amber-500/20">
+                            <AlertTriangle className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/15 block w-fit mb-0.5">
+                              {selectedLanguage === 'my' ? "အဓိက ကုသရန် ပြဿနာ" : "PRIMARY TRADING DIAGNOSIS"}
+                            </span>
+                            <h3 className="text-base font-black text-white uppercase tracking-tight">
+                              {selectedLanguage === 'my' ? "Trader ၏ အကြီးမားဆုံးပြဿနာ" : "Primary Diagnosed Issue Area"}
+                            </h3>
+                          </div>
+                        </div>
+
+                        {/* Issue Group Badge */}
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-xs font-black px-4 py-1.5 rounded-xl uppercase tracking-wider border shadow-md",
+                            result.primaryIssueGroup === 'Risk Management' ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                            result.primaryIssueGroup === 'Psychology Problem' ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" :
+                            result.primaryIssueGroup === 'Entry Model' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
+                            "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                          )}>
+                            {result.primaryIssueGroup === 'Risk Management' ? (selectedLanguage === 'my' ? "Risk Management ပြဿနာ" : "Risk Management Issue") :
+                             result.primaryIssueGroup === 'Psychology Problem' ? (selectedLanguage === 'my' ? "Psychology (စိတ်ပိုင်းဆိုင်ရာ) ပြဿနာ" : "Psychology Problem") :
+                             result.primaryIssueGroup === 'Entry Model' ? (selectedLanguage === 'my' ? "Entry Model (ဝင်ပေါက် ပြဿနာ)" : "Entry Model Setup Issue") :
+                             (selectedLanguage === 'my' ? "Trade Management (စီမံခန့်ခွဲမှု) ပြဿနာ" : "Trade Management Issue")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Diagnostic Breakdown */}
+                      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        {/* Description */}
+                        <div className="lg:col-span-2 bg-[#0b0c10] border border-[#1a1b22] rounded-2xl p-5 relative overflow-hidden flex flex-col justify-center">
+                          <div className="absolute right-4 top-4 opacity-[0.02]">
+                            <Brain className="w-32 h-32 text-amber-500" />
+                          </div>
+                          <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-2.5 z-10">
+                            {selectedLanguage === 'my' ? "ပြဿနာ၏ အဓိကဇစ်မြစ် သုံးသပ်ချက်" : "Diagnostic Clinical Analysis"}
+                          </h4>
+                          <p className="text-sm text-neutral-300 leading-relaxed font-medium relative z-10 whitespace-pre-wrap">
+                            {result.primaryIssueDescription}
+                          </p>
+                        </div>
+
+                        {/* Actions to Fix */}
+                        <div className="lg:col-span-3 bg-[#111] border border-[#222] rounded-2xl p-5 space-y-4">
+                          <div className="flex items-center gap-2 border-b border-[#222] pb-2.5">
+                            <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                            <h4 className="text-xs font-black text-amber-400 uppercase tracking-widest">
+                              {selectedLanguage === 'my' ? "ချက်ချင်းပြင်ဆင်ရန် ကုထုံးလမ်းညွှန်ချက်များ" : "PRESCRIPTIVE STEP-BY-STEP REMEDIES"}
+                            </h4>
+                          </div>
+                          <ol className="space-y-3.5">
+                            {(result.primaryIssueFixSteps || []).map((step, idx) => (
+                              <li key={idx} className="flex gap-3 text-xs text-neutral-200 leading-relaxed font-semibold bg-[#070707] p-3.5 rounded-xl border border-[#1a1a1a] shadow-inner">
+                                <span className="w-6 h-6 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-full flex items-center justify-center font-black flex-shrink-0 text-[11px]">
+                                  {idx + 1}
+                                </span>
+                                <span className="flex-1 pt-0.5">{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Directional Bias (LONG vs SHORT) Performance Block */}
+                  <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1f1f1f] pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 bg-orange-500/10 rounded-lg flex items-center justify-center border border-orange-500/15">
+                          <Compass className="w-4 h-4 text-orange-500" />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {selectedLanguage === 'my' ? "ဦးတည်ချက် ဘက်လိုက်မှု ဆန်းစစ်ချက် (Directional Bias Analytics)" : "Directional Bias Analytics (LONG vs SHORT)"}
+                        </h3>
+                      </div>
+
+                      {/* Direction Advantage Badge */}
+                      {result.biasAdvantage && (
+                        <div className="flex items-center gap-1.5 self-start sm:self-center">
+                          <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                            {selectedLanguage === 'my' ? "အားသာချက် ဘက်ခြမ်း:" : "Advantage Side:"}
+                          </span>
+                          <span className={cn(
+                            "text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border",
+                            result.biasAdvantage === 'LONG' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                            result.biasAdvantage === 'SHORT' ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
+                            "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
+                          )}>
+                            {result.biasAdvantage === 'LONG' ? (selectedLanguage === 'my' ? "LONG ဘက်တွင် အားသာချက်ရှိသည်" : "LONG BIAS ADVANTAGE") :
+                             result.biasAdvantage === 'SHORT' ? (selectedLanguage === 'my' ? "SHORT ဘက်တွင် အားသာချက်ရှိသည်" : "SHORT BIAS ADVANTAGE") :
+                             (selectedLanguage === 'my' ? "ဘက်မလိုက်/ညီမျှသည်" : "BALANCED BIAS")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Metric Comparison Panel */}
+                      <div className="lg:col-span-1 bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl p-5 flex flex-col justify-between space-y-5">
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest">
+                            {selectedLanguage === 'my' ? "ဦးတည်ချက်အလိုက် စာရင်းဇယား" : "Directional Summary"}
+                          </h4>
+                          
+                          {/* Visual Balance Bar */}
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[11px] font-bold text-neutral-400">
+                              <span className="text-emerald-400 font-extrabold">LONG</span>
+                              <span className="text-rose-400 font-extrabold">SHORT</span>
+                            </div>
+                            <div className="w-full bg-[#1b1b1b] h-3 rounded-full overflow-hidden flex border border-[#2d2d2d] p-[1px]">
+                              <div 
+                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-l-full"
+                                style={{ 
+                                  width: `${
+                                    (result.biasAdvantage === 'LONG' ? 65 : result.biasAdvantage === 'SHORT' ? 35 : 50)
+                                  }%` 
+                                }} 
+                              />
+                              <div 
+                                className="h-full bg-gradient-to-r from-rose-400 to-rose-500 rounded-r-full"
+                                style={{ 
+                                  width: `${
+                                    (result.biasAdvantage === 'LONG' ? 35 : result.biasAdvantage === 'SHORT' ? 65 : 50)
+                                  }%` 
+                                }} 
+                              />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-neutral-500 font-medium">
+                              <span>
+                                {result.biasAdvantage === 'LONG' ? "Higher Winrate" : "Standard Setup"}
+                              </span>
+                              <span>
+                                {result.biasAdvantage === 'SHORT' ? "Higher Winrate" : "Standard Setup"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#121212] border border-[#1f1f1f] rounded-xl p-3.5 space-y-2">
+                          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">
+                            {selectedLanguage === 'my' ? "အကြံပြုချက်" : "Quick Action"}
+                          </span>
+                          <p className="text-xs text-neutral-300 leading-relaxed font-semibold">
+                            {result.biasAdvantage === 'LONG' ? 
+                              (selectedLanguage === 'my' ? "LONG setups များတွင် contract size ပိုသုံးပြီး SHORT setups များတွင် size လျှော့ချပါ။" : "Favour LONG entries with standard risk, and de-leverage on SHORT entries.") :
+                             result.biasAdvantage === 'SHORT' ? 
+                              (selectedLanguage === 'my' ? "SHORT setups များတွင် contract size ပိုသုံးပြီး LONG setups များတွင် size လျှော့ချပါ။" : "Favour SHORT entries with standard risk, and de-leverage on LONG entries.") :
+                              (selectedLanguage === 'my' ? "နှစ်ဖက်စလုံးအတွက် တူညီသော Risk Parameter ကို ဆက်လက် ထိန်းသိမ်းပါ။" : "Maintain symmetrical position sizing parameters on both directions.")
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Detailed AI Bias Analysis */}
+                      <div className="lg:col-span-2 bg-[#0b0c10] border border-[#1a1b22] rounded-2xl p-5 relative overflow-hidden flex flex-col justify-center">
+                        <div className="absolute right-4 bottom-4 opacity-[0.02]">
+                          <Compass className="w-48 h-48 text-orange-500" />
+                        </div>
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                          {result.biasAnalysis}
+                        </p>
                       </div>
                     </div>
                   </div>
