@@ -423,31 +423,36 @@ export default function AISummary() {
   }, [selectedAccountIds, loading]);
 
   useEffect(() => {
-    if (!selectedLanguage) return;
+    if (loading || !selectedLanguage) return;
     localStorage.setItem('ai_summary_selected_language', selectedLanguage);
-  }, [selectedLanguage]);
+  }, [selectedLanguage, loading]);
 
-  // Load accounts and trades
+  // Load accounts, trades, and initial cached AI result in ONE unified predictable flow
   useEffect(() => {
     if (!user) return;
-    const loadData = async () => {
+
+    let isSubscribed = true;
+
+    const initializeDataAndCache = async () => {
       try {
         setLoading(true);
 
-        // Fetch user profile username (full_name) first and fallback gracefully
+        // 1. Fetch user profile username (full_name) first and fallback gracefully
         const { data: prof, error: profErr } = await supabase
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
           .maybeSingle();
 
-        if (!profErr && prof && prof.full_name) {
-          setProfileName(prof.full_name);
-        } else {
-          setProfileName(user.email?.split('@')[0] || 'TRADER');
+        if (isSubscribed) {
+          if (!profErr && prof && prof.full_name) {
+            setProfileName(prof.full_name);
+          } else {
+            setProfileName(user.email?.split('@')[0] || 'TRADER');
+          }
         }
 
-        // Fetch accounts
+        // 2. Fetch accounts
         const { data: accts, error: acctsErr } = await supabase
           .from('accounts')
           .select('*')
@@ -456,9 +461,11 @@ export default function AISummary() {
         if (acctsErr) throw acctsErr;
         
         const fetchedAccounts = accts || [];
-        setAccounts(fetchedAccounts);
+        if (isSubscribed) {
+          setAccounts(fetchedAccounts);
+        }
 
-        // Fetch closed trades
+        // 3. Fetch closed trades
         const { data: trds, error: trdsErr } = await supabase
           .from('trades')
           .select('*')
@@ -466,50 +473,179 @@ export default function AISummary() {
           .eq('status', 'CLOSED');
 
         if (trdsErr) throw trdsErr;
-        setTrades(trds || []);
+        if (isSubscribed) {
+          setTrades(trds || []);
+        }
 
-        // Load saved selection if valid and matches loaded accounts
-        let finalIds: string[] = [];
+        // 4. Load saved selection if valid and matches loaded accounts
+        let initialSelectedIds: string[] = [];
         const saved = localStorage.getItem('ai_summary_selected_accounts');
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
               if (fetchedAccounts.length > 0) {
-                finalIds = parsed.filter(id => fetchedAccounts.some(a => a.id === id));
+                initialSelectedIds = parsed.filter(id => fetchedAccounts.some(a => a.id === id));
               } else {
-                finalIds = parsed;
+                initialSelectedIds = parsed;
               }
             }
           } catch {
             // ignore
           }
         }
-        
-        // Only set if we actually parsed something valid
-        if (finalIds.length > 0) {
-          setSelectedAccountIds(finalIds);
+
+        if (isSubscribed && initialSelectedIds.length > 0) {
+          setSelectedAccountIds(initialSelectedIds);
         }
+
+        const initialLanguage = localStorage.getItem('ai_summary_selected_language') || 'my';
+        if (isSubscribed) {
+          setSelectedLanguage(initialLanguage);
+        }
+
+        // 5. Try to load the appropriate cached result
+        let resultLoaded = false;
+
+        // A. Specific selection from localStorage
+        if (initialSelectedIds.length > 0 && initialLanguage) {
+          const cacheKey = `ai_analysis_${user.id}_${[...initialSelectedIds].sort().join('_')}_${initialLanguage}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+                if (isSubscribed) {
+                  setResult(parsed);
+                  resultLoaded = true;
+                }
+              } else {
+                localStorage.removeItem(cacheKey);
+              }
+            } catch (e) {
+              localStorage.removeItem(cacheKey);
+            }
+          }
+
+          // B. Specific selection from Supabase database
+          if (!resultLoaded) {
+            try {
+              const dateRangeKey = `ai_summary_${[...initialSelectedIds].sort().join('_')}_${initialLanguage}`;
+              const { data: dbData, error: dbErr } = await supabase
+                .from('news_analyses')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('date_range', dateRangeKey)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+              if (!dbErr && dbData && dbData.length > 0) {
+                const parsed = dbData[0].analysis_json as any;
+                if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+                  if (isSubscribed) {
+                    setResult(parsed);
+                    resultLoaded = true;
+                    const cacheKey = `ai_analysis_${user.id}_${[...initialSelectedIds].sort().join('_')}_${initialLanguage}`;
+                    localStorage.setItem(cacheKey, JSON.stringify(parsed));
+                  }
+                }
+              }
+            } catch (dbErr) {
+              console.error("Failed to query specific AI summary from Supabase:", dbErr);
+            }
+          }
+        }
+
+        // C. Fallback: Try loading from localStorage fallback
+        if (!resultLoaded) {
+          const fallbackKey = `ai_analysis_latest_${user.id}`;
+          const fallbackCached = localStorage.getItem(fallbackKey);
+          if (fallbackCached) {
+            try {
+              const parsed = JSON.parse(fallbackCached);
+              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+                if (isSubscribed) {
+                  setResult(parsed);
+                  resultLoaded = true;
+                  
+                  if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
+                    setSelectedAccountIds(parsed.selectedAccountIds);
+                  }
+                  if (parsed.selectedLanguage) {
+                    setSelectedLanguage(parsed.selectedLanguage);
+                  }
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+
+        // D. Last fallback: Try loading the latest analysis from Supabase database (across any accounts)
+        if (!resultLoaded) {
+          try {
+            const { data: dbLatest, error: dbLatestErr } = await supabase
+              .from('news_analyses')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (!dbLatestErr && dbLatest && dbLatest.length > 0) {
+              const parsed = dbLatest[0].analysis_json as any;
+              if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
+                if (isSubscribed) {
+                  setResult(parsed);
+                  resultLoaded = true;
+                  
+                  const fallbackKey = `ai_analysis_latest_${user.id}`;
+                  localStorage.setItem(fallbackKey, JSON.stringify(parsed));
+                  
+                  if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
+                    const cacheKey = `ai_analysis_${user.id}_${[...parsed.selectedAccountIds].sort().join('_')}_${parsed.selectedLanguage || initialLanguage}`;
+                    localStorage.setItem(cacheKey, JSON.stringify(parsed));
+                    setSelectedAccountIds(parsed.selectedAccountIds);
+                  }
+                  if (parsed.selectedLanguage) {
+                    setSelectedLanguage(parsed.selectedLanguage);
+                  }
+                }
+              }
+            }
+          } catch (dbErr) {
+            console.error("Failed to query latest fallback AI summary from Supabase:", dbErr);
+          }
+        }
+
+        if (!resultLoaded && isSubscribed) {
+          setResult(null);
+        }
+
       } catch (err: any) {
         console.error("Error loading analysis data:", err);
-        // use default fallback language translation for error to be completely safe
         toast.error(translations['my'].toastErrorLoading);
       } finally {
-        setLoading(false);
+        if (isSubscribed) {
+          setLoading(false);
+        }
       }
     };
 
-    loadData().catch(e => console.error(e));
+    initializeDataAndCache();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [user]);
 
-  // Handle selected account cache loading & robust fallback loading
+  // Handle manual selection/language changes after initialization
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user) return;
 
     let isSubscribed = true;
 
-    const loadCachedOrDbResult = async () => {
-      // 1. Try to load specific cache matching selected accounts & language from localStorage first
+    const loadCacheForNewSelection = async () => {
       if (selectedAccountIds.length > 0 && selectedLanguage) {
         const cacheKey = `ai_analysis_${user.id}_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
         const cached = localStorage.getItem(cacheKey);
@@ -521,18 +657,16 @@ export default function AISummary() {
                 setResult(parsed);
               }
               return;
-            } else {
-              localStorage.removeItem(cacheKey);
             }
           } catch (e) {
-            localStorage.removeItem(cacheKey);
+            // ignore
           }
         }
 
-        // If not in localStorage, query Supabase database
+        // Check DB for specific selection
         try {
           const dateRangeKey = `ai_summary_${[...selectedAccountIds].sort().join('_')}_${selectedLanguage}`;
-          const { data: dbData, error: dbErr } = await supabase
+          const { data: dbData } = await supabase
             .from('news_analyses')
             .select('*')
             .eq('user_id', user.id)
@@ -540,100 +674,33 @@ export default function AISummary() {
             .order('created_at', { ascending: false })
             .limit(1);
 
-          if (!dbErr && dbData && dbData.length > 0) {
+          if (dbData && dbData.length > 0) {
             const parsed = dbData[0].analysis_json as any;
             if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
               if (isSubscribed) {
                 setResult(parsed);
-                // Cache in localStorage too
                 localStorage.setItem(cacheKey, JSON.stringify(parsed));
               }
               return;
             }
           }
-        } catch (dbErr) {
-          console.error("Failed to query specific AI summary from Supabase:", dbErr);
+        } catch (err) {
+          console.error("Error loading cache from DB:", err);
         }
       }
 
-      // 2. Fallback: If no specific selection is found or if cached selection fails, try loading from localStorage fallback
-      const fallbackKey = `ai_analysis_latest_${user.id}`;
-      const fallbackCached = localStorage.getItem(fallbackKey);
-      if (fallbackCached) {
-        try {
-          const parsed = JSON.parse(fallbackCached);
-          if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
-            if (isSubscribed) {
-              setResult(parsed);
-              
-              // Smoothly restore metadata to align selection state with the retrieved fallback report
-              if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
-                const currentJoined = [...selectedAccountIds].sort().join('_');
-                const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
-                if (currentJoined !== savedJoined) {
-                  setSelectedAccountIds(parsed.selectedAccountIds);
-                }
-              }
-              if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
-                setSelectedLanguage(parsed.selectedLanguage);
-              }
-            }
-            return;
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      // 3. Last fallback: Try loading the latest analysis from Supabase database (across any accounts)
-      try {
-        const { data: dbLatest, error: dbLatestErr } = await supabase
-          .from('news_analyses')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (!dbLatestErr && dbLatest && dbLatest.length > 0) {
-          const parsed = dbLatest[0].analysis_json as any;
-          if (parsed && typeof parsed === 'object' && parsed.psychologyAnalysis && parsed.edgeActionsTodo && parsed.riskAnalysis && parsed.riskActionsTodo) {
-            if (isSubscribed) {
-              setResult(parsed);
-              
-              // Cache in localStorage to match
-              localStorage.setItem(fallbackKey, JSON.stringify(parsed));
-              if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
-                const cacheKey = `ai_analysis_${user.id}_${[...parsed.selectedAccountIds].sort().join('_')}_${parsed.selectedLanguage || selectedLanguage}`;
-                localStorage.setItem(cacheKey, JSON.stringify(parsed));
-                
-                const currentJoined = [...selectedAccountIds].sort().join('_');
-                const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
-                if (currentJoined !== savedJoined) {
-                  setSelectedAccountIds(parsed.selectedAccountIds);
-                }
-              }
-              if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
-                setSelectedLanguage(parsed.selectedLanguage);
-              }
-            }
-            return;
-          }
-        }
-      } catch (dbErr) {
-        console.error("Failed to query latest fallback AI summary from Supabase:", dbErr);
-      }
-
+      // If we changed selection and no specific cache exists, set result to null
       if (isSubscribed) {
         setResult(null);
       }
     };
 
-    loadCachedOrDbResult().catch(e => console.error(e));
+    loadCacheForNewSelection();
 
     return () => {
       isSubscribed = false;
     };
-  }, [selectedAccountIds, selectedLanguage, user]);
+  }, [selectedAccountIds, selectedLanguage, loading, user]);
 
   const toggleAccountSelection = (accountId: string) => {
     setSelectedAccountIds(prev => {
