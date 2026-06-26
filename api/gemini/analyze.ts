@@ -370,6 +370,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    const tradesForPrompt = formattedTrades.slice(0, 100);
+
     const prompt = `You are an expert AI trading coach and quantitative analyst. Analyze the following trading logs and account setups to provide a completely objective, honest, and professional evaluation of the trader's level, strategy, trading edge, strengths, weaknesses, and actionable recommendations.
 
 Account setups:
@@ -408,8 +410,8 @@ ${strictlyProfitableText}
 Unprofitable/Risky hour slots (Net PnL <= 0):
 ${strictlyUnprofitableText}
 
-Trade Logs:
-${JSON.stringify(formattedTrades, null, 2)}
+Trade Logs (Most recent 100 trades for qualitative context):
+${JSON.stringify(tradesForPrompt, null, 2)}
 
 Requirements:
 1. Ensure the calculation of winRate (percentage from 0 to 100), totalTrades, and winning/losing totals are mathematically correct based strictly on the provided trade logs. A winning trade has pnl > 0. A losing trade has pnl <= 0.
