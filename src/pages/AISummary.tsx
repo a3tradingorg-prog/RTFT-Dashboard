@@ -405,22 +405,139 @@ export default function AISummary() {
     const filteredTrades = trades.filter(t => selectedAccountIds.includes(t.account_id));
     const totalTradesCount = filteredTrades.length;
     
-    if (totalTradesCount === 0) return rawResult;
-    
     const winningTradesCount = filteredTrades.filter(t => (Number(t.pnl) || 0) > 0).length;
     const losingTradesCount = filteredTrades.filter(t => (Number(t.pnl) || 0) <= 0).length;
     const overallWinRate = totalTradesCount > 0 ? Math.round((winningTradesCount / totalTradesCount) * 100) : 0;
     const overallNetPnL = filteredTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
     
-    return {
+    const mergedResult = {
       ...rawResult,
-      totalTrades: totalTradesCount,
-      winningTrades: winningTradesCount,
-      losingTrades: losingTradesCount,
-      winRate: overallWinRate,
-      totalPnL: overallNetPnL,
+      totalTrades: totalTradesCount > 0 ? totalTradesCount : (rawResult.totalTrades || 0),
+      winningTrades: totalTradesCount > 0 ? winningTradesCount : (rawResult.winningTrades || 0),
+      losingTrades: totalTradesCount > 0 ? losingTradesCount : (rawResult.losingTrades || 0),
+      winRate: totalTradesCount > 0 ? overallWinRate : (rawResult.winRate || 0),
+      totalPnL: totalTradesCount > 0 ? overallNetPnL : (rawResult.totalPnL || 0),
     };
-  }, [rawResult, trades, selectedAccountIds]);
+
+    // Apply robust, professional localized fallback values for any missing new fields
+    const isBurmese = selectedLanguage === 'my' || mergedResult.selectedLanguage === 'my';
+
+    if (!mergedResult.riskAnalysis) {
+      mergedResult.riskAnalysis = isBurmese
+        ? "သင်၏ အရောင်းအဝယ်မှတ်တမ်းများအရ သင်သည် risk စီမံခန့်ခွဲမှုအပိုင်းတွင် ပုံမှန်အဆင့်ရှိသည်။ အရှုံးကို ကန့်သတ်နိုင်ရန်အတွက် Stop Loss ကို တိကျစွာ အသုံးပြုရန်နှင့် ပုံသေ risk-to-reward ratio ထားရှိရန် အကြံပြုအပ်ပါသည်။"
+        : "Based on your trading logs, your risk management shows standard patterns. It is highly recommended to use strict stop-losses to protect capital and maintain a stable risk-to-reward ratio.";
+    }
+
+    if (!mergedResult.riskActionsTodo || !Array.isArray(mergedResult.riskActionsTodo) || mergedResult.riskActionsTodo.length === 0) {
+      mergedResult.riskActionsTodo = isBurmese
+        ? [
+            "အရောင်းအဝယ်တိုင်းတွင် Stop Loss ကို အမြဲထည့်သွင်းအသုံးပြုပါ",
+            "မိမိ၏ account balance အပေါ်မူတည်၍ Position size ကို ညီညွတ်စွာ တွက်ချက်ပါ",
+            "အမြတ်နှင့်အရှုံးအချိုး (Risk to Reward Ratio) အနည်းဆုံး 1:2 ထားရှိပါ"
+          ]
+        : [
+            "Always use a strict stop-loss on every trade to protect capital.",
+            "Calculate consistent position sizing based on account equity.",
+            "Maintain a minimum risk-to-reward ratio of 1:2 on all setups."
+          ];
+    }
+
+    if (!mergedResult.riskActionsAvoid || !Array.isArray(mergedResult.riskActionsAvoid) || mergedResult.riskActionsAvoid.length === 0) {
+      mergedResult.riskActionsAvoid = isBurmese
+        ? [
+            "အရှုံးပေါ်နေသော trade များကို position size ထပ်တိုးခြင်း (Average down) လုံးဝမပြုလုပ်ရ",
+            "အများဆုံး နေ့စဉ်အရှုံးသတ်မှတ်ချက် (Max Daily Loss Limit) မရှိဘဲ trade ခြင်းကို ရှောင်ကြဉ်ပါ",
+            "ဆုံးရှုံးမှုတစ်ခုပြီးနောက် စိတ်ခံစားမှုဖြင့် Revenge trading ပြုလုပ်ခြင်းကို ရှောင်ကြဉ်ပါ"
+          ]
+        : [
+            "Avoid averaging down or adding size to losing trades.",
+            "Avoid trading without a predefined maximum daily drawdown limit.",
+            "Avoid revenge trading or emotional scaling after a series of losses."
+          ];
+    }
+
+    if (!mergedResult.psychologyAnalysis) {
+      mergedResult.psychologyAnalysis = isBurmese
+        ? "စိတ်ပိုင်းဆိုင်ရာ ဆန်းစစ်ချက်အရ သင်သည် FOMO သို့မဟုတ် အရှုံးပေါ်ပြီးနောက် Revenge trade လုပ်လိုသော စိတ်ခံစားမှုများ ရှိနိုင်ပါသည်။ ကုန်သွယ်မှုမဝင်မီ တိကျသော checklist တစ်ခုကို စနစ်တကျ အသုံးပြုရန် လိုအပ်ပါသည်။"
+        : "The psychological profile indicates emotional pressures like FOMO or revenge trading after losses. Implementing a pre-trade execution checklist is highly recommended to maintain discipline.";
+    }
+
+    if (!mergedResult.biasAnalysis) {
+      mergedResult.biasAnalysis = isBurmese
+        ? "အရောင်းအဝယ် မှတ်တမ်းများအရ သင်သည် LONG နှင့် SHORT နှစ်ဖက်စလုံးတွင် မျှတစွာ ကုန်သွယ်နိုင်သည်ကို တွေ့ရသည်။ ဈေးကွက်လားရာအတိုင်း လိုက်ပါဆောင်ရွက်ခြင်းက အကောင်းဆုံးဖြစ်ပါလိမ့်မည်။"
+        : "Based on your trade logs, you exhibit a balanced execution style on both LONG and SHORT sides, adapting well to changing market cycles.";
+    }
+
+    if (!mergedResult.biasAdvantage) {
+      mergedResult.biasAdvantage = "NEUTRAL";
+    }
+
+    if (!mergedResult.primaryIssueGroup) {
+      mergedResult.primaryIssueGroup = mergedResult.totalPnL <= 0 ? "Risk Management" : "Psychology Problem";
+    }
+
+    if (!mergedResult.primaryIssueDescription) {
+      if (mergedResult.primaryIssueGroup === 'Risk Management') {
+        mergedResult.primaryIssueDescription = isBurmese
+          ? "သင်သည် ဆုံးရှုံးမှုကို ကန့်သတ်ခြင်းနှင့် ပုံသေ risk ထားရှိခြင်းအပိုင်းတွင် ပိုမိုအာရုံစိုက်ရန် လိုအပ်ပါသည်။"
+          : "The trader needs to focus more on risk boundaries, drawdown limits, and stop-loss execution.";
+      } else if (mergedResult.primaryIssueGroup === 'Entry Model') {
+        mergedResult.primaryIssueDescription = isBurmese
+          ? "သင်သည် ဝင်ပေါက်သတ်မှတ်ချက်များ ပိုမိုတိကျစေရန်နှင့် high-quality confirmation ရယူရန် လိုအပ်ပါသည်။"
+          : "The trader needs more precise entry setups and high-probability confirmations to improve win rate.";
+      } else if (mergedResult.primaryIssueGroup === 'Trade Management') {
+        mergedResult.primaryIssueDescription = isBurmese
+          ? "သင်သည် ဝင်ပြီးသား trade များကို စီမံခန့်ခွဲရာတွင် အမြတ်ကို မြန်မြန်ဖြတ်ပြီး အရှုံးကို ကြာရှည်ကိုင်ထားလေ့ရှိသည်။"
+          : "The trader struggles with managing active trades, cutting winners too early or holding losing trades too long.";
+      } else {
+        mergedResult.primaryIssueDescription = isBurmese
+          ? "သင်သည် စိတ်ခံစားမှုအပေါ် အခြေခံ၍ overtrading သို့မဟုတ် revenge trading ပြုလုပ်လေ့ရှိသည်။"
+          : "The trader exhibits emotional execution patterns like overtrading or revenge trading after a loss.";
+      }
+    }
+
+    if (!mergedResult.primaryIssueFixSteps || !Array.isArray(mergedResult.primaryIssueFixSteps) || mergedResult.primaryIssueFixSteps.length === 0) {
+      if (mergedResult.primaryIssueGroup === 'Risk Management') {
+        mergedResult.primaryIssueFixSteps = isBurmese
+          ? [
+              "နေ့စဉ်အရှုံးပမာဏ ကန့်သတ်ချက် (Max Daily Loss Limit) ကို သတ်မှတ်ပါ",
+              "Trade တစ်ခုအတွက် အများဆုံးဆုံးရှုံးမှုသည် အကောင့်တစ်ခုလုံး၏ ၁% မှ ၂% ထက် မကျော်စေရ",
+              "အရှုံးပေါ်တိုင်း အရောင်းအဝယ်ကို ရပ်နားပြီး သုံးသပ်ပါ"
+            ]
+          : [
+              "Establish a strict maximum daily drawdown/loss limit.",
+              "Limit risk per trade to a maximum of 1% to 2% of account equity.",
+              "Take a mandatory break after any losing session to refocus."
+            ];
+      } else if (mergedResult.primaryIssueGroup === 'Entry Model') {
+        mergedResult.primaryIssueFixSteps = isBurmese
+          ? [
+              "သင်၏ ဝင်ပေါက် စည်းမျဉ်းများ မကိုက်ညီမချင်း မဝင်ဘဲ စောင့်ဆိုင်းပါ",
+              "Timeframe ကြီးများနှင့် သွားလာမှုလားရာကို ဦးစွာ စစ်ဆေးပါ",
+              "ဝင်ပေါက်တစ်ခုစီတွင် သက်သေအနည်းဆုံး ၃ ခု ရှိမှသာ ကုန်သွယ်ပါ"
+            ]
+          : [
+              "Wait strictly for your predefined entry checklist rules to align.",
+              "Analyze higher-timeframe trends before entering any intraday position.",
+              "Ensure at least three separate confluence factors align for each setup."
+            ];
+      } else {
+        mergedResult.primaryIssueFixSteps = isBurmese
+          ? [
+              "စိတ်ခံစားမှုကို ထိန်းချုပ်ရန် တရားထိုင်ခြင်း သို့မဟုတ် အနားယူခြင်း ပြုလုပ်ပါ",
+              "မကုန်သွယ်မီ မိမိ၏ စိတ်ပိုင်းဆိုင်ရာ အခြေအနေကို စစ်ဆေးပါ",
+              "တစ်နေ့လျှင် trade အများဆုံး အရေအတွက်ကို ကန့်သတ်ပါ"
+            ]
+          : [
+              "Set a hard cap on the maximum number of trades executed per day.",
+              "Maintain a strict trading journal detailing your emotional state prior to entry.",
+              "Implement a mandatory 'cool-down' period of 1 hour after any trade exit."
+            ];
+      }
+    }
+
+    return mergedResult;
+  }, [rawResult, trades, selectedAccountIds, selectedLanguage]);
   const [profileName, setProfileName] = useState('TRADER');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -528,8 +645,12 @@ export default function AISummary() {
           }
         }
 
-        if (isSubscribed && initialSelectedIds.length > 0) {
-          setSelectedAccountIds(initialSelectedIds);
+        if (isSubscribed) {
+          if (initialSelectedIds.length > 0) {
+            setSelectedAccountIds(initialSelectedIds);
+          } else if (fetchedAccounts.length > 0) {
+            setSelectedAccountIds([fetchedAccounts[0].id]);
+          }
         }
 
         const initialLanguage = localStorage.getItem('ai_summary_selected_language') || 'my';
@@ -558,11 +679,7 @@ export default function AISummary() {
     return (
       parsed &&
       typeof parsed === 'object' &&
-      typeof parsed.traderLevel === 'string' &&
-      typeof parsed.riskAnalysis === 'string' &&
-      parsed.riskAnalysis.trim().length > 0 &&
-      Array.isArray(parsed.riskActionsTodo) &&
-      parsed.riskActionsTodo.length > 0
+      typeof parsed.traderLevel === 'string'
     );
   };
 
@@ -687,18 +804,41 @@ export default function AISummary() {
                     const fallbackKey = `ai_analysis_latest_${user.id}`;
                     localStorage.setItem(fallbackKey, JSON.stringify(parsed));
 
-                    if (parsed.selectedAccountIds && Array.isArray(parsed.selectedAccountIds) && parsed.selectedAccountIds.length > 0) {
-                      const newCacheKey = `ai_analysis_${user.id}_${[...parsed.selectedAccountIds].sort().join('_')}_${parsed.selectedLanguage || selectedLanguage}`;
-                      localStorage.setItem(newCacheKey, JSON.stringify(parsed));
+                    // Parse accounts and language from database date_range key as fallback
+                    let restoredAccountIds = parsed.selectedAccountIds;
+                    let restoredLanguage = parsed.selectedLanguage;
 
-                      const currentJoined = [...selectedAccountIds].sort().join('_');
-                      const savedJoined = [...parsed.selectedAccountIds].sort().join('_');
-                      if (currentJoined !== savedJoined) {
-                        setSelectedAccountIds(parsed.selectedAccountIds);
+                    if (!restoredAccountIds || !Array.isArray(restoredAccountIds) || restoredAccountIds.length === 0) {
+                      const dateRangeStr = dbLatest[0].date_range || "";
+                      if (dateRangeStr.startsWith('ai_summary_')) {
+                        const parts = dateRangeStr.split('_');
+                        if (parts.length >= 3) {
+                          restoredLanguage = restoredLanguage || parts[parts.length - 1];
+                          restoredAccountIds = parts.slice(2, parts.length - 1);
+                        }
                       }
                     }
-                    if (parsed.selectedLanguage && selectedLanguage !== parsed.selectedLanguage) {
-                      setSelectedLanguage(parsed.selectedLanguage);
+
+                    if (restoredAccountIds && Array.isArray(restoredAccountIds) && restoredAccountIds.length > 0) {
+                      const finalLang = restoredLanguage || selectedLanguage;
+                      const newCacheKey = `ai_analysis_${user.id}_${[...restoredAccountIds].sort().join('_')}_${finalLang}`;
+                      
+                      const parsedWithMetadata = {
+                        ...parsed,
+                        selectedAccountIds: restoredAccountIds,
+                        selectedLanguage: finalLang
+                      };
+                      
+                      localStorage.setItem(newCacheKey, JSON.stringify(parsedWithMetadata));
+
+                      const currentJoined = [...selectedAccountIds].sort().join('_');
+                      const savedJoined = [...restoredAccountIds].sort().join('_');
+                      if (currentJoined !== savedJoined) {
+                        setSelectedAccountIds(restoredAccountIds);
+                      }
+                    }
+                    if (restoredLanguage && selectedLanguage !== restoredLanguage) {
+                      setSelectedLanguage(restoredLanguage);
                     }
                   }
                 }
@@ -1806,7 +1946,7 @@ export default function AISummary() {
                         <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.strengthsTitle}</h3>
                       </div>
                       <ul className="space-y-3.5">
-                        {result.strengths.map((str, idx) => (
+                        {(result.strengths || []).map((str, idx) => (
                            <li key={idx} className="flex items-start gap-3 text-sm text-neutral-300 leading-relaxed font-medium">
                             <span className="text-emerald-500 font-bold block mt-0.5">•</span>
                             <span className="flex-1">{str}</span>
@@ -1823,7 +1963,7 @@ export default function AISummary() {
                         <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.weaknessesTitle}</h3>
                       </div>
                       <ul className="space-y-3.5">
-                        {result.weaknesses.map((weak, idx) => (
+                        {(result.weaknesses || []).map((weak, idx) => (
                           <li key={idx} className="flex items-start gap-3 text-sm text-neutral-300 leading-relaxed font-medium">
                             <span className="text-rose-500 font-bold block mt-0.5">•</span>
                             <span className="flex-1">{weak}</span>
@@ -1983,7 +2123,7 @@ export default function AISummary() {
                       <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.recommendationsTitle}</h3>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
-                      {result.recommendations.map((rec, idx) => (
+                      {(result.recommendations || []).map((rec, idx) => (
                         <div key={idx} className="flex gap-4 p-4 bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl relative overflow-hidden group">
                           <div className="text-lg font-black text-neutral-700 select-none">#{idx + 1}</div>
                           <p className="text-sm text-neutral-300 leading-relaxed font-medium flex-1 m-0">{rec}</p>

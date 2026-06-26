@@ -546,6 +546,41 @@ ${languageInstructions}`;
         psychologyAnalysis: {
           type: Type.STRING,
           description: "A deep, thorough psychological and discipline review of the trader based on actual data. Diagnose FOMO, revenge trading, greed, fear, or overtrading, explain why they happen, and provide explicit steps to overcome them.",
+        },
+        riskAnalysis: {
+          type: Type.STRING,
+          description: "An expert, quantitative risk management review of the trader based on their logs (analyzing average win-to-loss ratio, position sizes, drawdowns, and stop-loss behaviors).",
+        },
+        riskActionsTodo: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "List of 3-5 specific positive risk-management actions/rules the trader should DO to protect capital.",
+        },
+        riskActionsAvoid: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "List of 3-5 negative habits or actions the trader must AVOID to prevent catastrophic risk losses.",
+        },
+        biasAnalysis: {
+          type: Type.STRING,
+          description: "Detailed evaluation of LONG vs SHORT trading behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.",
+        },
+        biasAdvantage: {
+          type: Type.STRING,
+          description: "Categorize the trader's directional advantage: must be exactly one of 'LONG', 'SHORT', or 'NEUTRAL'.",
+        },
+        primaryIssueGroup: {
+          type: Type.STRING,
+          description: "Diagnose the primary problem area of the trader. Must be exactly one of 'Entry Model', 'Psychology Problem', 'Risk Management', 'Trade Management'.",
+        },
+        primaryIssueDescription: {
+          type: Type.STRING,
+          description: "A detailed explanation of why this primary issue was diagnosed based on their trade patterns.",
+        },
+        primaryIssueFixSteps: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+          description: "List of 3-5 specific, actionable step-by-step methods (နည်းလမ်းများ) to resolve and fix this primary diagnosed problem.",
         }
       },
       required: [
@@ -568,7 +603,15 @@ ${languageInstructions}`;
         "timeAnalysisDetails",
         "edgeActionsTodo",
         "edgeActionsAvoid",
-        "psychologyAnalysis"
+        "psychologyAnalysis",
+        "riskAnalysis",
+        "riskActionsTodo",
+        "riskActionsAvoid",
+        "biasAnalysis",
+        "biasAdvantage",
+        "primaryIssueGroup",
+        "primaryIssueDescription",
+        "primaryIssueFixSteps"
       ]
     };
 
