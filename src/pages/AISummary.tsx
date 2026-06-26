@@ -121,6 +121,7 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "ရွေးချယ်ထားသော accounts များတွင် closed trades များ မရှိသေးပါ။ trade အသစ်များ အရင်ထည့်ပေးပါ။",
     toastSuccessAnalysis: "AI Analysis အသစ်ကို အောင်မြင်စွာ တင်ဆက်လိုက်ပါပြီ။",
     toastErrorAnalyzing: "AI Analysis အချက်အလက်များအား လုပ်ဆောင်ရာတွင် ချို့ယွင်းချက်ရှိခဲ့ပါသည်။",
+    toastQuotaError: "ခေတ္တမျှ စနစ်အသုံးပြုမှု အရေအတွက် များပြားနေပါသည်။ (Gemini API Rate Limit / Quota ပြည့်သွားပါသဖြင့်) ကျေးဇူးပြု၍ စက္ကန့်အနည်းငယ် သို့မဟုတ် ၁ မိနစ်ခန့်စောင့်ဆိုင်းပြီးမှ ထပ်မံကြိုးစားပေးပါ။ သို့မဟုတ် Settings တွင် Paid API Key ကို ပြောင်းလဲသတ်မှတ်နိုင်ပါသည်။",
     preparingText: "AI Trading Insights ကို တိကျစွာ တွက်ချက်ဆန်းစစ်နေပါသည်။ ခေတ္တစောင့်ဆိုင်းပေးပါ...",
     riskTitle: "Risk Management ဆန်းစစ်ချက် (Risk Management)",
     riskDoLabel: "ဘေးကင်းစေရန် လိုက်နာဆောင်ရွက်ရန်များ (Risk Do's)",
@@ -186,6 +187,7 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "There are no closed trades in the selected accounts. Please add closed trades first.",
     toastSuccessAnalysis: "Successfully generated fresh AI trading diagnostics!",
     toastErrorAnalyzing: "Encountered an issue running the AI model analysis.",
+    toastQuotaError: "Gemini API rate limit or free-tier quota exceeded. Please wait 15-30 seconds and try again, or configure a paid API key in Settings.",
     preparingText: "Analyzing your trading performance data with AI. Please wait...",
     riskTitle: "Risk Management & Capital Protection Analysis",
     riskDoLabel: "Risk Actions to Do (Capital Protection)",
@@ -251,6 +253,7 @@ const translations: Record<string, any> = {
     toastWarningNoClosed: "ไม่พบบันทึกการเทรดที่ปิดไปแล้วในบัญชีที่รวบรวม โปรดจัดการข้อมูลก่อน",
     toastSuccessAnalysis: "ทำการสร้างรายงานการวิเคราะห์เทรดด้วย AI สำเร็จเสร็จสิ้น",
     toastErrorAnalyzing: "เกิดข้อผิดพลาดในการประมวลผล AI กรุณาลองใหม่อีกครั้ง",
+    toastQuotaError: "ปริมาณการใช้งานเกินกำหนด (Gemini API Rate Limit / Quota Exceeded) โปรดรอประมาณ 15-30 วินาทีแล้วลองอีกครั้ง หรือตั้งค่าคีย์ API แบบชำระเงินในเมนูตั้งค่า",
     preparingText: "ระบบกำลังจำลองการเทรดและวิเคราะห์ด้วย AI อย่างเป็นระบบ โปรดรอสักครู่...",
     riskTitle: "การวิเคราะห์การจัดการความเสี่ยง (Risk Management Analysis)",
     riskDoLabel: "สิ่งที่ควรทำเพื่อป้องกันความเสี่ยง (Risk Do's)",
@@ -894,7 +897,17 @@ export default function AISummary() {
       }, 800);
     } catch (error: any) {
       console.error("AI Generation failed:", error);
-      toast.error(error.message || t.toastErrorAnalyzing, { id: toastId });
+      let errMsg = error.message || t.toastErrorAnalyzing;
+      if (
+        String(error.message).includes("QUOTA_EXHAUSTED") ||
+        String(error.message).includes("RESOURCE_EXHAUSTED") ||
+        String(error.message).includes("429") ||
+        String(error.message).includes("quota") ||
+        String(error.message).includes("Quota")
+      ) {
+        errMsg = t.toastQuotaError || "Gemini API rate limit or free-tier quota exceeded. Please wait 15-30 seconds and try again.";
+      }
+      toast.error(errMsg, { id: toastId });
       setAnalyzing(false);
     }
   };

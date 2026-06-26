@@ -641,7 +641,19 @@ ${languageInstructions}`;
     }
 
     if (!successResponseText) {
-      throw new Error(lastError?.message || lastError || "All configured Gemini models and API keys failed to execute on serverless environment.");
+      const errorMsg = lastError?.message || String(lastError || "");
+      if (
+        errorMsg.includes("429") ||
+        errorMsg.includes("RESOURCE_EXHAUSTED") ||
+        errorMsg.includes("quota") ||
+        errorMsg.includes("Quota") ||
+        errorMsg.includes("exhausted") ||
+        errorMsg.includes("Exceeded") ||
+        errorMsg.includes("exceeded")
+      ) {
+        throw new Error("QUOTA_EXHAUSTED");
+      }
+      throw new Error(errorMsg || "All configured Gemini models and API keys failed to execute on serverless environment.");
     }
 
     const sanitizedResponse = cleanModelJsonString(successResponseText.trim());
@@ -650,6 +662,11 @@ ${languageInstructions}`;
     // Ensure 100% mathematical accuracy by overriding with computed truth fields
     parsedData.hasTradingEdge = mathHasTradingEdge;
     parsedData.tradingEdgePercentage = mathTradingEdgePercentage;
+    parsedData.winRate = overallWinRate;
+    parsedData.totalTrades = totalTradesCount;
+    parsedData.winningTrades = winningTradesCount;
+    parsedData.losingTrades = losingTradesCount;
+    parsedData.totalPnL = overallNetPnL;
 
     // Provide default fallback arrays for robust interface rendering if keys are missing
     if (!parsedData.edgeActionsTodo || !Array.isArray(parsedData.edgeActionsTodo)) {
