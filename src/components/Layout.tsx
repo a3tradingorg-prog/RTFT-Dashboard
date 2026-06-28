@@ -42,11 +42,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const [dbStatus, setDbStatus] = useState<'checking' | 'active' | 'sleeping' | 'error'>('checking');
-  const [isWaking, setIsWaking] = useState(false);
 
-  // Supabase Keep-Alive and Wake Up logic
+  // Supabase Keep-Alive and Wake Up logic with silent background auto-retries
   useEffect(() => {
     let active = true;
+    let retryTimeout: NodeJS.Timeout | null = null;
+
     const performPing = async (isInitial = false) => {
       if (isInitial) setDbStatus('checking');
       try {
@@ -54,12 +55,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         if (!active) return;
         if (result.success) {
           setDbStatus('active');
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+            retryTimeout = null;
+          }
         } else {
           setDbStatus('sleeping');
+          if (isInitial && active) {
+            console.log('Database sleeping, scheduling background auto-wakeup...');
+            retryTimeout = setTimeout(() => performPing(false), 15000); // silent auto-retry in 15s
+          }
         }
       } catch (err) {
         if (!active) return;
         setDbStatus('error');
+        if (isInitial && active) {
+          console.log('Database connection error, scheduling background auto-retry...');
+          retryTimeout = setTimeout(() => performPing(false), 20000); // silent auto-retry in 20s
+        }
       }
     };
 
@@ -74,30 +87,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
       clearInterval(interval);
+      if (retryTimeout) clearTimeout(retryTimeout);
     };
   }, []);
-
-  const handleManualWakeUp = async () => {
-    if (isWaking) return;
-    setIsWaking(true);
-    setDbStatus('checking');
-    
-    try {
-      const result = await wakeUpSupabase();
-      if (result.success) {
-        setDbStatus('active');
-        toast.success('Database အောင်မြင်စွာ အလုပ်လုပ်နေပါပြီ! / Database successfully woken up!');
-      } else {
-        setDbStatus('sleeping');
-        toast.error('Database ကို နှိုးမရသေးပါ။ ထပ်မံကြိုးစားပေးပါ။ / Could not wake up database. Please try again.');
-      }
-    } catch (err: any) {
-      setDbStatus('error');
-      toast.error(`Error: ${err.message || err}`);
-    } finally {
-      setIsWaking(false);
-    }
-  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -396,17 +388,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3 shrink-0">
             {/* Database Keep-Alive Widget */}
             <div className="relative group">
-              <button
-                onClick={handleManualWakeUp}
-                disabled={isWaking}
+              <div
                 className={cn(
-                  "flex items-center gap-2 px-2.5 py-1.5 bg-[#141414] border rounded-xl transition-all group/btn cursor-pointer",
-                  dbStatus === 'active' ? "border-emerald-500/20 hover:border-emerald-500/50" :
-                  dbStatus === 'sleeping' ? "border-amber-500/30 hover:border-amber-500/60 shadow-[0_0_10px_rgba(245,158,11,0.15)]" :
-                  dbStatus === 'error' ? "border-rose-500/30 hover:border-rose-500/60" :
-                  "border-[#262626] hover:border-neutral-500/50"
+                  "flex items-center gap-2 px-2.5 py-1.5 bg-[#141414] border border-[#262626] rounded-xl transition-all",
+                  dbStatus === 'active' ? "border-emerald-500/20" :
+                  dbStatus === 'sleeping' ? "border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]" :
+                  dbStatus === 'error' ? "border-rose-500/30" :
+                  "border-[#262626]"
                 )}
-                title="Database Keep-Alive / Click to Wake Up"
+                title="Database Status"
               >
                 <div className="relative flex items-center justify-center">
                   <Database className={cn(
@@ -434,20 +424,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </span>
                 </div>
                 
-                <span className="text-[10px] md:text-[11px] font-bold text-neutral-300 group-hover/btn:text-white hidden md:inline transition-colors">
+                <span className="text-[10px] md:text-[11px] font-bold text-neutral-300 hidden md:inline transition-colors">
                   {dbStatus === 'checking' ? 'Checking DB...' :
                    dbStatus === 'active' ? 'DB Active' :
-                   dbStatus === 'sleeping' ? 'Wake up DB' :
+                   dbStatus === 'sleeping' ? 'DB Sleeping' :
                    'DB Offline'}
                 </span>
-                
-                {isWaking && (
-                  <svg className="animate-spin h-3 w-3 text-sky-400 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                )}
-              </button>
+              </div>
 
               {/* Tooltip on hover */}
               <div className="absolute right-0 top-full mt-2 w-56 p-3 bg-[#141414] border border-[#262626] rounded-xl shadow-2xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 text-[10px] leading-relaxed text-neutral-400">
@@ -558,66 +541,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <AnimatePresence>
-          {dbStatus === 'sleeping' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="w-full bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3 z-30"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-                <p className="text-[11px] md:text-xs font-bold text-amber-300 leading-normal">
-                  ⚠️ Supabase Database is currently sleeping (auto-paused due to inactivity). Click wake-up button to connect.
-                  <span className="block text-[10px] md:text-[11px] text-amber-400/80 font-medium mt-0.5">
-                    (Supabase Database ခေတ္တအိပ်ပျော်နေပါသဖြင့် 'WAKE UP DATABASE' ခလုတ်ကိုနှိပ်ပြီး နှိုးပေးပါရန်။)
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={handleManualWakeUp}
-                disabled={isWaking}
-                className="w-full md:w-auto px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-600 text-black text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-amber-500/10 cursor-pointer"
-              >
-                <Database className="w-3.5 h-3.5" />
-                WAKE UP DATABASE (နှိုးရန် နှိပ်ပါ)
-              </button>
-            </motion.div>
-          )}
-
-          {dbStatus === 'error' && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="w-full bg-rose-500/10 border-b border-rose-500/20 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3 z-30"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-                </span>
-                <p className="text-[11px] md:text-xs font-bold text-rose-300 leading-normal">
-                  🔴 Database connection is currently offline or unreachable. Click to attempt reconnection.
-                  <span className="block text-[10px] md:text-[11px] text-rose-400/80 font-medium mt-0.5">
-                    (Database နှင့် ချိတ်ဆက်မှုမရရှိနိုင်သေးပါ။ ကျေးဇူးပြု၍ ပြန်လည်စမ်းသပ်ပေးပါရန်။)
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={handleManualWakeUp}
-                disabled={isWaking}
-                className="w-full md:w-auto px-4 py-2 bg-rose-500 hover:bg-rose-400 disabled:bg-rose-600 text-white text-[11px] font-black rounded-xl transition-all flex items-center justify-center gap-2 shrink-0 shadow-lg shadow-rose-500/10 cursor-pointer"
-              >
-                <Database className="w-3.5 h-3.5" />
-                RETRY CONNECTION (ပြန်စမ်းမည်)
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Content Area */}
 
         <div className="w-full p-2 sm:p-4 md:p-8 lg:p-12 min-h-[calc(100vh-80px)]">
           <AnimatePresence mode="wait">
