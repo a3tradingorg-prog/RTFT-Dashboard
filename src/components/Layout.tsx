@@ -386,68 +386,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {/* Database Keep-Alive Widget */}
-            <div className="relative group">
-              <div
-                className={cn(
-                  "flex items-center gap-2 px-2.5 py-1.5 bg-[#141414] border border-[#262626] rounded-xl transition-all",
-                  dbStatus === 'active' ? "border-emerald-500/20" :
-                  dbStatus === 'sleeping' ? "border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]" :
-                  dbStatus === 'error' ? "border-rose-500/30" :
-                  "border-[#262626]"
-                )}
-                title="Database Status"
-              >
-                <div className="relative flex items-center justify-center">
-                  <Database className={cn(
-                    "w-3.5 h-3.5 transition-colors",
-                    dbStatus === 'active' ? "text-emerald-400" :
-                    dbStatus === 'sleeping' ? "text-amber-400" :
-                    dbStatus === 'error' ? "text-rose-400" :
-                    "text-neutral-400"
-                  )} />
-                  {/* Status Indicator Dot */}
-                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                    {dbStatus === 'active' && (
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    )}
-                    {dbStatus === 'sleeping' && (
-                      <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    )}
-                    <span className={cn(
-                      "relative inline-flex rounded-full h-2 w-2",
-                      dbStatus === 'active' ? "bg-emerald-500" :
-                      dbStatus === 'sleeping' ? "bg-amber-500" :
-                      dbStatus === 'error' ? "bg-rose-500" :
-                      "bg-neutral-600"
-                    )}></span>
-                  </span>
-                </div>
-                
-                <span className="text-[10px] md:text-[11px] font-bold text-neutral-300 hidden md:inline transition-colors">
-                  {dbStatus === 'checking' ? 'Checking DB...' :
-                   dbStatus === 'active' ? 'DB Active' :
-                   dbStatus === 'sleeping' ? 'DB Sleeping' :
-                   'DB Offline'}
-                </span>
-              </div>
-
-              {/* Tooltip on hover */}
-              <div className="absolute right-0 top-full mt-2 w-56 p-3 bg-[#141414] border border-[#262626] rounded-xl shadow-2xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50 text-[10px] leading-relaxed text-neutral-400">
-                <p className="font-bold text-white mb-1 text-[11px]">
-                  {dbStatus === 'active' ? '🟢 Database Connect Active' : 
-                   dbStatus === 'sleeping' ? '🟡 Database Sleeping' : 
-                   dbStatus === 'checking' ? '🔵 Checking Connection...' :
-                   '🔴 Database Error / Offline'}
-                </p>
-                <p className="text-[9px]">
-                  {dbStatus === 'active' && 'Keep-Alive is running in background (every 4m) to prevent auto-pause.'}
-                  {dbStatus === 'sleeping' && 'Supabase free tier auto-pauses when idle. Click to wake it up! (နှိုးရန် နှိပ်ပါ)'}
-                  {dbStatus === 'error' && 'Check internet connection or Supabase settings.'}
-                </p>
-              </div>
-            </div>
-
             {/* Global Account Selector */}
             {!hideAccountSelector && (
               <div className="relative" ref={accountDropdownRef}>
