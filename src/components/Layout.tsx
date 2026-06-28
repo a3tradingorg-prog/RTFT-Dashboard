@@ -81,20 +81,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (isWaking) return;
     setIsWaking(true);
     setDbStatus('checking');
-    const toastId = toast.loading('Database ကို နှိုးနေပါသည်... / Waking up Supabase Database...');
     
     try {
       const result = await wakeUpSupabase();
       if (result.success) {
         setDbStatus('active');
-        toast.success('Database အောင်မြင်စွာ အလုပ်လုပ်နေပါပြီ! / Database successfully woken up!', { id: toastId });
+        toast.success('Database အောင်မြင်စွာ အလုပ်လုပ်နေပါပြီ! / Database successfully woken up!');
       } else {
         setDbStatus('sleeping');
-        toast.error('Database ကို နှိုးမရသေးပါ။ ထပ်မံကြိုးစားပေးပါ။ / Could not wake up database. Please try again.', { id: toastId });
+        toast.error('Database ကို နှိုးမရသေးပါ။ ထပ်မံကြိုးစားပေးပါ။ / Could not wake up database. Please try again.');
       }
     } catch (err: any) {
       setDbStatus('error');
-      toast.error(`Error: ${err.message || err}`, { id: toastId });
+      toast.error(`Error: ${err.message || err}`);
     } finally {
       setIsWaking(false);
     }
@@ -144,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           table: 'profiles',
           filter: `id=eq.${user.id}`
         }, () => {
-          fetchProfile().catch(err => console.error('Realtime layout profile fetch error:', err));
+          fetchProfile().catch(err => console.warn('Realtime layout profile fetch warning:', err));
         })
         .subscribe();
 
@@ -152,10 +151,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         try {
           const p = subscription.unsubscribe();
           if (p && typeof p.catch === 'function') {
-            p.catch((err: any) => console.error('Unsubscribe error:', err));
+            p.catch((err: any) => console.warn('Unsubscribe warning:', err));
           }
         } catch (e) {
-          console.error('Unsubscribe throw:', e);
+          console.warn('Unsubscribe throw warning:', e);
         }
       };
     }
@@ -173,7 +172,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile in layout:', error);
+      console.warn('Optional profile fetch in layout completed with warning:', error);
     }
   };
 

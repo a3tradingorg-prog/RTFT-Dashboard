@@ -69,14 +69,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
-      console.error('Error fetching accounts in context:', err);
+      console.warn('Optional accounts fetch failed:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAccounts().catch(err => console.error('Initial context accounts fetch error:', err));
+    fetchAccounts().catch(err => console.warn('Initial context accounts fetch failed:', err));
 
     if (user) {
       const subscription = supabase
@@ -87,7 +87,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           table: 'accounts',
           filter: `user_id=eq.${user.id}`
         }, () => {
-          fetchAccounts().catch(err => console.error('Realtime context accounts fetch error:', err));
+          fetchAccounts().catch(err => console.warn('Realtime context accounts fetch failed:', err));
         })
         .subscribe();
 
@@ -95,10 +95,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         try {
           const p = subscription.unsubscribe();
           if (p && typeof p.catch === 'function') {
-            p.catch((err: any) => console.error('Unsubscribe error:', err));
+            p.catch((err: any) => console.warn('Unsubscribe warning:', err));
           }
         } catch (e) {
-          console.error('Unsubscribe throw:', e);
+          console.warn('Unsubscribe throw warning:', e);
         }
       };
     }

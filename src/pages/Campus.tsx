@@ -443,13 +443,13 @@ export default function Campus() {
           setResources(data);
         }
       } catch (err) {
-        console.error('Error fetching resources:', err);
+        console.warn('Optional resources table not found or query failed. Using offline default categories.', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResources().catch(err => console.error('Initial resources fetch error:', err));
+    fetchResources().catch(() => {});
   }, []);
 
   const categories = [

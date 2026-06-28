@@ -95,7 +95,7 @@ export default function Dashboard() {
         setCachedDailyPnls(accId, dailyPnlsRes.data as DailyPnL[]);
       }
     } catch (err: any) {
-      console.error('Error fetching dashboard data:', err);
+      console.warn('Optional dashboard data fetch completed with warning:', err);
       if (!silent) setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);

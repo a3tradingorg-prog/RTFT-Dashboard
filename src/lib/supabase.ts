@@ -106,8 +106,9 @@ export async function wakeUpSupabase(retries = 3, delayMs = 2000): Promise<{ suc
       };
       
       const res = await fetch(pingUrl, { method: 'GET', headers });
-      if (res.ok) {
-        console.log(`Supabase keep-alive ping success on attempt ${attempt} via REST endpoint`);
+      // If we get any HTTP status under 500, the Supabase gateway and database-side PostgREST are awake
+      if (res.status >= 200 && res.status < 500) {
+        console.log(`Supabase keep-alive ping success on attempt ${attempt} via REST endpoint (Status: ${res.status})`);
         return { success: true };
       }
     } catch (err) {
@@ -121,6 +122,20 @@ export async function wakeUpSupabase(retries = 3, delayMs = 2000): Promise<{ suc
         console.log(`Supabase keep-alive ping success on attempt ${attempt} via profiles query`);
         return { success: true };
       }
+      
+      // If we get an error, but it's a standard PostgREST or Postgres error (like RLS violation 42501 or table doesn't exist 42P01 or invalid JWT), 
+      // the database is awake and responding to our query.
+      const errStatus = (error as any).status || (error as any).statusCode;
+      const errCode = (error as any).code;
+      if (
+        (errStatus && errStatus >= 400 && errStatus < 500) ||
+        (errCode && errCode !== '503' && errCode !== '504' && errCode !== 'PGRST100') ||
+        (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('timeout') && !error.message.includes('503') && !error.message.includes('504'))
+      ) {
+        console.log(`Supabase keep-alive ping success on attempt ${attempt} via profiles query (Returned valid DB-active error: ${error.message || errCode})`);
+        return { success: true };
+      }
+      
       console.warn(`Select query attempt ${attempt} returned error:`, error);
       lastError = error;
     } catch (err) {

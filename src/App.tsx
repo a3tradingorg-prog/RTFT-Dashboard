@@ -65,6 +65,62 @@ function ProtectedLayout() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    // Disable right-click context menu
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    // Disable keys and shortcuts used for inspecting/viewing page source
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F12 key
+      if (e.key === 'F12' || e.keyCode === 123) {
+        e.preventDefault();
+        return;
+      }
+
+      const isMetaOrCtrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+U / Cmd+U (View Source)
+      if (isMetaOrCtrl && (e.key === 'u' || e.key === 'U' || e.keyCode === 85)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Ctrl+Shift+I / Cmd+Option+I (DevTools)
+      if (isMetaOrCtrl && e.shiftKey && (e.key === 'i' || e.key === 'I' || e.keyCode === 73)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Ctrl+Shift+J / Cmd+Option+J (Console)
+      if (isMetaOrCtrl && e.shiftKey && (e.key === 'j' || e.key === 'J' || e.keyCode === 74)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Ctrl+Shift+C / Cmd+Option+C (Inspect)
+      if (isMetaOrCtrl && e.shiftKey && (e.key === 'c' || e.key === 'C' || e.keyCode === 67)) {
+        e.preventDefault();
+        return;
+      }
+
+      // Ctrl+S / Cmd+S (Save Page)
+      if (isMetaOrCtrl && (e.key === 's' || e.key === 'S' || e.keyCode === 83)) {
+        e.preventDefault();
+        return;
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
