@@ -170,9 +170,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data || { id: user.id, username: user.email?.split('@')[0] || 'User', role: 'user' });
     } catch (error) {
-      console.warn('Optional profile fetch in layout completed with warning:', error);
+      console.warn('Optional profile fetch in layout completed with warning, using fallback profile:', error);
+      setProfile({ id: user.id, username: user.email?.split('@')[0] || 'User', role: 'user' });
     }
   };
 

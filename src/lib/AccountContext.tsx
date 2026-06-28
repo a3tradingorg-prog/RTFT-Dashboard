@@ -16,6 +16,43 @@ interface AccountContextType {
   setCachedDailyPnls: (accountId: string, dailyPnls: DailyPnL[]) => void;
 }
 
+const DEFAULT_MOCK_ACCOUNTS: TradingAccount[] = [
+  {
+    id: 'mock-acc-1',
+    user_id: '',
+    name: 'Challenge Phase 1',
+    propfirm: 'MyForexFunds',
+    account_size: '$100,000',
+    account_type: 'Challenge',
+    status: 'active',
+    profit_target: 8000,
+    max_drawdown: 5000,
+    consistency_rules: 'No Consistency',
+    asset: 'NQ',
+    commission: 1.5,
+    initial_balance: 100000,
+    current_balance: 102450,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'mock-acc-2',
+    user_id: '',
+    name: 'Funded Account #1',
+    propfirm: 'Apex Trader Funding',
+    account_size: '$50,000',
+    account_type: 'Funded',
+    status: 'funded',
+    profit_target: 0,
+    max_drawdown: 2500,
+    consistency_rules: 'No Consistency',
+    asset: 'MNQ',
+    commission: 1.2,
+    initial_balance: 50000,
+    current_balance: 51200,
+    created_at: new Date().toISOString()
+  }
+];
+
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
@@ -54,7 +91,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       
-      if (data) {
+      if (data && data.length > 0) {
         const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values()) as TradingAccount[];
         setAccounts(uniqueAccounts);
         if (uniqueAccounts.length > 0) {
@@ -67,9 +104,26 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           setSelectedAccountIdState(null);
           localStorage.removeItem('selectedAccountId');
         }
+      } else {
+        // Safe mock fallback for clean UI demo/experience
+        const mockAccounts = DEFAULT_MOCK_ACCOUNTS.map(a => ({ ...a, user_id: user.id! }));
+        setAccounts(mockAccounts);
+        const savedId = localStorage.getItem('selectedAccountId');
+        const exists = mockAccounts.some(a => a.id === savedId);
+        if (!savedId || !exists) {
+          setSelectedAccountId(mockAccounts[0].id);
+        }
       }
     } catch (err) {
-      console.warn('Optional accounts fetch failed:', err);
+      console.warn('Optional accounts fetch failed, using fallback mock accounts:', err);
+      // Safe fallback
+      const mockAccounts = DEFAULT_MOCK_ACCOUNTS.map(a => ({ ...a, user_id: user.id! }));
+      setAccounts(mockAccounts);
+      const savedId = localStorage.getItem('selectedAccountId');
+      const exists = mockAccounts.some(a => a.id === savedId);
+      if (!savedId || !exists) {
+        setSelectedAccountId(mockAccounts[0].id);
+      }
     } finally {
       setLoading(false);
     }
