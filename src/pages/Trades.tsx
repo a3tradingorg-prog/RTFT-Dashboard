@@ -69,7 +69,7 @@ export default function Trades() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel).catch(err => console.error('Error removing channel:', err));
     };
   }, [user]);
 

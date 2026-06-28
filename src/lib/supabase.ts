@@ -3,10 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || (import.meta as any).env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || (import.meta as any).env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const isConfigured = supabaseUrl && 
+export const isConfigured = !!(supabaseUrl && 
                       supabaseAnonKey && 
                       supabaseUrl !== 'https://your-project.supabase.co' && 
-                      !supabaseUrl.includes('placeholder');
+                      supabaseUrl !== 'YOUR_SUPABASE_URL' &&
+                      supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' &&
+                      !supabaseUrl.includes('placeholder'));
 
 if (!isConfigured) {
   console.warn('Supabase credentials missing or invalid. Using robust local mock database client to prevent network fetch failures.');
@@ -86,4 +88,52 @@ export const supabase = isConfigured
       }
     })
   : createMockSupabase();
+
+export async function wakeUpSupabase(retries = 3, delayMs = 2000): Promise<{ success: boolean; error?: any }> {
+  if (!isConfigured) {
+    return { success: true };
+  }
+  
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Supabase ping attempt ${attempt} of ${retries}...`);
+      const pingUrl = `${supabaseUrl}/rest/v1/`;
+      const headers: Record<string, string> = {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      };
+      
+      const res = await fetch(pingUrl, { method: 'GET', headers });
+      if (res.ok) {
+        console.log(`Supabase keep-alive ping success on attempt ${attempt} via REST endpoint`);
+        return { success: true };
+      }
+    } catch (err) {
+      console.warn(`REST ping attempt ${attempt} failed:`, err);
+      lastError = err;
+    }
+
+    try {
+      const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle();
+      if (!error) {
+        console.log(`Supabase keep-alive ping success on attempt ${attempt} via profiles query`);
+        return { success: true };
+      }
+      console.warn(`Select query attempt ${attempt} returned error:`, error);
+      lastError = error;
+    } catch (err) {
+      console.warn(`Select query attempt ${attempt} failed:`, err);
+      lastError = err;
+    }
+
+    if (attempt < retries) {
+      console.log(`Waiting ${delayMs}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return { success: false, error: lastError || new Error("All ping attempts failed. Supabase is likely asleep or paused.") };
+}
 

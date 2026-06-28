@@ -229,7 +229,7 @@ export default function ICTNotes() {
         console.warn("Could not fetch remote Session script, using fallback:", err);
       }
     };
-    fetchOfficialScripts();
+    fetchOfficialScripts().catch(err => console.error("fetchOfficialScripts error:", err));
   }, []);
 
   const triggerLocalDownload = (filename: string, contentToDownload: string) => {

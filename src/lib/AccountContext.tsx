@@ -92,7 +92,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         .subscribe();
 
       return () => {
-        subscription.unsubscribe();
+        try {
+          const p = subscription.unsubscribe();
+          if (p && typeof p.catch === 'function') {
+            p.catch((err: any) => console.error('Unsubscribe error:', err));
+          }
+        } catch (e) {
+          console.error('Unsubscribe throw:', e);
+        }
       };
     }
   }, [user]);

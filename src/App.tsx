@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './lib/AuthContext';
 import { AccountProvider } from './lib/AccountContext';
 import { Toaster } from 'sonner';
 import { GlobalClickEffect } from './components/GlobalClickEffect';
+import { isConfigured } from './lib/supabase';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -20,7 +21,6 @@ import Settings from './pages/Settings';
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
-  const isConfigured = (import.meta as any).env.VITE_SUPABASE_URL && (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
   if (!isConfigured) {
     return (

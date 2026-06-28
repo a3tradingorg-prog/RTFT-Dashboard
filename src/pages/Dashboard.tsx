@@ -133,7 +133,7 @@ export default function Dashboard() {
       }
     };
 
-    loadData();
+    loadData().catch(err => console.error("loadData error:", err));
 
     if (selectedAccountId) {
       const tradesSubscription = supabase
@@ -144,7 +144,7 @@ export default function Dashboard() {
           table: 'trades',
           filter: `account_id=eq.${selectedAccountId}`
         }, (payload: any) => {
-          if (isActive) fetchDashboardData(selectedAccountId, true);
+          if (isActive) fetchDashboardData(selectedAccountId, true).catch(err => console.error('Realtime dashboard trades fetch error:', err));
         })
         .subscribe();
 
@@ -156,14 +156,24 @@ export default function Dashboard() {
           table: 'daily_pnl',
           filter: `account_id=eq.${selectedAccountId}`
         }, (payload: any) => {
-          if (isActive) fetchDashboardData(selectedAccountId, true);
+          if (isActive) fetchDashboardData(selectedAccountId, true).catch(err => console.error('Realtime dashboard daily pnl fetch error:', err));
         })
         .subscribe();
 
       return () => {
         isActive = false;
-        tradesSubscription.unsubscribe();
-        dailyPnLSubscription.unsubscribe();
+        const safeUnsubscribe = (sub: any) => {
+          try {
+            const p = sub.unsubscribe();
+            if (p && typeof p.catch === 'function') {
+              p.catch((err: any) => console.error('Unsubscribe error:', err));
+            }
+          } catch (e) {
+            console.error('Unsubscribe throw:', e);
+          }
+        };
+        safeUnsubscribe(tradesSubscription);
+        safeUnsubscribe(dailyPnLSubscription);
       };
     }
   }, [selectedAccountId, accountsLoading]);

@@ -668,7 +668,7 @@ export default function AISummary() {
       }
     };
 
-    initializeData();
+    initializeData().catch(err => console.error("initializeData unhandled rejection:", err));
 
     return () => {
       isSubscribed = false;
@@ -913,7 +913,7 @@ export default function AISummary() {
       }
     };
 
-    loadCacheOrFallback();
+    loadCacheOrFallback().catch(err => console.error("loadCacheOrFallback unhandled rejection:", err));
 
     return () => {
       isSubscribed = false;

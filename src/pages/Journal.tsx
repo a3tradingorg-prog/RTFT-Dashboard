@@ -587,7 +587,7 @@ export default function Journal() {
 
       setSelectedAccountId(targetAccountId!);
       toast.success(`Successfully imported ${tradesToInsert.length} trades!`, { id: toastId });
-      fetchJournalData(true);
+      await fetchJournalData(true);
     } catch (error: any) {
       console.error('Import error:', error);
       toast.error(`Import failed: ${error.message}`, { id: toastId });
@@ -691,9 +691,19 @@ export default function Journal() {
         .subscribe();
 
       return () => {
-        tradesSubscription.unsubscribe();
-        exitsSubscription.unsubscribe();
-        dailyPnLSubscription.unsubscribe();
+        const safeUnsubscribe = (sub: any) => {
+          try {
+            const p = sub.unsubscribe();
+            if (p && typeof p.catch === 'function') {
+              p.catch((err: any) => console.error('Unsubscribe error:', err));
+            }
+          } catch (e) {
+            console.error('Unsubscribe throw:', e);
+          }
+        };
+        safeUnsubscribe(tradesSubscription);
+        safeUnsubscribe(exitsSubscription);
+        safeUnsubscribe(dailyPnLSubscription);
       };
     }
   }, [selectedAccountId]);
