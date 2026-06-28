@@ -117,7 +117,15 @@ export async function wakeUpSupabase(retries = 2, delayMs = 1500): Promise<{ suc
       console.log(`Supabase ping attempt ${attempt} of ${retries}...`);
       
       // Perform a lightweight check using the official client with a strict timeout
-      const queryPromise = supabase.from('profiles').select('id').limit(1).maybeSingle();
+      const queryPromise = (async () => {
+        return await supabase.from('profiles').select('id').limit(1).maybeSingle();
+      })();
+      
+      // Explicitly attach a catch block to the query promise to avoid unhandled rejections if it fails after timeout
+      queryPromise.catch((err) => {
+        console.warn(`Background profiles query rejected/failed safely:`, err);
+      });
+
       const { error } = await promiseWithTimeout(queryPromise, 3000, "Query timeout") as any;
       
       if (!error) {
