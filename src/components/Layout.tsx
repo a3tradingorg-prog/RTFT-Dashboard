@@ -31,7 +31,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
-  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount } = useAccount();
+  const { accounts, selectedAccountId, setSelectedAccountId, selectedAccount, refreshAccounts } = useAccount();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -107,6 +107,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Trigger fresh fetch when database is confirmed active
+  useEffect(() => {
+    if (dbStatus === 'active' && user) {
+      console.log('Database active: re-fetching profile and accounts...');
+      fetchProfile().catch(err => console.error('Layout profile fetch on active DB error:', err));
+      refreshAccounts().catch(err => console.error('Layout accounts fetch on active DB error:', err));
+    }
+  }, [dbStatus, user]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

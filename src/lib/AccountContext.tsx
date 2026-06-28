@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from './supabase';
+import { supabase, isConfigured } from './supabase';
 import { useAuth } from './AuthContext';
 import { TradingAccount, Trade, DailyPnL } from '../types';
 
@@ -76,47 +76,62 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setCachedDailyPnlsState(prev => ({ ...prev, [accountId]: dailyPnls }));
   };
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = async (retries = 3, delayMs = 3000) => {
     if (!user) {
       setAccounts([]);
       setLoading(false);
       return;
     }
 
-    try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('user_id', user.id);
+    let lastError: any = null;
 
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values()) as TradingAccount[];
-        setAccounts(uniqueAccounts);
-        if (uniqueAccounts.length > 0) {
-          const savedId = localStorage.getItem('selectedAccountId');
-          const exists = uniqueAccounts.some(a => a.id === savedId);
-          if (!savedId || !exists) {
-            setSelectedAccountId(uniqueAccounts[0].id);
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        
+        if (data) {
+          const uniqueAccounts = Array.from(new Map(data.map((a: any) => [a.id, a])).values()) as TradingAccount[];
+          setAccounts(uniqueAccounts);
+          if (uniqueAccounts.length > 0) {
+            const savedId = localStorage.getItem('selectedAccountId');
+            const exists = uniqueAccounts.some(a => a.id === savedId);
+            if (savedId && exists) {
+              setSelectedAccountIdState(savedId);
+            } else {
+              setSelectedAccountIdState(uniqueAccounts[0].id);
+              localStorage.setItem('selectedAccountId', uniqueAccounts[0].id);
+            }
+          } else {
+            setSelectedAccountIdState(null);
+            localStorage.removeItem('selectedAccountId');
           }
-        } else {
-          setSelectedAccountIdState(null);
-          localStorage.removeItem('selectedAccountId');
+          setLoading(false);
+          return; // Success! Exit function.
         }
-      } else {
-        // Safe mock fallback for clean UI demo/experience
-        const mockAccounts = DEFAULT_MOCK_ACCOUNTS.map(a => ({ ...a, user_id: user.id! }));
-        setAccounts(mockAccounts);
-        const savedId = localStorage.getItem('selectedAccountId');
-        const exists = mockAccounts.some(a => a.id === savedId);
-        if (!savedId || !exists) {
-          setSelectedAccountId(mockAccounts[0].id);
+      } catch (err: any) {
+        console.warn(`fetchAccounts attempt ${attempt} of ${retries} failed:`, err);
+        lastError = err;
+
+        // If not configured, don't bother retrying
+        if (!isConfigured) {
+          break;
+        }
+
+        // Wait before retrying
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
         }
       }
-    } catch (err) {
-      console.warn('Optional accounts fetch failed, using fallback mock accounts:', err);
-      // Safe fallback
+    }
+
+    // Handle fallback or error finalization
+    if (!isConfigured) {
+      console.log('Using offline mock accounts fallback (Supabase not configured)');
       const mockAccounts = DEFAULT_MOCK_ACCOUNTS.map(a => ({ ...a, user_id: user.id! }));
       setAccounts(mockAccounts);
       const savedId = localStorage.getItem('selectedAccountId');
@@ -124,9 +139,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (!savedId || !exists) {
         setSelectedAccountId(mockAccounts[0].id);
       }
-    } finally {
-      setLoading(false);
+    } else {
+      console.error('All fetchAccounts attempts failed on configured database:', lastError);
+      // Keep empty if they have a real database but there are 0 accounts or database connection fails completely.
+      setAccounts([]);
+      setSelectedAccountIdState(null);
+      localStorage.removeItem('selectedAccountId');
     }
+    setLoading(false);
   };
 
   useEffect(() => {
