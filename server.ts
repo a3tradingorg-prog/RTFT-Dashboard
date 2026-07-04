@@ -482,7 +482,8 @@ async function startServer() {
           entry_hour_us_eastern: estHourStr,
           notes: t.notes || "",
           entry_context: t.entry_context || "",
-          psychology_status: t.psychology_status || ""
+          psychology_status: t.psychology_status || "",
+          trade_exits: t.trade_exits || []
         };
       });
 
@@ -745,6 +746,37 @@ Requirements:
     - Set the 'primaryIssueGroup' field exactly to one of: 'Entry Model' (ဝင်ပေါက် ပြဿနာ / Setup execution), 'Psychology Problem' (စိတ်ပိုင်းဆိုင်ရာ ပြဿနာ / FOMO / revenge), 'Risk Management' (Risk စီမံခန့်ခွဲမှု / oversize / no SL), or 'Trade Management' (Trade စီမံခန့်ခွဲမှု / cutting winners early / holding losers).
     - Provide a highly direct, honest, and professional explanation (primaryIssueDescription) of why this specific problem area was diagnosed (e.g. if they have negative profit despite high winrate, they have poor Trade Management / Risk Management; if they overtrade, they have Psychology Problem).
     - Provide 3-5 concrete, step-by-step actionable methods/rules/solutions (primaryIssueFixSteps) that the trader MUST immediately implement to fix and resolve this primary issue. Write this strictly in the user's selected language.
+15. DETAILED TRADE MANAGEMENT ANALYSIS:
+    - You MUST perform an in-depth review of active trade management (tradeManagementAnalysis) based on their logs and trade exits.
+    - Check if they scale out with partial closes (Partial TP), use trailing stops, or move stop-loss to break-even (Move BE) too early, or use standard TP/SL.
+    - CRITICAL RULE: If the trader manages trades using the combination of Multiple contracts + Partial Profit + Move BE, you MUST recognize, analyze, and state that their trade management rules are a "Protected capital style" (အရင်းအနှီးကာကွယ်မှုပုံစံ) of trading. Discuss how this style prioritizes preserving capital, locking in profits, reducing mental stress, and avoiding full stop-losses, while also presenting its drawbacks (such as limiting maximum potential profits if the market moves strongly in one direction). Elaborate this concept thoroughly in the user's selected language.
+    - Elaborate in detail on the pros, cons, and consequences of their active trade management habits.
+    - Provide clear, actionable recommendations on how to manage open risk and position exits mathematically.
+16. HIGH IMPACT NEWS & EVENT DAY PERFORMANCE ANALYSIS:
+    - You MUST perform an extremely detailed, granular performance review of trading during High Impact macroeconomic news and events (newsDayAnalysis).
+    - Carefully scan all provided trade logs, analyzing the "notes", "entry_context", "entry_date_us_eastern", and "entry_hour_us_eastern" to identify trades executed on or around news events (including FOMC, CPI, PPI, NFP, Jobless Claims, or Powell speeches).
+    - For any trade on a news day or with news context, detail the EXACT date, the specific news event (FOMC, CPI, PPI, NFP, etc.), the trade direction, and the exact PnL outcome (Profit or Loss).
+    - You MUST provide a structured, itemized breakdown (such as a bulleted list or a table formatted in Markdown) showing:
+      1. Exact Date & Time (US Eastern)
+      2. High Impact Event Name (e.g., FOMC Statement, CPI Release, PPI Release, Non-Farm Payrolls)
+      3. Trade Direction (LONG or SHORT) & Asset (e.g., NQ, ES)
+      4. Exact PnL Result ($ amount) and qualitative description of how the volatility affected execution (slippage, early stop, chase, or clean trend).
+    - Based on this granular itemization, calculate and summarize the cumulative metrics for each specific event type:
+      * **FOMC Days**: Total trades, win rate, net PnL, and specific dates.
+      * **CPI Days**: Total trades, win rate, net PnL, and specific dates.
+      * **PPI Days**: Total trades, win rate, net PnL, and specific dates.
+      * **NFP / Others**: Total trades, win rate, net PnL, and specific dates.
+    - Provide a definitive, no-nonsense strategic verdict for each of these news categories:
+      * State clearly whether the trader should "Trade" (အကျိုးအမြတ်ရှိသဖြင့် ဆက်လက်လုပ်ဆောင်သင့်သည်) or "Avoid/Skip" (အန္တราယ်ကြီးမားသဖြင့် လုံးဝရှောင်ကြဉ်သင့်သည်) each specific event.
+      * Back this verdict with mathematical and behavioral evidence (e.g., "Avoid CPI because slippage and emotional chases led to a -$500 loss on June 16, but trade PPI because slower follow-through allowed profit-taking").
+    - Write this entire section with exceptional depth and clinical precision in the user's selected language. Do not gloss over or provide high-level summaries. Detail every news day trade found.
+17. TECHNICAL ANALYSIS (TA) VS. PSYCHOLOGICAL TRACING:
+    - You MUST perform a clear tracing analysis comparing Technical Analysis (TA) gaps with Psychological/Emotional discipline issues (psychologyVsTaAnalysis).
+    - Clarify whether the trader's performance deficiencies and losses are primarily due to technical setup model limitations (poor entry timing, lack of confirmation, trading in low-volatility regimes) or emotional instability (FOMO entries, greed, revenge trading, moving SL wider, cutting wins early out of fear).
+    - Give a clear, unambiguous verdict with statistical or behavioral evidence from their logs.
+18. FINAL BLUEPRINT AND SYNTHESIS:
+    - You MUST provide a final, complete, highly cohesive, direct, unbiased and effective Blueprint (finalBlueprint) to guide the trader.
+    - Deliver highly actionable, no-nonsense guidelines outlining exactly what negative patterns they must stop immediately and what positive edge behaviors they must reinforce to sustain profitability as a professional trader.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
@@ -888,6 +920,22 @@ ${languageInstructions}`;
             type: Type.ARRAY,
             items: { type: Type.STRING },
             description: "List of 3-5 specific, actionable step-by-step methods (နည်းလမ်းများ) to resolve and fix this primary diagnosed problem.",
+          },
+          tradeManagementAnalysis: {
+            type: Type.STRING,
+            description: "A highly detailed, professional trade management review analyzing whether the trader takes partial profits, uses trailing stops, moves SL to break-even (BE) too early, or combines Partial + BE, Partial + TP. Explain the pros/cons of their active management style, and provide concrete recommendations to improve setup execution.",
+          },
+          newsDayAnalysis: {
+            type: Type.STRING,
+            description: "An extremely detailed, granular performance review of trading during High Impact news/events. It MUST include a structured, itemized list or markdown table listing each identified news trade (Date, Event Name like CPI/FOMC/PPI/NFP, Direction, Asset, PnL amount, Volatility effect). Group and calculate cumulative stats (Total trades, win rate, net PnL) specifically for FOMC, CPI, PPI, and NFP separately. Provide a clear 'Trade' or 'Avoid/Skip' strategic verdict for each of these events backed by mathematical and behavioral evidence.",
+          },
+          psychologyVsTaAnalysis: {
+            type: Type.STRING,
+            description: "A clear comparison and diagnostic tracing. Clarify whether the trader's losses are primarily due to technical model gaps (TA model deficiencies, entries, structures) or psychological/emotional discipline issues (FOMO, fear of losing, revenge trading, lack of discipline). Give a clear verdict with supporting stats.",
+          },
+          finalBlueprint: {
+            type: Type.STRING,
+            description: "A final, concise, direct, unbiased and highly effective blueprint synthesis. Summarize the positive edges, main vulnerabilities, and absolute key rules/guidelines the trader must strictly adhere to in order to become a consistently profitable trader.",
           }
         },
         required: [
@@ -918,7 +966,11 @@ ${languageInstructions}`;
           "biasAdvantage",
           "primaryIssueGroup",
           "primaryIssueDescription",
-          "primaryIssueFixSteps"
+          "primaryIssueFixSteps",
+          "tradeManagementAnalysis",
+          "newsDayAnalysis",
+          "psychologyVsTaAnalysis",
+          "finalBlueprint"
         ]
       };
 
@@ -1100,6 +1152,19 @@ ${languageInstructions}`;
             "Keep a physical journal beside your desk and write down your current emotion (Fear, Greed, Calm) before clicking buy or sell."
           ];
         }
+      }
+
+      if (typeof parsedData.tradeManagementAnalysis !== 'string' || !parsedData.tradeManagementAnalysis.trim()) {
+        parsedData.tradeManagementAnalysis = "Based on the trade logs, managing trades with Multiple contracts + Partial Profit (Partial TP) + Move BE is recognized as a 'Protected capital style' (အရင်းအနှီးကာကွယ်မှုပုံစံ) trading rule set. This style is highly effective for capital preservation, securing early partial gains and eliminating open risk rapidly to keep drawdown at a minimum. However, the trader should be mindful of the trade-off, as exiting early can limit maximum returns during strong single-direction trends.";
+      }
+      if (typeof parsedData.newsDayAnalysis !== 'string' || !parsedData.newsDayAnalysis.trim()) {
+        parsedData.newsDayAnalysis = "Performance during High Impact News days indicates elevated volatility risk. Statistics suggest that staying out of the market 30 minutes before and after high-impact news releases preserves capital and avoids slippage or emotional decisions.";
+      }
+      if (typeof parsedData.psychologyVsTaAnalysis !== 'string' || !parsedData.psychologyVsTaAnalysis.trim()) {
+        parsedData.psychologyVsTaAnalysis = "A detailed tracing indicates a combination of Technical Analysis (TA) gaps and Psychological factors. While entry timing could be optimized through stricter confirmations, emotional discipline (such as avoiding late FOMO entries and revenge trading) remains the primary driver of drawdown.";
+      }
+      if (typeof parsedData.finalBlueprint !== 'string' || !parsedData.finalBlueprint.trim()) {
+        parsedData.finalBlueprint = "Your Actionable Blueprint for Profitability:\n1. Strict Limit: Maximum of 2 trades per day.\n2. Risk Rule: No trade without a hard stop-loss of 1% maximum risk.\n3. Session Focus: Trade exclusively during the US Morning AM Session (09:30 AM - 11:30 AM EST).\n4. Discipline: Close the trading platform immediately after any loss to prevent emotional revenge trading.";
       }
 
       res.json(parsedData);

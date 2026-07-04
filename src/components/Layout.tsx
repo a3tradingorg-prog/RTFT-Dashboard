@@ -103,11 +103,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Trigger fresh fetch when database is confirmed active
   useEffect(() => {
     if (dbStatus === 'active' && user) {
-      console.log('Database active: re-fetching profile and accounts...');
-      fetchProfile().catch(err => console.error('Layout profile fetch on active DB error:', err));
-      refreshAccounts().catch(err => console.error('Layout accounts fetch on active DB error:', err));
+      if (accounts.length === 0) {
+        console.log('Database active and no accounts loaded yet: fetching profile and accounts...');
+        fetchProfile().catch(err => console.error('Layout profile fetch on active DB error:', err));
+        refreshAccounts().catch(err => console.error('Layout accounts fetch on active DB error:', err));
+      }
     }
-  }, [dbStatus, user]);
+  }, [dbStatus, user, accounts.length]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -59,6 +59,10 @@ interface AIResult {
   primaryIssueGroup?: 'Entry Model' | 'Psychology Problem' | 'Risk Management' | 'Trade Management';
   primaryIssueDescription?: string;
   primaryIssueFixSteps?: string[];
+  tradeManagementAnalysis?: string;
+  newsDayAnalysis?: string;
+  psychologyVsTaAnalysis?: string;
+  finalBlueprint?: string;
   selectedAccountIds?: string[];
   selectedLanguage?: string;
 }
@@ -128,7 +132,11 @@ const translations: Record<string, any> = {
     riskAvoidLabel: "လုံးဝရှောင်ကြဉ်ရမည့် အချက်များ (Risk Avoids)",
     downloadReport: "PDF Report ဒေါင်းလုဒ်လုပ်ရန်",
     downloadingReport: "PDF ဆွဲနေပါသည်...",
-    downloadSuccess: "PDF Report ကို အောင်မြင်စွာ ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ!"
+    downloadSuccess: "PDF Report ကို အောင်မြင်စွာ ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ!",
+    tradeManagementTitle: "Trade စီမံခန့်ခွဲမှု အသေးစိတ်ဆန်းစစ်ချက် (Trade Management Analysis)",
+    newsDayTitle: "High Impact News & Event နေ့ရက်များ ဆန်းစစ်ချက် (News Day Performance Analysis)",
+    psychologyVsTaTitle: "TA Gaps နှင့် စိတ်ပိုင်းဆိုင်ရာ တိုက်ဆိုင်ဆန်းစစ်ချက် (Technical Analysis vs. Psychology)",
+    finalBlueprintTitle: "အနှစ်ချုပ် လမ်းညွှန်ချက်နှင့် Plan Blueprint (Actionable Blueprint)"
   },
   en: {
     title: "AI Trader Insight",
@@ -194,7 +202,11 @@ const translations: Record<string, any> = {
     riskAvoidLabel: "Risk Actions to Avoid (Avoid Ruin)",
     downloadReport: "Download PDF Report",
     downloadingReport: "Generating PDF...",
-    downloadSuccess: "PDF Report downloaded successfully!"
+    downloadSuccess: "PDF Report downloaded successfully!",
+    tradeManagementTitle: "Detailed Trade Management Analysis",
+    newsDayTitle: "High Impact News & Event Day Performance Analysis",
+    psychologyVsTaTitle: "Technical Analysis (TA) vs. Psychology Tracing",
+    finalBlueprintTitle: "Actionable Blueprint & Synthesis"
   },
   th: {
     title: "ข้อมูลเชิงลึก AI Trader",
@@ -260,7 +272,11 @@ const translations: Record<string, any> = {
     riskAvoidLabel: "สิ่งที่ควรหลีกเลี่ยงเพื่อจำกัดความเสี่ยง (Risk Avoids)",
     downloadReport: "ดาวน์โหลดรายงาน PDF",
     downloadingReport: "กำลังสร้าง PDF...",
-    downloadSuccess: "ดาวน์โหลดรายงาน PDF สำเร็จแล้ว!"
+    downloadSuccess: "ดาวน์โหลดรายงาน PDF สำเร็จแล้ว!",
+    tradeManagementTitle: "การวิเคราะห์รายละเอียดการจัดการออเดอร์ (Trade Management)",
+    newsDayTitle: "การวิเคราะห์ผลกระทบจากข่าวสำคัญและวันสำคัญ (News Day Analysis)",
+    psychologyVsTaTitle: "การวิเคราะห์ปัจจัยทางเทคนิคเทียบกับทางอารมณ์ (TA vs Psychology)",
+    finalBlueprintTitle: "พิมพ์เขียวขั้นตอนความสำเร็จและแผนงานหลัก (Actionable Blueprint)"
   }
 };
 
@@ -2113,6 +2129,92 @@ export default function AISummary() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Detailed Trade Management Analysis */}
+                  {result.tradeManagementAnalysis && (
+                    <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-5">
+                      <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                        <div className="w-7 h-7 bg-cyan-500/10 rounded-lg flex items-center justify-center border border-cyan-500/15">
+                          <Layers className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {t.tradeManagementTitle}
+                        </h3>
+                      </div>
+                      <div className="p-5 bg-[#080d10] border border-[#101c24] rounded-2xl relative overflow-hidden">
+                        <div className="absolute right-4 top-4 opacity-[0.02]">
+                          <Layers className="w-36 h-36 text-cyan-400" />
+                        </div>
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                          {result.tradeManagementAnalysis}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* High Impact News & Event Day Performance Analysis */}
+                  {result.newsDayAnalysis && (
+                    <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-5">
+                      <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                        <div className="w-7 h-7 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/15">
+                          <Activity className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {t.newsDayTitle}
+                        </h3>
+                      </div>
+                      <div className="p-5 bg-[#0e0a05] border border-[#241a0e] rounded-2xl relative overflow-hidden">
+                        <div className="absolute right-4 top-4 opacity-[0.02]">
+                          <Activity className="w-36 h-36 text-amber-400" />
+                        </div>
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                          {result.newsDayAnalysis}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Technical Analysis (TA) vs. Psychological Tracing */}
+                  {result.psychologyVsTaAnalysis && (
+                    <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-5">
+                      <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3">
+                        <div className="w-7 h-7 bg-violet-500/10 rounded-lg flex items-center justify-center border border-violet-500/15">
+                          <TrendingUp className="w-4 h-4 text-violet-400" />
+                        </div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {t.psychologyVsTaTitle}
+                        </h3>
+                      </div>
+                      <div className="p-5 bg-[#0d0a14] border border-[#1d1430] rounded-2xl relative overflow-hidden">
+                        <div className="absolute right-4 top-4 opacity-[0.02]">
+                          <TrendingUp className="w-36 h-36 text-violet-400" />
+                        </div>
+                        <p className="text-sm text-neutral-300 leading-relaxed font-medium whitespace-pre-wrap relative z-10">
+                          {result.psychologyVsTaAnalysis}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actionable Blueprint & Synthesis */}
+                  {result.finalBlueprint && (
+                    <div className="bg-gradient-to-b from-[#181818] to-[#121212] border border-[#2e2e2e] rounded-3xl p-6 space-y-5 shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                      <div className="flex items-center gap-2.5 border-b border-[#1f1f1f] pb-3 relative z-10">
+                        <div className="w-7 h-7 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20">
+                          <Award className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <h3 className="text-sm font-black text-emerald-400 uppercase tracking-wider">
+                          {t.finalBlueprintTitle}
+                        </h3>
+                      </div>
+                      <div className="p-6 bg-gradient-to-r from-[#0d1410] to-[#0a0a0a] border border-emerald-950/50 rounded-2xl relative overflow-hidden z-10">
+                        <p className="text-sm text-neutral-200 leading-relaxed font-semibold whitespace-pre-wrap relative z-10">
+                          {result.finalBlueprint}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Actionable Recommendations Layout */}
                   <div className="bg-[#141414] border border-[#262626] rounded-3xl p-6 space-y-5">

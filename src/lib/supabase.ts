@@ -89,22 +89,6 @@ export const supabase = isConfigured
     })
   : createMockSupabase();
 
-const promiseWithTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(errorMsg)), timeoutMs);
-    promise.then(
-      res => {
-        clearTimeout(timer);
-        resolve(res);
-      },
-      err => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
-};
-
 export async function wakeUpSupabase(retries = 2, delayMs = 1500): Promise<{ success: boolean; error?: any }> {
   if (!isConfigured) {
     return { success: true };
@@ -113,42 +97,35 @@ export async function wakeUpSupabase(retries = 2, delayMs = 1500): Promise<{ suc
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
     try {
       console.log(`Supabase ping attempt ${attempt} of ${retries}...`);
       
-      // Perform a lightweight check using the official client with a strict timeout
-      const queryPromise = (async () => {
-        return await supabase.from('profiles').select('id').limit(1).maybeSingle();
-      })();
+      const pingUrl = `${supabaseUrl}/rest/v1/profiles?select=id&limit=1`;
+      const headers: Record<string, string> = {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      };
       
-      // Explicitly attach a catch block to the query promise to avoid unhandled rejections if it fails after timeout
-      queryPromise.catch((err) => {
-        console.warn(`Background profiles query rejected/failed safely:`, err);
+      const res = await fetch(pingUrl, {
+        method: 'GET',
+        headers,
+        signal: controller.signal
       });
-
-      const { error } = await promiseWithTimeout(queryPromise, 3000, "Query timeout") as any;
       
-      if (!error) {
-        console.log(`Supabase keep-alive ping success on attempt ${attempt} via profiles query`);
+      clearTimeout(timeoutId);
+      
+      // If we get a response that isn't a gateway timeout or service unavailable, the DB REST server is awake
+      if (res.status !== 503 && res.status !== 504) {
+        console.log(`Supabase keep-alive ping success on attempt ${attempt} via REST query (Status: ${res.status})`);
         return { success: true };
+      } else {
+        throw new Error(`Database service sleeping or unavailable (Status: ${res.status})`);
       }
-      
-      // If we get an error but it's not a service unavailable / gateway timeout (503 / 504),
-      // it means the REST server is awake and answered our query.
-      const errStatus = (error as any).status || (error as any).statusCode;
-      const errCode = (error as any).code;
-      if (
-        (errStatus && errStatus >= 400 && errStatus < 500) ||
-        (errCode && errCode !== '503' && errCode !== '504' && errCode !== 'PGRST100') ||
-        (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('timeout') && !error.message.includes('503') && !error.message.includes('504'))
-      ) {
-        console.log(`Supabase keep-alive ping success on attempt ${attempt} (Returned valid DB-active error: ${error.message || errCode})`);
-        return { success: true };
-      }
-      
-      console.warn(`Attempt ${attempt} returned error:`, error);
-      lastError = error;
     } catch (err: any) {
+      clearTimeout(timeoutId);
       console.warn(`Attempt ${attempt} failed or timed out:`, err);
       lastError = err;
     }
