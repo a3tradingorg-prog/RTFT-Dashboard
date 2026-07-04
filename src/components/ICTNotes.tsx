@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { supabase, isConfigured } from '../lib/supabase';
 import { 
   Zap, 
   Clock, 
@@ -17,7 +17,11 @@ import {
   Download,
   Copy,
   Check,
-  FileCode
+  FileCode,
+  Video,
+  FileText,
+  ExternalLink,
+  Play
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScrollReveal } from './ScrollReveal';
@@ -197,6 +201,39 @@ export default function ICTNotes() {
   const [downloadingSession, setDownloadingSession] = useState(false);
   const [copiedRtft, setCopiedRtft] = useState(false);
   const [copiedSession, setCopiedSession] = useState(false);
+  const [customICTResources, setCustomICTResources] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchICTResources = async () => {
+      try {
+        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
+        const filteredLocal = localResources.filter((r: any) => r.category === 'ICT Notes');
+
+        let dbResources: any[] = [];
+        if (isConfigured) {
+          const { data, error } = await supabase
+            .from('resources')
+            .select('*')
+            .eq('category', 'ICT Notes');
+          if (!error && data) {
+            dbResources = data;
+          }
+        }
+
+        const merged = [...dbResources];
+        filteredLocal.forEach((lr: any) => {
+          if (!merged.some(m => m.id === lr.id)) {
+            merged.push(lr);
+          }
+        });
+        setCustomICTResources(merged);
+      } catch (err) {
+        console.warn('Failed to fetch ICT resources:', err);
+      }
+    };
+
+    fetchICTResources();
+  }, []);
 
   // Dynamically fetch both indicator scripts from user's Supabase bucket
   React.useEffect(() => {
@@ -1051,6 +1088,76 @@ export default function ICTNotes() {
               </div>
             </div>
           </ScrollReveal>
+
+          {/* Custom Uploaded Admin ICT Resources */}
+          {customICTResources.length > 0 && (
+            <ScrollReveal>
+              <div className="space-y-8 mt-12">
+                <div className="flex items-center gap-3">
+                  <Video className="w-8 h-8 text-sky-500 animate-pulse" />
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight text-white">Admin Published Lectures & Cheat Sheets</h3>
+                    <p className="text-xs text-neutral-500 uppercase font-bold tracking-widest mt-1">
+                      EXCLUSIVE LEARNING MATERIALS & RECENT UPDATES
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {customICTResources.map((resource) => {
+                    const isVideo = resource.url.includes('youtu.be') || resource.url.includes('youtube.com');
+                    return (
+                      <motion.div
+                        key={resource.id}
+                        initial={{ opacity: 0, y: 15 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="bg-[#141414] border border-[#262626] hover:border-sky-500/30 rounded-3xl overflow-hidden p-6 flex flex-col justify-between space-y-6 transition-all group relative"
+                      >
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="px-3 py-1 bg-sky-500/10 border border-sky-500/20 text-[10px] font-black uppercase tracking-wider text-sky-400 rounded-lg">
+                              {isVideo ? 'VIDEO LECTURE' : 'DOCUMENT / SHEET'}
+                            </span>
+                            <div className="text-neutral-500 hover:text-sky-400 transition-all">
+                              {isVideo ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="text-lg font-bold text-white group-hover:text-sky-400 transition-colors line-clamp-2">
+                              {resource.title}
+                            </h4>
+                            {resource.description && (
+                              <p className="text-xs text-neutral-500 leading-relaxed mt-2 line-clamp-3">
+                                {resource.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-[#1f1f1f]">
+                          <a
+                            href={resource.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            referrerPolicy="no-referrer"
+                            className="flex items-center justify-between w-full px-4 py-2.5 bg-[#1b1b1b] border border-[#262626] hover:border-sky-500/40 hover:bg-sky-500/10 text-xs font-bold text-white hover:text-sky-400 rounded-xl transition-all"
+                          >
+                            <span className="flex items-center gap-2">
+                              {isVideo ? <Play className="w-3.5 h-3.5 fill-current" /> : <Download className="w-3.5 h-3.5" />}
+                              {isVideo ? 'Watch Lesson' : 'Open / Download'}
+                            </span>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          </a>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </ScrollReveal>
+          )}
         </div>
       </section>
     </div>

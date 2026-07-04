@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleGenAI, Type } from "@google/genai";
 import YahooFinance from 'yahoo-finance2';
+import pg from 'pg';
 
 const yahooFinance = new YahooFinance();
 
@@ -29,7 +30,111 @@ async function startServer() {
    app.use(express.json({ limit: '15mb' }));
    app.use(express.urlencoded({ limit: '15mb', extended: true }));
 
-  // API routes
+   // API routes
+  app.post("/api/admin/setup-db", async (req, res) => {
+    try {
+      const { connectionString } = req.body;
+      const dbUrl = connectionString || process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
+      
+      if (!dbUrl) {
+        return res.status(400).json({ 
+          error: "Database Connection String is required. Please provide it in the input field or set DATABASE_URL in your environment." 
+        });
+      }
+
+      // Initialize pg client
+      const client = new pg.Client({
+        connectionString: dbUrl,
+        ssl: dbUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined
+      });
+
+      await client.connect();
+
+      const sqlScript = `
+-- 1. Resources Table
+CREATE TABLE IF NOT EXISTS resources (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT NOT NULL,
+  url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- RLS Policies for Resources
+ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access on resources" ON resources;
+CREATE POLICY "Allow public read access on resources" ON resources FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin modify resources" ON resources;
+CREATE POLICY "Allow admin modify resources" ON resources FOR ALL USING (true);
+
+-- 2. Q&As Table
+CREATE TABLE IF NOT EXISTS qas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  question_en TEXT NOT NULL,
+  question_mm TEXT,
+  answer_en TEXT NOT NULL,
+  answer_mm TEXT,
+  category_en TEXT DEFAULT 'General',
+  category_mm TEXT DEFAULT 'အထွေထွေ',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- RLS Policies for QAs
+ALTER TABLE qas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read access on qas" ON qas;
+CREATE POLICY "Allow public read access on qas" ON qas FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin modify qas" ON qas;
+CREATE POLICY "Allow admin modify qas" ON qas FOR ALL USING (true);
+
+-- 3. Sessions Tracking Table
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL,
+  email TEXT NOT NULL,
+  device TEXT,
+  location TEXT,
+  ip_address TEXT,
+  last_active TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- RLS Policies for Sessions
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow admin select user_sessions" ON user_sessions;
+CREATE POLICY "Allow admin select user_sessions" ON user_sessions FOR ALL USING (true);
+
+-- 4. Notifications Center Table
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- RLS Policies for Notifications
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow read notifications" ON notifications;
+CREATE POLICY "Allow read notifications" ON notifications FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow insert/update/delete notifications" ON notifications;
+CREATE POLICY "Allow insert/update/delete notifications" ON notifications FOR ALL USING (true);
+`;
+
+      console.log("[Setup DB] Running SQL statements on Supabase Postgres database...");
+      await client.query(sqlScript);
+      await client.end();
+      
+      console.log("[Setup DB] SQL Schema executed successfully.");
+      res.json({ success: true, message: "All tables, columns, and security policies have been deployed and initialized successfully!" });
+    } catch (error: any) {
+      console.error("[Setup DB] Error executing SQL setup:", error);
+      res.status(500).json({ error: error.message || "An unexpected error occurred while executing SQL setup." });
+    }
+  });
+
   app.get("/api/news-proxy", async (req, res) => {
     try {
       const targetUrl = req.query.url as string;

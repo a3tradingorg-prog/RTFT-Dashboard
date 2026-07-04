@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -14,19 +14,46 @@ import { QA_TRANSLATIONS, UI_TRANSLATIONS, Language } from '../lib/translations'
 import { cn } from '../lib/utils';
 import { ScrollReveal } from '../components/ScrollReveal';
 import { Ripple } from '../components/Ripple';
+import { adminService } from '../lib/adminService';
 
 export default function QA() {
   const [lang, setLang] = useState<Language>('mm');
   const [searchQuery, setSearchQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [customQAs, setCustomQAs] = useState<any[]>([]);
+
+  useEffect(() => {
+    adminService.getQAs().then(data => {
+      const formatted = data.map(q => ({
+        id: q.id,
+        question: {
+          en: q.question_en,
+          mm: q.question_mm || q.question_en
+        },
+        answer: {
+          en: q.answer_en,
+          mm: q.answer_mm || q.answer_en
+        },
+        category: {
+          en: q.category_en || 'General',
+          mm: q.category_mm || q.category_en || 'အထွေထွေ'
+        }
+      }));
+      setCustomQAs(formatted);
+    }).catch(err => console.error('Error fetching QAs:', err));
+  }, []);
+
+  const mergedQA = useMemo(() => {
+    return [...QA_TRANSLATIONS, ...customQAs];
+  }, [customQAs]);
 
   const filteredQA = useMemo(() => {
-    return QA_TRANSLATIONS.filter(item => 
+    return mergedQA.filter(item => 
       item.question[lang].toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.answer[lang].toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category[lang].toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [lang, searchQuery]);
+  }, [lang, searchQuery, mergedQA]);
 
   const toggleLang = () => {
     setLang(prev => prev === 'en' ? 'mm' : 'en');

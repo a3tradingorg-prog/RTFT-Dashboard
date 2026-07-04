@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { adminService } from './adminService';
 
 interface AuthContextType {
   user: User | null;
@@ -21,7 +22,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          adminService.trackSession(currentUser.id, currentUser.email || '').catch(err => {
+            console.error('Session tracking error:', err);
+          });
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -32,7 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      if (currentUser) {
+        adminService.trackSession(currentUser.id, currentUser.email || '').catch(err => {
+          console.error('Session tracking error on auth change:', err);
+        });
+      }
       setLoading(false);
     });
 

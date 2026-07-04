@@ -22,12 +22,14 @@ import {
   Menu,
   X as CloseIcon,
   ArrowUp,
-  Database
+  Database,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Ripple } from './Ripple';
 import { motion, AnimatePresence } from 'motion/react';
 import { useClickOutside } from '../hooks/useClickOutside';
+import NotificationCenter from './NotificationCenter';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
@@ -180,7 +182,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hideAccountSelector = ['/campus', '/qa', '/profile'].includes(location.pathname);
+  const hideAccountSelector = ['/campus', '/qa', '/profile', '/admin'].includes(location.pathname);
+
+  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com', 'example@gmail.com', 'a3tradingorg@gmail.com'];
+  const isAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const navigation = [
     { name: 'DASHBOARD', href: '/', icon: LayoutDashboard },
@@ -191,6 +196,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Campus', href: '/campus', icon: GraduationCap },
     { name: 'Q&A', href: '/qa', icon: HelpCircle },
     { name: 'Profile', href: '/profile', icon: User },
+    ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: ShieldCheck }] : []),
   ];
 
   const logoUrl = (import.meta as any).env.VITE_SUPABASE_URL 
@@ -449,6 +455,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </AnimatePresence>
               </div>
             )}
+
+            {/* Notification Center */}
+            <NotificationCenter />
 
             {/* Profile Icon */}
             <div className="relative p-[1px] rounded-full overflow-hidden group">

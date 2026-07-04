@@ -433,6 +433,7 @@ export default function Campus() {
   useEffect(() => {
     const fetchResources = async () => {
       try {
+        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
         const { data, error } = await supabase
           .from('resources')
           .select('*')
@@ -440,10 +441,20 @@ export default function Campus() {
 
         if (error) throw error;
         if (data) {
-          setResources(data);
+          const merged = [...data];
+          localResources.forEach((lr: any) => {
+            if (!merged.some(m => m.id === lr.id)) {
+              merged.push(lr);
+            }
+          });
+          setResources(merged);
+        } else {
+          setResources(localResources);
         }
       } catch (err) {
         console.warn('Optional resources table not found or query failed. Using offline default categories.', err);
+        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
+        setResources(localResources);
       } finally {
         setLoading(false);
       }

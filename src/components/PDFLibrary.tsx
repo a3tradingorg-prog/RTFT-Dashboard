@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from 'react';
+import { supabase, isConfigured } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { 
   FileText, 
@@ -218,10 +218,59 @@ export default function PDFLibrary() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [dynamicPDFs, setDynamicPDFs] = useState<PDFFile[]>([]);
 
-  const categories = ['All', ...Array.from(new Set(PDF_FILES.map(f => f.category)))];
+  useEffect(() => {
+    const fetchDynamicPDFs = async () => {
+      try {
+        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
+        const localPDFs = localResources
+          .filter((r: any) => r.category === 'PDF')
+          .map((r: any) => ({
+            name: r.title,
+            path: r.url,
+            category: 'PDF Uploads',
+            thumbnail: r.thumbnail_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'
+          }));
 
-  const filteredFiles = PDF_FILES.filter(file => {
+        let supabasePDFs: PDFFile[] = [];
+        if (isConfigured) {
+          const { data, error } = await supabase
+            .from('resources')
+            .select('*')
+            .eq('category', 'PDF');
+
+          if (!error && data) {
+            supabasePDFs = data.map((r: any) => ({
+              name: r.title,
+              path: r.url,
+              category: 'PDF Uploads',
+              thumbnail: r.thumbnail_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'
+            }));
+          }
+        }
+
+        // Merge, avoiding duplicates by name or path
+        const merged: PDFFile[] = [...supabasePDFs];
+        localPDFs.forEach((lp: PDFFile) => {
+          if (!merged.some(m => m.name === lp.name || m.path === lp.path)) {
+            merged.push(lp);
+          }
+        });
+
+        setDynamicPDFs(merged);
+      } catch (err) {
+        console.warn('Failed to load dynamic PDFs:', err);
+      }
+    };
+
+    fetchDynamicPDFs();
+  }, []);
+
+  const allFiles = [...PDF_FILES, ...dynamicPDFs];
+  const categories = ['All', ...Array.from(new Set(allFiles.map(f => f.category)))];
+
+  const filteredFiles = allFiles.filter(file => {
     const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || file.category === selectedCategory;
     return matchesSearch && matchesCategory;
