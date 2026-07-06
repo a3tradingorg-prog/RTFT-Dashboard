@@ -70,7 +70,14 @@ export default function Trades() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel).catch(err => console.error('Error removing channel:', err));
+      try {
+        const p = channel.unsubscribe();
+        if (p && typeof p.catch === 'function') {
+          p.catch((err: any) => console.error('Unsubscribe error:', err));
+        }
+      } catch (e) {
+        console.error('Unsubscribe throw:', e);
+      }
     };
   }, [user]);
 
