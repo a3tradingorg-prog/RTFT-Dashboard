@@ -23,7 +23,9 @@ import {
   X as CloseIcon,
   ArrowUp,
   Database,
-  ShieldCheck
+  ShieldCheck,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Ripple } from './Ripple';
@@ -42,6 +44,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const [dbStatus, setDbStatus] = useState<'checking' | 'active' | 'sleeping' | 'error'>('checking');
 
@@ -363,7 +379,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
 
-              <div className="p-4 border-t border-[#262626]">
+              <div className="p-4 border-t border-[#262626] space-y-2">
+                <button
+                  onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-400 hover:text-white hover:bg-[#1f1f1f] transition-all font-medium text-sm"
+                >
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="w-5 h-5 text-amber-400" />
+                      <span>Light Mode</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-5 h-5 text-sky-500" />
+                      <span>Dark Mode</span>
+                    </>
+                  )}
+                </button>
+
                 <button 
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-500/5 transition-all font-medium text-sm"
@@ -458,6 +491,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             {/* Notification Center */}
             <NotificationCenter />
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+              className="p-2 rounded-xl border border-[#262626] bg-[#141414] hover:border-sky-500/50 hover:bg-[#1c1c1c] transition-all text-neutral-400 hover:text-white group flex items-center justify-center"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-4 h-4 text-amber-400 group-hover:text-amber-300 transition-colors" />
+              ) : (
+                <Moon className="w-4 h-4 text-sky-500 group-hover:text-sky-400 transition-colors" />
+              )}
+            </button>
 
             {/* Profile Icon */}
             <div className="relative p-[1px] rounded-full overflow-hidden group">

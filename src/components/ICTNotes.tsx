@@ -638,7 +638,7 @@ export default function ICTNotes() {
 
                   <button
                     onClick={handleCopyRtft}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-900 border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-neutral-800 transition-all hover:border-neutral-700 active:scale-95 cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-[#181818] border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-[#1c1c1c] hover:border-[#1c1c1c] transition-all active:scale-95 cursor-pointer"
                   >
                     {copiedRtft ? (
                       <>
@@ -721,7 +721,7 @@ export default function ICTNotes() {
 
                   <button
                     onClick={handleCopySession}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-900 border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-neutral-800 transition-all hover:border-neutral-700 active:scale-95 cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 bg-[#181818] border border-[#262626] text-white font-black text-xs uppercase tracking-wider rounded-2xl hover:bg-[#1c1c1c] hover:border-[#1c1c1c] transition-all active:scale-95 cursor-pointer"
                   >
                     {copiedSession ? (
                       <>

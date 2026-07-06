@@ -197,6 +197,32 @@ export default function Journal() {
       return new Date(cleanStr);
     }
     try {
+      // Handle MM/DD/YYYY or M/D/YY with times
+      // e.g. "06/25/2026 21:12:23" or "6/25/26 21:12:23"
+      if (cleanStr.includes('/')) {
+        const parts = cleanStr.split(' ');
+        const dateParts = parts[0].split('/');
+        if (dateParts.length === 3) {
+          let month = parseInt(dateParts[0], 10);
+          let day = parseInt(dateParts[1], 10);
+          let year = parseInt(dateParts[2], 10);
+          if (year < 100) {
+            year += 2000; // 26 -> 2026
+          }
+          const timeStr = parts[1] || '00:00:00';
+          const timeParts = timeStr.split(':');
+          const hours = parseInt(timeParts[0], 10) || 0;
+          const minutes = parseInt(timeParts[1], 10) || 0;
+          const seconds = parseInt(timeParts[2], 10) || 0;
+          
+          // Construct UTC date
+          const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+          if (!isNaN(utcDate.getTime())) {
+            return utcDate;
+          }
+        }
+      }
+
       // YRM and matching prop firms export times in UTC/GMT timezone.
       // So "2026-02-24 14:40:16" needs to be parsed as UTC/GMT.
       const normalized = cleanStr.replace(/\//g, '-');
@@ -323,11 +349,20 @@ export default function Journal() {
         }
       }
 
-      if (!isFirstRowData) {
+      const headerLower = lines[0].toLowerCase();
+      // Check if it's the fills/orders CSV format
+      const isFillsCsv = !isFirstRowData && (
+        headerLower.includes('orderid') ||
+        headerLower.includes('avgprice') ||
+        headerLower.includes('filledqty') ||
+        headerLower.includes('b/s') ||
+        headerLower.includes('fill time')
+      );
+
+      if (!isFirstRowData && !isFillsCsv) {
         if (lines.length < 2) {
           throw new Error('File only contains a header and no trading data.');
         }
-        const headerLower = lines[0].toLowerCase();
         const hasCommonKeywords = headerLower.includes('entry') || headerLower.includes('price') || headerLower.includes('symbol') || headerLower.includes('pnl') || headerLower.includes('trade');
         if (!hasCommonKeywords) {
           throw new Error('Invalid file format. Please ensure the file has correct headers or column alignment.');
@@ -337,72 +372,277 @@ export default function Journal() {
       const groupedTrades: any = {};
       let firstAccountName = '';
 
-      const dataLines = lines.slice(startIdx);
-      dataLines.forEach(line => {
-        const parts = parseLine(line);
-        if (parts.length < 11) return;
+      if (isFillsCsv) {
+        // --- MATCHING ENGINE FOR EXECUTION/FILLS CSV ---
+        let colIdxAccount = -1;
+        let colIdxBS = -1; // B/S
+        let colIdxContract = -1;
+        let colIdxProduct = -1;
+        let colIdxAvgPrice = -1;
+        let colIdxFilledQty = -1;
+        let colIdxFillTime = -1;
+        let colIdxStatus = -1;
+        let colIdxTimestamp = -1;
 
-        const accountName = parts[0];
-        const symbol = parts[1];
-        const contract = parts[2];
-        const entryDate = parts[3];
-        const entryPrice = parts[4];
-        const exitDate = parts[5];
-        const exitPrice = parts[6];
-        const side = parts[7];
-        let qty = '';
-        let grossPnl = '';
-        let netPnl = '';
-
-        if (parts.length >= 12) {
-          qty = parts[9];
-          grossPnl = parts[10];
-          netPnl = parts[11];
-        } else {
-          qty = parts[8];
-          grossPnl = parts[9];
-          netPnl = parts[10];
-        }
-
-        if (!accountName || !symbol || !entryDate || !entryPrice || !exitDate || !exitPrice) {
-          return; // Skip invalid rows
-        }
-
-        if (!firstAccountName) firstAccountName = accountName;
-        
-        const key = `${accountName}-${symbol}-${entryDate}`;
-        
-        const sideUpper = (side || '').toUpperCase();
-        const contractUpper = (contract || '').toUpperCase();
-        const isBuy = sideUpper.includes('BUY') || sideUpper.includes('LONG') || contractUpper.includes('BUY') || contractUpper.includes('LONG');
-        const tradeType = isBuy ? 'LONG' : 'SHORT';
-
-        const entryPriceNum = cleanNumber(entryPrice);
-        const exitPriceNum = cleanNumber(exitPrice);
-        const qtyNum = Math.abs(cleanNumber(qty)) || 1;
-        const netPnlNum = cleanNumber(netPnl);
-
-        if (!groupedTrades[key]) {
-          groupedTrades[key] = {
-            accountName,
-            asset: mapSymbolToAsset(symbol),
-            entry_date: entryDate,
-            entry_price: entryPriceNum,
-            type: tradeType,
-            contract_size: 0,
-            total_pnl: 0,
-            exits: []
-          };
-        }
-        
-        groupedTrades[key].contract_size += qtyNum;
-        groupedTrades[key].total_pnl += netPnlNum;
-        groupedTrades[key].exits.push({
-          exit_price: exitPriceNum,
-          closed_contract: qtyNum,
-          exit_date: exitDate
+        firstLineParts.forEach((colName, idx) => {
+          const name = colName.trim().toLowerCase();
+          if (name === 'account') colIdxAccount = idx;
+          else if (name === 'b/s') colIdxBS = idx;
+          else if (name === 'contract') colIdxContract = idx;
+          else if (name === 'product') colIdxProduct = idx;
+          else if (name === 'avgprice') colIdxAvgPrice = idx;
+          else if (name === 'filledqty') colIdxFilledQty = idx;
+          else if (name === 'fill time') colIdxFillTime = idx;
+          else if (name === 'status') colIdxStatus = idx;
+          else if (name === 'timestamp') colIdxTimestamp = idx;
         });
-      });
+
+        // Fallbacks for header mapping
+        if (colIdxAccount === -1) colIdxAccount = firstLineParts.findIndex(n => n.toLowerCase().includes('account'));
+        if (colIdxBS === -1) colIdxBS = firstLineParts.findIndex(n => n.toLowerCase() === 'b/s' || n.toLowerCase() === 'bs' || n.toLowerCase().includes('side') || n.toLowerCase().includes('buy/sell'));
+        if (colIdxContract === -1) colIdxContract = firstLineParts.findIndex(n => n.toLowerCase().includes('contract'));
+        if (colIdxProduct === -1) colIdxProduct = firstLineParts.findIndex(n => n.toLowerCase().includes('product'));
+        if (colIdxAvgPrice === -1) colIdxAvgPrice = firstLineParts.findIndex(n => n.toLowerCase().includes('avgprice') || n.toLowerCase().includes('price') || n.toLowerCase().includes('avg price'));
+        if (colIdxFilledQty === -1) colIdxFilledQty = firstLineParts.findIndex(n => n.toLowerCase().includes('filledqty') || n.toLowerCase().includes('qty') || n.toLowerCase().includes('quantity') || n.toLowerCase().includes('filled qty'));
+        if (colIdxFillTime === -1) colIdxFillTime = firstLineParts.findIndex(n => n.toLowerCase().includes('fill time') || n.toLowerCase().includes('time') || n.toLowerCase().includes('date'));
+        if (colIdxStatus === -1) colIdxStatus = firstLineParts.findIndex(n => n.toLowerCase().includes('status'));
+        if (colIdxTimestamp === -1) colIdxTimestamp = firstLineParts.findIndex(n => n.toLowerCase().includes('timestamp'));
+
+        const extractedFills: any[] = [];
+        const dataLines = lines.slice(1);
+
+        dataLines.forEach(line => {
+          const parts = parseLine(line);
+          if (parts.length === 0 || parts.length < Math.max(colIdxAccount, colIdxBS, colIdxAvgPrice, colIdxFilledQty, colIdxFillTime, colIdxStatus)) return;
+
+          const statusStr = (parts[colIdxStatus] || '').trim().toLowerCase();
+          // Skip non-filled orders (like cancelled)
+          if (!statusStr.includes('filled')) return;
+
+          const account = (parts[colIdxAccount] || '').trim();
+          const side = (parts[colIdxBS] || '').trim().toLowerCase();
+          const rawContract = (parts[colIdxContract] || '').trim();
+          const rawProduct = (parts[colIdxProduct] || '').trim();
+          
+          // Use product (e.g. 'MNQ') first, fallback to contract ('MNQU6')
+          const symbol = rawProduct || rawContract || 'MNQ';
+
+          const price = cleanNumber(parts[colIdxAvgPrice]);
+          const qty = cleanNumber(parts[colIdxFilledQty]);
+
+          const fillTimeStr = (parts[colIdxFillTime] || parts[colIdxTimestamp] || '').trim();
+          if (!fillTimeStr || isNaN(qty) || qty <= 0 || isNaN(price) || price <= 0) return;
+
+          extractedFills.push({
+            account,
+            side,
+            symbol,
+            price,
+            qty,
+            timeStr: fillTimeStr,
+            time: parseAsUSTimezone(fillTimeStr)
+          });
+        });
+
+        // Sort chronologically
+        extractedFills.sort((a, b) => a.time.getTime() - b.time.getTime());
+
+        // Group fills by Account and Asset
+        const groupedFills: Record<string, any[]> = {};
+        extractedFills.forEach(fill => {
+          const key = `${fill.account}-${fill.symbol}`;
+          if (!groupedFills[key]) groupedFills[key] = [];
+          groupedFills[key].push(fill);
+        });
+
+        // Match long & short positions FIFO
+        for (const [_, fills] of Object.entries(groupedFills)) {
+          const buyQueue: any[] = [];
+          const sellQueue: any[] = [];
+
+          fills.forEach(fill => {
+            const isBuy = fill.side.includes('buy') || fill.side.includes('long');
+            const isSell = fill.side.includes('sell') || fill.side.includes('short');
+            
+            if (!isBuy && !isSell) return;
+
+            if (!firstAccountName) {
+              firstAccountName = fill.account;
+            }
+
+            const mappedAsset = mapSymbolToAsset(fill.symbol);
+            const multiplier = multipliers[mappedAsset] || 2;
+
+            if (isBuy) {
+              let remainingQty = fill.qty;
+              while (remainingQty > 0 && sellQueue.length > 0) {
+                const shortPos = sellQueue[0];
+                const matchedQty = Math.min(remainingQty, shortPos.qty);
+
+                const entryDate = shortPos.timeStr;
+                const entryPrice = shortPos.price;
+                const exitDate = fill.timeStr;
+                const exitPrice = fill.price;
+                const tradePnl = (entryPrice - exitPrice) * matchedQty * multiplier;
+
+                const tradeKey = `${fill.account}-${fill.symbol}-${entryDate}`;
+                if (!groupedTrades[tradeKey]) {
+                  groupedTrades[tradeKey] = {
+                    accountName: fill.account,
+                    asset: mappedAsset,
+                    entry_date: entryDate,
+                    entry_price: entryPrice,
+                    type: 'SHORT',
+                    contract_size: 0,
+                    total_pnl: 0,
+                    exits: []
+                  };
+                }
+
+                groupedTrades[tradeKey].contract_size += matchedQty;
+                groupedTrades[tradeKey].total_pnl += tradePnl;
+                groupedTrades[tradeKey].exits.push({
+                  exit_price: exitPrice,
+                  closed_contract: matchedQty,
+                  exit_date: exitDate
+                });
+
+                remainingQty -= matchedQty;
+                shortPos.qty -= matchedQty;
+                if (shortPos.qty <= 0) {
+                  sellQueue.shift();
+                }
+              }
+
+              if (remainingQty > 0) {
+                buyQueue.push({
+                  price: fill.price,
+                  qty: remainingQty,
+                  timeStr: fill.timeStr,
+                  time: fill.time
+                });
+              }
+            } else if (isSell) {
+              let remainingQty = fill.qty;
+              while (remainingQty > 0 && buyQueue.length > 0) {
+                const longPos = buyQueue[0];
+                const matchedQty = Math.min(remainingQty, longPos.qty);
+
+                const entryDate = longPos.timeStr;
+                const entryPrice = longPos.price;
+                const exitDate = fill.timeStr;
+                const exitPrice = fill.price;
+                const tradePnl = (exitPrice - entryPrice) * matchedQty * multiplier;
+
+                const tradeKey = `${fill.account}-${fill.symbol}-${entryDate}`;
+                if (!groupedTrades[tradeKey]) {
+                  groupedTrades[tradeKey] = {
+                    accountName: fill.account,
+                    asset: mappedAsset,
+                    entry_date: entryDate,
+                    entry_price: entryPrice,
+                    type: 'LONG',
+                    contract_size: 0,
+                    total_pnl: 0,
+                    exits: []
+                  };
+                }
+
+                groupedTrades[tradeKey].contract_size += matchedQty;
+                groupedTrades[tradeKey].total_pnl += tradePnl;
+                groupedTrades[tradeKey].exits.push({
+                  exit_price: exitPrice,
+                  closed_contract: matchedQty,
+                  exit_date: exitDate
+                });
+
+                remainingQty -= matchedQty;
+                longPos.qty -= matchedQty;
+                if (longPos.qty <= 0) {
+                  buyQueue.shift();
+                }
+              }
+
+              if (remainingQty > 0) {
+                sellQueue.push({
+                  price: fill.price,
+                  qty: remainingQty,
+                  timeStr: fill.timeStr,
+                  time: fill.time
+                });
+              }
+            }
+          });
+        }
+      } else {
+        // --- STANDARD TRADEOVATE/PROP FIRM COMPLETED TRADES CSV ---
+        const dataLines = lines.slice(startIdx);
+        dataLines.forEach(line => {
+          const parts = parseLine(line);
+          if (parts.length < 11) return;
+
+          const accountName = parts[0];
+          const symbol = parts[1];
+          const contract = parts[2];
+          const entryDate = parts[3];
+          const entryPrice = parts[4];
+          const exitDate = parts[5];
+          const exitPrice = parts[6];
+          const side = parts[7];
+          let qty = '';
+          let grossPnl = '';
+          let netPnl = '';
+
+          if (parts.length >= 12) {
+            qty = parts[9];
+            grossPnl = parts[10];
+            netPnl = parts[11];
+          } else {
+            qty = parts[8];
+            grossPnl = parts[9];
+            netPnl = parts[10];
+          }
+
+          if (!accountName || !symbol || !entryDate || !entryPrice || !exitDate || !exitPrice) {
+            return; // Skip invalid rows
+          }
+
+          if (!firstAccountName) firstAccountName = accountName;
+          
+          const key = `${accountName}-${symbol}-${entryDate}`;
+          
+          const sideUpper = (side || '').toUpperCase();
+          const contractUpper = (contract || '').toUpperCase();
+          const isBuy = sideUpper.includes('BUY') || sideUpper.includes('LONG') || contractUpper.includes('BUY') || contractUpper.includes('LONG');
+          const tradeType = isBuy ? 'LONG' : 'SHORT';
+
+          const entryPriceNum = cleanNumber(entryPrice);
+          const exitPriceNum = cleanNumber(exitPrice);
+          const qtyNum = Math.abs(cleanNumber(qty)) || 1;
+          const netPnlNum = cleanNumber(netPnl);
+
+          if (!groupedTrades[key]) {
+            groupedTrades[key] = {
+              accountName,
+              asset: mapSymbolToAsset(symbol),
+              entry_date: entryDate,
+              entry_price: entryPriceNum,
+              type: tradeType,
+              contract_size: 0,
+              total_pnl: 0,
+              exits: []
+            };
+          }
+          
+          groupedTrades[key].contract_size += qtyNum;
+          groupedTrades[key].total_pnl += netPnlNum;
+          groupedTrades[key].exits.push({
+            exit_price: exitPriceNum,
+            closed_contract: qtyNum,
+            exit_date: exitDate
+          });
+        });
+      }
 
       const tradesToInsert = Object.values(groupedTrades).filter((t: any) => t.accountName === firstAccountName);
       if (tradesToInsert.length === 0) {
