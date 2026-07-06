@@ -34,6 +34,7 @@ export default function Trades() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFilterAccountId, setSelectedFilterAccountId] = useState<string>('all');
 
   // Dialog States
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -224,9 +225,11 @@ export default function Trades() {
     }
   };
 
-  const filteredTrades = trades.filter(t => 
-    t.asset.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTrades = trades.filter(t => {
+    const matchesSearch = t.asset.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAccount = selectedFilterAccountId === 'all' || t.account_id === selectedFilterAccountId;
+    return matchesSearch && matchesAccount;
+  });
 
   return (
     <div className="space-y-6">
@@ -261,14 +264,19 @@ export default function Trades() {
               className="w-full pl-12 pr-4 py-3 bg-[#141414] border border-[#262626] rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
             />
           </div>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-2 px-4 py-3 bg-[#141414] border border-[#262626] rounded-xl text-neutral-400 hover:text-white transition-all"
-          >
-            <Filter className="w-5 h-5" />
-            Filters
-          </motion.button>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedFilterAccountId}
+              onChange={(e) => setSelectedFilterAccountId(e.target.value)}
+              className="px-4 py-3 bg-[#141414] border border-[#262626] rounded-xl text-neutral-300 focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all cursor-pointer min-w-[200px]"
+            >
+              <option value="all">All Accounts</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>{acc.name} ({acc.account_size})</option>
+              ))}
+            </select>
+          </div>
         </div>
       </ScrollReveal>
 
@@ -280,6 +288,7 @@ export default function Trades() {
               <thead>
                 <tr className="bg-[#1f1f1f] text-xs font-bold text-neutral-500 uppercase tracking-widest">
                   <th className="px-6 py-4">Symbol</th>
+                  <th className="px-6 py-4">Account</th>
                   <th className="px-6 py-4">Type</th>
                   <th className="px-6 py-4">Entry</th>
                   <th className="px-6 py-4">Exit</th>
@@ -305,6 +314,11 @@ export default function Trades() {
                           <span className="text-[10px] font-black text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded leading-none">US: {formatToEST(trade.entry_date)} EST</span>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-semibold text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-lg border border-[#262626]">
+                        {accounts.find(a => a.id === trade.account_id)?.name || 'Unknown'}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={cn(

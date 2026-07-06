@@ -473,6 +473,18 @@ CREATE POLICY "Allow insert/update/delete notifications" ON notifications FOR AL
         }
       };
 
+      // Instantiate timezone formatter once outside the loop to avoid severe CPU overhead
+      const formatter24 = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+
       // Format trades data for optimal token usage and accuracy, and compute stats in a single pass
       const formattedTrades = processedTradesInput.map((t: any) => {
         let estStr = "";
@@ -493,17 +505,7 @@ CREATE POLICY "Allow insert/update/delete notifications" ON notifications FOR AL
           }
 
           try {
-            // Get New York 24-hour time
-            const formatter24 = new Intl.DateTimeFormat("en-US", {
-              timeZone: "America/New_York",
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: false
-            });
+            // Get New York 24-hour time using the pre-instantiated formatter
             const formatted24 = formatter24.format(entryD);
 
             // Extract date and time parts cleanly and robustly

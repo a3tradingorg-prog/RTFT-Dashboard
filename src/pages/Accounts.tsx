@@ -147,7 +147,9 @@ export default function Accounts() {
       asset,
       commission: parseFloat(commission) || 0,
       initial_balance: parsedBalance,
-      current_balance: editingAccount ? editingAccount.current_balance : parsedBalance,
+      current_balance: editingAccount 
+        ? editingAccount.current_balance + (parsedBalance - (editingAccount.initial_balance || 0))
+        : parsedBalance,
       user_id: user?.id,
       status: 'active'
     };

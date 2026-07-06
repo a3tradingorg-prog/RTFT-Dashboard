@@ -94,6 +94,30 @@ const mapSymbolToAsset = (symbol: string): 'MNQ' | 'NQ' | 'MES' | 'ES' | 'MGC' |
   return 'MNQ';
 };
 
+const detectAccountSizeFromName = (name: string): { size: string; balance: number; profitTarget: number; maxDrawdown: number } => {
+  const clean = (name || '').toUpperCase();
+  
+  // Naming pattern matching (e.g. LFE025... or LFE25K... or 25000)
+  if (clean.includes('025') || clean.includes('25K') || clean.includes('25000')) {
+    return { size: '25K', balance: 25000, profitTarget: 1500, maxDrawdown: 1500 };
+  }
+  if (clean.includes('050') || clean.includes('50K') || clean.includes('50000')) {
+    return { size: '50K', balance: 50000, profitTarget: 3000, maxDrawdown: 2500 };
+  }
+  if (clean.includes('100') || clean.includes('100K') || clean.includes('100000')) {
+    return { size: '100K', balance: 100000, profitTarget: 6000, maxDrawdown: 3000 };
+  }
+  if (clean.includes('150') || clean.includes('150K') || clean.includes('150000')) {
+    return { size: '150K', balance: 150000, profitTarget: 9000, maxDrawdown: 5000 };
+  }
+  if (clean.includes('300') || clean.includes('300K') || clean.includes('300000')) {
+    return { size: '300K', balance: 300000, profitTarget: 20000, maxDrawdown: 7500 };
+  }
+  
+  // Default fallback (50K)
+  return { size: '50K', balance: 50000, profitTarget: 3000, maxDrawdown: 2500 };
+};
+
 export default function Journal() {
   const { user } = useAuth();
   const { 
@@ -191,12 +215,19 @@ export default function Journal() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const accountRef = useClickOutside(() => setIsAccountDropdownOpen(false));
 
-  const parseAsUSTimezone = (dateStr: string): Date => {
-    const cleanStr = dateStr.trim();
-    if (cleanStr.includes('Z') || cleanStr.includes('GMT') || cleanStr.includes('+') || (cleanStr.includes('-') && cleanStr.split('-').length > 3)) {
-      return new Date(cleanStr);
+  const parseAsUSTimezone = (dateStr: any): Date => {
+    if (!dateStr || typeof dateStr !== 'string') {
+      return new Date();
     }
+    const cleanStr = dateStr.trim();
+    if (!cleanStr) return new Date();
+
     try {
+      if (cleanStr.includes('Z') || cleanStr.includes('GMT') || cleanStr.includes('+') || (cleanStr.includes('-') && cleanStr.split('-').length > 3)) {
+        const d = new Date(cleanStr);
+        return isNaN(d.getTime()) ? new Date() : d;
+      }
+      
       // Handle MM/DD/YYYY or M/D/YY with times
       // e.g. "06/25/2026 21:12:23" or "6/25/26 21:12:23"
       if (cleanStr.includes('/')) {
@@ -236,9 +267,11 @@ export default function Journal() {
       if (!isNaN(finalDate.getTime())) {
         return finalDate;
       }
-      return new Date(normalized);
+      const normDate = new Date(normalized);
+      return isNaN(normDate.getTime()) ? new Date() : normDate;
     } catch (err) {
-      return new Date(dateStr);
+      const fallbackDate = new Date(dateStr);
+      return isNaN(fallbackDate.getTime()) ? new Date() : fallbackDate;
     }
   };
 
@@ -672,16 +705,19 @@ export default function Journal() {
           await supabase.from('daily_pnl').delete().eq('account_id', targetAccountId);
         } else {
           // Create the account if it doesn't exist
+          const parsedInfo = detectAccountSizeFromName(firstAccountName);
           const { data: newAcc, error: accError } = await supabase
             .from('accounts')
             .insert([{
               user_id: user.id,
               name: firstAccountName,
               propfirm: 'Imported',
-              account_size: '50K',
-              account_type: 'Funded',
-              initial_balance: 50000,
-              current_balance: 50000,
+              account_size: parsedInfo.size,
+              account_type: 'Challenge',
+              profit_target: parsedInfo.profitTarget,
+              max_drawdown: parsedInfo.maxDrawdown,
+              initial_balance: parsedInfo.balance,
+              current_balance: parsedInfo.balance,
               asset: 'MNQ'
             }])
             .select()
@@ -689,7 +725,7 @@ export default function Journal() {
           
           if (accError) throw new Error(`Failed to create account: ${accError.message}`);
           targetAccountId = newAcc.id;
-          targetAccountInitialBalance = 50000;
+          targetAccountInitialBalance = parsedInfo.balance;
           await refreshAccounts(); // Update context
         }
       }
