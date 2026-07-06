@@ -461,7 +461,9 @@ ${languageInstructions}`;
 
     // Try multiple model aliases in case some models are not supported/accessible
     const modelsToTry = [
-      "gemini-3.5-flash",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
       "gemini-flash-latest"
     ];
 
@@ -525,37 +527,37 @@ ${languageInstructions}`;
         },
         overview: {
           type: Type.STRING,
-          description: "An in-depth, completely unbiased personal report summarizing the overall performance. Provide constructive guidance.",
+          description: "A highly concise, completely unbiased personal report summarizing the overall performance. Under 100 words.",
         },
         primeTime: {
           type: Type.STRING,
-          description: "Analysis of the most profitable hours or sessions for trading (the Prime Time), including descriptions of winning times, reasons, and average trade duration during these wins.",
+          description: "Concise analysis of the most profitable hours or sessions (the Prime Time) with brief reasons, under 80 words.",
         },
         unsuitableTime: {
           type: Type.STRING,
-          description: "Analysis of the most unprofitable or high-risk hours or sessions for the trader (Unsuitable Time), including reasons, loss factors, and average trade duration of losing trades in these slots.",
+          description: "Concise analysis of the most unprofitable or high-risk hours/sessions with brief reasons, under 80 words.",
         },
         timeAnalysisDetails: {
           type: Type.STRING,
-          description: "A highly detailed, comprehensive breakdown of profits/losses, win rates, and holding times across different time brackets or trading sessions.",
+          description: "A very brief, scannable breakdown of profits/losses and win rates across sessions, under 100 words.",
         },
         edgeActionsTodo: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
-          description: "List of 3-5 specific actions or rules the trader should DO to get, improve, or sustain their trading edge (e.g. 'Trade strictly between 9:30 AM and 11:30 AM EST', 'Only enter if ICT premium/discount is aligned').",
+          description: "List of 3-5 specific actions or rules the trader should DO to get, improve, or sustain their trading edge.",
         },
         edgeActionsAvoid: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
-          description: "List of 3-5 negative actions, times, or behaviors the trader must AVOID to prevent ruining their edge (e.g. 'Stop trading after 1:30 PM EST', 'Do not enter second trade within 30 minutes of a loss to prevent revenge trading').",
+          description: "List of 3-5 negative actions, times, or behaviors the trader must AVOID to prevent ruining their edge.",
         },
         psychologyAnalysis: {
           type: Type.STRING,
-          description: "A deep, thorough psychological and discipline review of the trader based on actual data. Diagnose FOMO, revenge trading, greed, fear, or overtrading, explain why they happen, and provide explicit steps to overcome them.",
+          description: "Concise psychological review diagnosing FOMO, revenge trading, or overtrading, with direct actionable advice, under 100 words.",
         },
         riskAnalysis: {
           type: Type.STRING,
-          description: "An expert, quantitative risk management review of the trader based on their logs (analyzing average win-to-loss ratio, position sizes, drawdowns, and stop-loss behaviors).",
+          description: "Concise, quantitative risk management review (average win/loss, position sizing, SL) under 100 words.",
         },
         riskActionsTodo: {
           type: Type.ARRAY,
@@ -569,7 +571,7 @@ ${languageInstructions}`;
         },
         biasAnalysis: {
           type: Type.STRING,
-          description: "Detailed evaluation of LONG vs SHORT trading behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.",
+          description: "Concise evaluation of LONG vs SHORT trading behavior and which side is more profitable, under 80 words.",
         },
         biasAdvantage: {
           type: Type.STRING,
@@ -581,7 +583,7 @@ ${languageInstructions}`;
         },
         primaryIssueDescription: {
           type: Type.STRING,
-          description: "A detailed explanation of why this primary issue was diagnosed based on their trade patterns.",
+          description: "Concise explanation of why this primary issue was diagnosed based on their trade patterns, under 80 words.",
         },
         primaryIssueFixSteps: {
           type: Type.ARRAY,

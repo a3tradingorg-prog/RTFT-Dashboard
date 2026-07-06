@@ -885,7 +885,9 @@ ${languageInstructions}`;
 
       // Try multiple model aliases in case some models are not supported/accessible
       const modelsToTry = [
-        "gemini-3.5-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
         "gemini-flash-latest"
       ];
 
@@ -949,19 +951,19 @@ ${languageInstructions}`;
           },
           overview: {
             type: Type.STRING,
-            description: "An in-depth, completely unbiased personal report summarizing the overall performance. Provide constructive guidance.",
+            description: "A highly concise, completely unbiased personal report summarizing the overall performance. Under 100 words.",
           },
           primeTime: {
             type: Type.STRING,
-            description: "Analysis of the most profitable hours or sessions for trading (the Prime Time), including descriptions of winning times, reasons, and average trade duration during these wins.",
+            description: "Concise analysis of the most profitable hours or sessions (the Prime Time) with brief reasons, under 80 words.",
           },
           unsuitableTime: {
             type: Type.STRING,
-            description: "Analysis of the most unprofitable or high-risk hours or sessions for the trader (Unsuitable Time), including reasons, loss factors, and average trade duration of losing trades in these slots.",
+            description: "Concise analysis of the most unprofitable or high-risk hours/sessions with brief reasons, under 80 words.",
           },
           timeAnalysisDetails: {
             type: Type.STRING,
-            description: "A highly detailed, comprehensive breakdown of profits/losses, win rates, and holding times across different time brackets or trading sessions.",
+            description: "A very brief, scannable breakdown of profits/losses and win rates across sessions, under 100 words.",
           },
           edgeActionsTodo: {
             type: Type.ARRAY,
@@ -975,11 +977,11 @@ ${languageInstructions}`;
           },
           psychologyAnalysis: {
             type: Type.STRING,
-            description: "A deep, thorough psychological and discipline review of the trader based on actual data. Diagnose FOMO, revenge trading, greed, fear, or overtrading, explain why they happen, and provide explicit steps to overcome them.",
+            description: "Concise psychological review diagnosing FOMO, revenge trading, or overtrading, with direct actionable advice, under 100 words.",
           },
           riskAnalysis: {
             type: Type.STRING,
-            description: "An expert, quantitative risk management review of the trader based on their logs (analyzing average win-to-loss ratio, position sizes, drawdowns, and stop-loss behaviors).",
+            description: "Concise, quantitative risk management review (average win/loss, position sizing, SL) under 100 words.",
           },
           riskActionsTodo: {
             type: Type.ARRAY,
@@ -993,7 +995,7 @@ ${languageInstructions}`;
           },
           biasAnalysis: {
             type: Type.STRING,
-            description: "Detailed evaluation of LONG vs SHORT trading behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.",
+            description: "Concise evaluation of LONG vs SHORT trading behavior and which side is more profitable, under 80 words.",
           },
           biasAdvantage: {
             type: Type.STRING,
@@ -1005,7 +1007,7 @@ ${languageInstructions}`;
           },
           primaryIssueDescription: {
             type: Type.STRING,
-            description: "A detailed explanation of why this primary issue was diagnosed based on their trade patterns.",
+            description: "Concise explanation of why this primary issue was diagnosed based on their trade patterns, under 80 words.",
           },
           primaryIssueFixSteps: {
             type: Type.ARRAY,
@@ -1014,19 +1016,19 @@ ${languageInstructions}`;
           },
           tradeManagementAnalysis: {
             type: Type.STRING,
-            description: "A highly detailed, professional trade management review analyzing whether the trader takes partial profits, uses trailing stops, moves SL to break-even (BE) too early, or combines Partial + BE, Partial + TP. Explain the pros/cons of their active management style, and provide concrete recommendations to improve setup execution.",
+            description: "Concise review of active trade management (scaling out, trailing stops, BE) noting pros/cons and style (e.g. 'Protected capital style') under 100 words.",
           },
           newsDayAnalysis: {
             type: Type.STRING,
-            description: "An extremely detailed, granular performance review of trading during High Impact news/events. It MUST include a structured, itemized list or markdown table listing each identified news trade (Date, Event Name like CPI/FOMC/PPI/NFP, Direction, Asset, PnL amount, Volatility effect). Group and calculate cumulative stats (Total trades, win rate, net PnL) specifically for FOMC, CPI, PPI, and NFP separately. Provide a clear 'Trade' or 'Avoid/Skip' strategic verdict for each of these events backed by mathematical and behavioral evidence.",
+            description: "A highly compact summary of trading during High Impact news (FOMC, CPI, PPI, NFP) and clear Trade/Avoid verdicts, under 120 words.",
           },
           psychologyVsTaAnalysis: {
             type: Type.STRING,
-            description: "A clear comparison and diagnostic tracing. Clarify whether the trader's losses are primarily due to technical model gaps (TA model deficiencies, entries, structures) or psychological/emotional discipline issues (FOMO, fear of losing, revenge trading, lack of discipline). Give a clear verdict with supporting stats.",
+            description: "Clear comparison of whether losses are due to technical model gaps or psychological discipline issues, under 80 words.",
           },
           finalBlueprint: {
             type: Type.STRING,
-            description: "A final, concise, direct, unbiased and highly effective blueprint synthesis. Summarize the positive edges, main vulnerabilities, and absolute key rules/guidelines the trader must strictly adhere to in order to become a consistently profitable trader.",
+            description: "A final, highly concise, direct, actionable blueprint synthesis outlining positive edges and rules, under 100 words.",
           }
         },
         required: [
