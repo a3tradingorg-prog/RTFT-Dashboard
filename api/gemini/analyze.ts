@@ -436,10 +436,14 @@ Requirements:
    - You MUST use the exact pre-calculated "Has Trading Edge" value (${mathHasTradingEdge}) and "Trading Edge Score" value (${mathTradingEdgePercentage}%) provided in the "PRE-CALCULATED MATHEMATICAL TRADING EDGE EVALUATION" section above for the output fields "hasTradingEdge" and "tradingEdgePercentage" to guarantee absolute consistency with the trader's actual logs. Do not generate or compute any other values for these specific fields.
 9. TRADING EDGE IMPROVEMENT ACTIONS (DO's & DON'Ts):
    - You MUST identify 3-5 specific actionable practices the trader should execute (edgeActionsTodo) and 3-5 negative habits/actions the trader must avoid (edgeActionsAvoid) to establish, maintain, or grow an active Trading Edge.
-   - Ground these recommendations strictly on their actual logs (e.g. if they lose in Afternoon, "do" should include avoiding the afternoon session, and "avoid" should include trading after 1:30 PM EST).
+   - Ground these recommendations strictly on their actual logs.
 10. TRADER PSYCHOLOGY & EMOTIONAL DISCIPLINES ANALYSIS:
-   - You MUST perform a deep, rigorous psychology review (psychologyAnalysis) based on actual trading numbers. Look for indicators of FOMO (entering late on big candles), Revenge Trading (multiple rapid trades after a big loss), Overtrading (high trade volume in short spans), Greed/Fear (cutting winners too early, holding massive losses).
-   - Address why these happen (e.g., trying to recover losses, fear of losing money, lack of structured plan) and provide actionable, direct, step-by-step methods to overcome these psychological hurdles (e.g., hard stop limits, breathing exercises, pre-trade check lists, trading rules). Write this analysis in-depth, completely matching the user's selected language.
+   - Perform a concise psychology review (psychologyAnalysis) based on actual numbers (FOMO, revenge trading, overtrading).
+   - Provide direct, brief, actionable steps to resolve these hurdles (under 120 words).
+11. STRICT SPEED OPTIMIZATION AND WORD LIMITS:
+   - You MUST write all textual fields (overview, primeTime, unsuitableTime, timeAnalysisDetails, psychologyAnalysis) in a very concise, direct, and punchy manner.
+   - Keep each individual field strictly under 100-120 words. Use bullet points where appropriate for rapid scanning.
+   - This is critical to minimize generation latency.
 ${languageInstructions}`;
 
     // Gather and parse all potential API keys

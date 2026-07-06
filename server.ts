@@ -838,52 +838,36 @@ Requirements:
     - You MUST identify 3-5 specific actionable practices the trader should execute (edgeActionsTodo) and 3-5 negative habits/actions the trader must avoid (edgeActionsAvoid) to establish, maintain, or grow an active Trading Edge.
     - Ground these recommendations strictly on their actual logs (e.g. if they lose in Afternoon, "do" should include avoiding the afternoon session, and "avoid" should include trading after 1:30 PM EST).
 11. TRADER PSYCHOLOGY & EMOTIONAL DISCIPLINES ANALYSIS:
-    - You MUST perform a deep, rigorous psychology review (psychologyAnalysis) based on actual trading numbers. Look for indicators of FOMO (entering late on big candles), Revenge Trading (multiple rapid trades after a big loss), Overtrading (high trade volume in short spans), Greed/Fear (cutting winners too early, holding massive losses).
-    - Address why these happen (e.g., trying to recover losses, fear of losing money, lack of structured plan) and provide actionable, direct, step-by-step methods to overcome these psychological hurdles (e.g., hard stop limits, breathing exercises, pre-trade check lists, trading rules). Write this analysis in-depth, completely matching the user's selected language.
+    - Perform a concise psychology review (psychologyAnalysis) based on actual numbers (FOMO, revenge trading, overtrading).
+    - Provide direct, brief, actionable steps to resolve these hurdles (under 120 words).
 12. RISK MANAGEMENT ANALYSIS & DIRECTIVES (DO'S & DON'TS):
-    - You MUST perform an expert, quantitative risk management review (riskAnalysis) based on actual trading numbers. Look for indicators of average win-to-loss ratio (avgWin / avgLoss), position size stability (standard deviation in quantity traded), drawdown severity, stop-loss adherence, and capital preservation capability.
-    - Provide 3-5 specific positive Actions to Do (riskActionsTodo) for protecting capital and managing risk (e.g., set maximum risk per trade to 1%, place structured stop-losses, reduce position sizes).
-    - Provide 3-5 negative Habits/Behaviors to Avoid (riskActionsAvoid) relating to risk management (e.g., holding trades without a stop-loss, scaling into losing positions, using excessive leverage / quantities, trading when highly emotional).
+    - Perform a concise risk management review (riskAnalysis) analyzing win/loss ratio, sizing, and SL adherence (under 120 words).
+    - Provide 3 specific, short Actions to Do (riskActionsTodo) and 3 short Habits to Avoid (riskActionsAvoid).
 13. DIRECTIONAL BIAS ANALYSIS (LONG VS SHORT):
     - Analyze the trader's LONG vs SHORT trade statistics (from the "PRE-CALCULATED DIRECTIONAL BIAS PERFORMANCE" section above).
-    - Provide a detailed, deep professional evaluation (biasAnalysis) of their directional behavior. Identify which side/direction (LONG bias or SHORT bias) is mathematically and strategically more profitable for the trader, and explain why with metrics.
+    - Provide a concise professional evaluation (biasAnalysis) of their directional behavior (under 100 words).
     - Set the 'biasAdvantage' field exactly to one of: 'LONG', 'SHORT', or 'NEUTRAL'.
 14. PRIMARY TRADING PROBLEM DIAGNOSIS AND FIXING METHODOLOGY:
-    - You MUST identify the trader's absolute biggest issue / failure point based on their log patterns.
     - Set the 'primaryIssueGroup' field exactly to one of: 'Entry Model' (ဝင်ပေါက် ပြဿနာ / Setup execution), 'Psychology Problem' (စိတ်ပိုင်းဆိုင်ရာ ပြဿနာ / FOMO / revenge), 'Risk Management' (Risk စီမံခန့်ခွဲမှု / oversize / no SL), or 'Trade Management' (Trade စီမံခန့်ခွဲမှု / cutting winners early / holding losers).
-    - Provide a highly direct, honest, and professional explanation (primaryIssueDescription) of why this specific problem area was diagnosed (e.g. if they have negative profit despite high winrate, they have poor Trade Management / Risk Management; if they overtrade, they have Psychology Problem).
-    - Provide 3-5 concrete, step-by-step actionable methods/rules/solutions (primaryIssueFixSteps) that the trader MUST immediately implement to fix and resolve this primary issue. Write this strictly in the user's selected language.
+    - Provide a direct, concise explanation (primaryIssueDescription) of why this specific problem area was diagnosed (under 100 words).
+    - Provide 3 concrete, step-by-step actionable methods/solutions (primaryIssueFixSteps) to fix this primary issue.
 15. DETAILED TRADE MANAGEMENT ANALYSIS:
-    - You MUST perform an in-depth review of active trade management (tradeManagementAnalysis) based on their logs and trade exits.
-    - Check if they scale out with partial closes (Partial TP), use trailing stops, or move stop-loss to break-even (Move BE) too early, or use standard TP/SL.
-    - CRITICAL RULE: If the trader manages trades using the combination of Multiple contracts + Partial Profit + Move BE, you MUST recognize, analyze, and state that their trade management rules are a "Protected capital style" (အရင်းအနှီးကာကွယ်မှုပုံစံ) of trading. Discuss how this style prioritizes preserving capital, locking in profits, reducing mental stress, and avoiding full stop-losses, while also presenting its drawbacks (such as limiting maximum potential profits if the market moves strongly in one direction). Elaborate this concept thoroughly in the user's selected language.
-    - Elaborate in detail on the pros, cons, and consequences of their active trade management habits.
-    - Provide clear, actionable recommendations on how to manage open risk and position exits mathematically.
+    - Perform a concise review of active trade management (tradeManagementAnalysis) regarding scaling out (Partial TP) or moving stop to break-even (Move BE).
+    - If they use Multiple contracts + Partial Profit + Move BE, state briefly that they use a "Protected capital style" (အရင်းအနှီးကာကွယ်မှုပုံစံ), noting its pros/cons concisely (under 120 words).
 16. HIGH IMPACT NEWS & EVENT DAY PERFORMANCE ANALYSIS:
-    - You MUST perform an extremely detailed, granular performance review of trading during High Impact macroeconomic news and events (newsDayAnalysis).
-    - Carefully scan all provided trade logs, analyzing the "notes", "entry_context", "entry_date_us_eastern", and "entry_hour_us_eastern" to identify trades executed on or around news events (including FOMC, CPI, PPI, NFP, Jobless Claims, or Powell speeches).
-    - For any trade on a news day or with news context, detail the EXACT date, the specific news event (FOMC, CPI, PPI, NFP, etc.), the trade direction, and the exact PnL outcome (Profit or Loss).
-    - You MUST provide a structured, itemized breakdown (such as a bulleted list or a table formatted in Markdown) showing:
-      1. Exact Date & Time (US Eastern)
-      2. High Impact Event Name (e.g., FOMC Statement, CPI Release, PPI Release, Non-Farm Payrolls)
-      3. Trade Direction (LONG or SHORT) & Asset (e.g., NQ, ES)
-      4. Exact PnL Result ($ amount) and qualitative description of how the volatility affected execution (slippage, early stop, chase, or clean trend).
-    - Based on this granular itemization, calculate and summarize the cumulative metrics for each specific event type:
-      * **FOMC Days**: Total trades, win rate, net PnL, and specific dates.
-      * **CPI Days**: Total trades, win rate, net PnL, and specific dates.
-      * **PPI Days**: Total trades, win rate, net PnL, and specific dates.
-      * **NFP / Others**: Total trades, win rate, net PnL, and specific dates.
-    - Provide a definitive, no-nonsense strategic verdict for each of these news categories:
-      * State clearly whether the trader should "Trade" (အကျိုးအမြတ်ရှိသဖြင့် ဆက်လက်လုပ်ဆောင်သင့်သည်) or "Avoid/Skip" (အန္တราယ်ကြီးမားသဖြင့် လုံးဝရှောင်ကြဉ်သင့်သည်) each specific event.
-      * Back this verdict with mathematical and behavioral evidence (e.g., "Avoid CPI because slippage and emotional chases led to a -$500 loss on June 16, but trade PPI because slower follow-through allowed profit-taking").
-    - Write this entire section with exceptional depth and clinical precision in the user's selected language. Do not gloss over or provide high-level summaries. Detail every news day trade found.
+    - You MUST perform a concise, professional performance review of trading during High Impact macroeconomic news and events (newsDayAnalysis).
+    - Provide a highly readable, compact summary detailing key outcomes for FOMC, CPI, PPI, and NFP/Others.
+    - Give a clear strategic verdict (e.g., "Trade" or "Avoid/Skip") for each event type, backed briefly by mathematical or behavioral evidence.
+    - Keep this section extremely scannable, brief, and highly direct (under 150 words). Do not write long-winded trade tables or narrative details of every individual trade.
 17. TECHNICAL ANALYSIS (TA) VS. PSYCHOLOGICAL TRACING:
-    - You MUST perform a clear tracing analysis comparing Technical Analysis (TA) gaps with Psychological/Emotional discipline issues (psychologyVsTaAnalysis).
-    - Clarify whether the trader's performance deficiencies and losses are primarily due to technical setup model limitations (poor entry timing, lack of confirmation, trading in low-volatility regimes) or emotional instability (FOMO entries, greed, revenge trading, moving SL wider, cutting wins early out of fear).
-    - Give a clear, unambiguous verdict with statistical or behavioral evidence from their logs.
+    - Perform a concise tracing analysis comparing Technical Analysis (TA) gaps with emotional discipline issues (psychologyVsTaAnalysis). Give a clear, short verdict with supporting stats (under 100 words).
 18. FINAL BLUEPRINT AND SYNTHESIS:
-    - You MUST provide a final, complete, highly cohesive, direct, unbiased and effective Blueprint (finalBlueprint) to guide the trader.
-    - Deliver highly actionable, no-nonsense guidelines outlining exactly what negative patterns they must stop immediately and what positive edge behaviors they must reinforce to sustain profitability as a professional trader.
+    - Provide a highly concise and direct Blueprint (finalBlueprint) summarizing core rules to stop and reinforce (under 100 words).
+19. STRICT SPEED OPTIMIZATION AND WORD LIMITS:
+    - You MUST write all textual fields (overview, primeTime, unsuitableTime, timeAnalysisDetails, psychologyAnalysis, riskAnalysis, biasAnalysis, tradeManagementAnalysis, newsDayAnalysis, psychologyVsTaAnalysis, finalBlueprint) in a very concise, direct, and punchy manner.
+    - Do not write elaborate introductory sentences or verbose descriptive paragraphs. 
+    - Keep each individual field strictly under 100-120 words. Use bullet points where appropriate for rapid scanning.
+    - This is critical to minimize generation latency.
 ${languageInstructions}`;
 
       // Gather and parse all potential API keys
