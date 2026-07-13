@@ -17,7 +17,10 @@ import {
   Info,
   Server,
   ShieldAlert,
-  Zap
+  Zap,
+  Search,
+  AlertTriangle,
+  Power
 } from 'lucide-react';
 import { adminService, UserSession, AdminQA } from '../lib/adminService';
 import { useAuth } from '../lib/AuthContext';
@@ -36,6 +39,11 @@ export default function Admin() {
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [qas, setQas] = useState<AdminQA[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Sessions audit states
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [sessionViewMode, setSessionViewMode] = useState<'all' | 'audit'>('audit');
+  const [expandedUserEmail, setExpandedUserEmail] = useState<string | null>(null);
 
   // Forms States
   const [resourceForm, setResourceForm] = useState({
@@ -179,6 +187,31 @@ export default function Admin() {
         id: toastId,
         description: err.message
       });
+    }
+  };
+
+  const handleRevokeSession = async (sessionId: string) => {
+    const toastId = toast.loading('Revoking session credentials...');
+    try {
+      await adminService.deleteSession(sessionId);
+      toast.success('Session revoked and device force logged out!', { id: toastId });
+      loadAdminData();
+    } catch (err: any) {
+      toast.error('Failed to revoke session', { id: toastId });
+    }
+  };
+
+  const handleRevokeAllUserSessions = async (email: string) => {
+    const toastId = toast.loading(`Logging out all devices for ${email}...`);
+    try {
+      const userSessions = sessions.filter(s => s.email.toLowerCase() === email.toLowerCase());
+      for (const s of userSessions) {
+        await adminService.deleteSession(s.id);
+      }
+      toast.success(`Revoked all ${userSessions.length} active sessions for ${email}!`, { id: toastId });
+      loadAdminData();
+    } catch (err: any) {
+      toast.error('Failed to revoke user sessions', { id: toastId });
     }
   };
 
@@ -435,33 +468,140 @@ NOTIFY pgrst, 'reload schema';`;
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1f1f1f]">
-                      {profiles.map((profile) => (
-                        <tr key={profile.id} className="hover:bg-[#1a1a1a]/30 transition-all text-sm group">
-                          <td className="px-8 py-5 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#222] border border-[#333] overflow-hidden flex items-center justify-center">
-                              {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <Users className="w-4 h-4 text-neutral-600" />
-                              )}
-                            </div>
-                            <span className="font-bold text-white">{profile.full_name || 'Student Professional'}</span>
-                          </td>
-                          <td className="px-8 py-5 font-mono text-neutral-400">{profile.email || 'N/A'}</td>
-                          <td className="px-8 py-5 text-neutral-500 text-xs">
-                            {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-8 py-5 font-mono text-[10px] text-neutral-600 truncate max-w-[120px]">{profile.id}</td>
-                          <td className="px-8 py-5 text-right">
-                            <button
-                              onClick={() => handleResetPassword(profile.email || 'waiyanmyintaung37@gmail.com')}
-                              className="px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-400 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
-                            >
-                              Reset Password
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {profiles.map((profile) => {
+                        const userSessions = sessions.filter(s => s.email?.toLowerCase() === profile.email?.toLowerCase());
+                        const isExpanded = expandedUserEmail === profile.email;
+                        const hasSharingRisk = userSessions.length > 1;
+
+                        return (
+                          <React.Fragment key={profile.id}>
+                            <tr className={cn(
+                              "hover:bg-[#1a1a1a]/30 transition-all text-sm group",
+                              isExpanded ? "bg-[#181818]/50" : ""
+                            )}>
+                              <td className="px-8 py-5 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-[#222] border border-[#333] overflow-hidden flex items-center justify-center">
+                                  {profile.avatar_url ? (
+                                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Users className="w-4 h-4 text-neutral-600" />
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="font-bold text-white block">{profile.full_name || 'Student Professional'}</span>
+                                  {hasSharingRisk && (
+                                    <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-mono text-amber-500 font-bold uppercase tracking-wider">
+                                      <AlertTriangle className="w-2.5 h-2.5" /> Multiple Devices Active
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-8 py-5 font-mono text-neutral-400">{profile.email || 'N/A'}</td>
+                              <td className="px-8 py-5 text-neutral-500 text-xs">
+                                {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
+                              </td>
+                              <td className="px-8 py-5 font-mono text-[10px] text-neutral-600 truncate max-w-[120px]">{profile.id}</td>
+                              <td className="px-8 py-5 text-right space-x-3">
+                                <button
+                                  onClick={() => setExpandedUserEmail(isExpanded ? null : profile.email)}
+                                  className={cn(
+                                    "px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border relative overflow-hidden",
+                                    isExpanded 
+                                      ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                      : userSessions.length > 0
+                                        ? hasSharingRisk
+                                          ? "bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-500"
+                                          : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20 text-emerald-400"
+                                        : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-400"
+                                  )}
+                                >
+                                  <Ripple />
+                                  💻 Devices ({userSessions.length})
+                                </button>
+                                <button
+                                  onClick={() => handleResetPassword(profile.email || '')}
+                                  className="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-400 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                                >
+                                  Reset PW
+                                </button>
+                              </td>
+                            </tr>
+
+                            {/* EXPANSIBLE SESSIONS ROW */}
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={5} className="bg-[#0b0b0b] px-8 py-6 border-t border-b border-[#222]">
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                          <span>🖥️ Connected Devices Log</span>
+                                          {hasSharingRisk && (
+                                            <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md uppercase tracking-widest animate-pulse">
+                                              Suspected Sharing Threat
+                                            </span>
+                                          )}
+                                        </h4>
+                                        <p className="text-xs text-neutral-500 mt-1">
+                                          Real-time device terminals registered to <strong>{profile.email}</strong>.
+                                        </p>
+                                      </div>
+
+                                      {userSessions.length > 0 && (
+                                        <button
+                                          onClick={() => handleRevokeAllUserSessions(profile.email)}
+                                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                                        >
+                                          Force Logout All Devices
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {userSessions.length === 0 ? (
+                                      <div className="p-6 text-center text-neutral-600 bg-[#121212]/30 rounded-2xl border border-[#1e1e1e] font-mono text-xs uppercase tracking-wider">
+                                        No active logins or devices tracked on this account.
+                                      </div>
+                                    ) : (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {userSessions.map((sess) => (
+                                          <div key={sess.id} className="bg-[#121212] border border-[#222] rounded-2xl p-4 flex items-center justify-between gap-4">
+                                            <div className="flex items-start gap-3">
+                                              <div className={cn(
+                                                "w-9 h-9 rounded-xl flex items-center justify-center border",
+                                                hasSharingRisk ? "bg-amber-500/5 border-amber-500/10 text-amber-500" : "bg-neutral-800 border-neutral-700 text-neutral-400"
+                                              )}>
+                                                <Smartphone className="w-4 h-4" />
+                                              </div>
+                                              <div>
+                                                <span className="font-bold text-neutral-200 text-xs font-mono block">{sess.device}</span>
+                                                <div className="text-[10px] text-neutral-500 font-mono space-y-0.5 mt-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <Globe className="w-3 h-3 text-neutral-600" />
+                                                    <span>IP: {sess.ip_address} ({sess.location})</span>
+                                                  </div>
+                                                  <div>Last Seen: {new Date(sess.last_active).toLocaleString()}</div>
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <button
+                                              onClick={() => handleRevokeSession(sess.id)}
+                                              className="p-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 text-rose-400 rounded-xl transition-all hover:scale-105"
+                                              title="Disconnect & revoke this device"
+                                            >
+                                              <Power className="w-4 h-4" />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -473,51 +613,354 @@ NOTIFY pgrst, 'reload schema';`;
         {/* TAB 2: DEVICES & SESSIONS */}
         {activeTab === 'sessions' && (
           <ScrollReveal delay={0.1}>
-            <div className="bg-[#141414] border border-[#262626] rounded-[32px] overflow-hidden">
-              <div className="p-8 border-b border-[#262626] bg-[#1a1a1a]/40 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-white">Logged-in Devices & locations</h3>
-                  <p className="text-xs text-neutral-500 mt-1">Real-time session tracker for active user terminals.</p>
+            <div className="space-y-6">
+              {/* Controls and Stats Header card */}
+              <div className="bg-[#141414] border border-[#262626] rounded-[24px] p-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={() => setSessionViewMode('audit')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border relative overflow-hidden",
+                      sessionViewMode === 'audit'
+                        ? "bg-sky-500/10 border-sky-500/30 text-sky-400"
+                        : "bg-transparent border-[#333] text-neutral-400 hover:text-white"
+                    )}
+                  >
+                    <Ripple />
+                    🔍 Account Sharing Audit
+                  </button>
+                  <button
+                    onClick={() => setSessionViewMode('all')}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all border relative overflow-hidden",
+                      sessionViewMode === 'all'
+                        ? "bg-sky-500/10 border-sky-500/30 text-sky-400"
+                        : "bg-transparent border-[#333] text-neutral-400 hover:text-white"
+                    )}
+                  >
+                    <Ripple />
+                    🌐 All Session Logs
+                  </button>
                 </div>
-                <div className="px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-[10px] font-mono text-sky-400">
-                  {sessions.length} ACTIVE CLUSTERS
+
+                <div className="relative w-full md:w-80">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-neutral-500">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={sessionSearch}
+                    onChange={(e) => setSessionSearch(e.target.value)}
+                    placeholder="Search sessions (email, IP, device...)"
+                    className="w-full bg-[#1c1c1c] border border-[#333] rounded-xl pl-9 pr-4 py-2 text-white text-xs focus:outline-none focus:border-sky-500/50 transition-all font-medium"
+                  />
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-[#262626] bg-[#1a1a1a]/20 text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-                      <th className="px-8 py-5">User Session</th>
-                      <th className="px-8 py-5">Access Device</th>
-                      <th className="px-8 py-5">IP Address</th>
-                      <th className="px-8 py-5">Registered Geo Location</th>
-                      <th className="px-8 py-5 text-right">Last Action Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1f1f1f]">
-                    {sessions.map((sess) => (
-                      <tr key={sess.id} className="hover:bg-[#1a1a1a]/30 transition-all text-sm">
-                        <td className="px-8 py-5 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-sky-500/5 border border-sky-500/10 flex items-center justify-center text-sky-500">
-                            <Smartphone className="w-4 h-4" />
+              {sessionViewMode === 'audit' ? (
+                /* AUDIT MODE: Grouped by User and Analyzing Account Sharing */
+                <div className="bg-[#141414] border border-[#262626] rounded-[32px] overflow-hidden">
+                  <div className="p-8 border-b border-[#262626] bg-[#1a1a1a]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <ShieldAlert className="w-5 h-5 text-amber-500 animate-pulse" />
+                        Account Sharing & Access Audit
+                      </h3>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        System automatically aggregates sessions per user to flag potential credential/account sharing behaviors.
+                      </p>
+                    </div>
+                    <button
+                      onClick={loadAdminData}
+                      className="px-4 py-2 bg-[#222] border border-[#333] hover:border-sky-500/50 hover:bg-[#2a2a2a] rounded-xl text-xs text-white font-bold transition-all shrink-0"
+                    >
+                      Refresh Scan
+                    </button>
+                  </div>
+
+                  {(() => {
+                    // Group sessions by email
+                    const userGroups: { [email: string]: {
+                      email: string;
+                      userId: string;
+                      sessionsList: UserSession[];
+                      uniqueDevices: Set<string>;
+                      uniqueIPs: Set<string>;
+                      uniqueLocations: Set<string>;
+                    }} = {};
+
+                    sessions.forEach(sess => {
+                      const email = sess.email.toLowerCase();
+                      if (!userGroups[email]) {
+                        userGroups[email] = {
+                          email: sess.email,
+                          userId: sess.user_id,
+                          sessionsList: [],
+                          uniqueDevices: new Set(),
+                          uniqueIPs: new Set(),
+                          uniqueLocations: new Set()
+                        };
+                      }
+                      userGroups[email].sessionsList.push(sess);
+                      userGroups[email].uniqueDevices.add(sess.device);
+                      userGroups[email].uniqueIPs.add(sess.ip_address);
+                      userGroups[email].uniqueLocations.add(sess.location);
+                    });
+
+                    let auditData = Object.values(userGroups).map(group => {
+                      const deviceCount = group.uniqueDevices.size;
+                      const ipCount = group.uniqueIPs.size;
+                      const locationCount = group.uniqueLocations.size;
+                      
+                      let status: 'safe' | 'warning' | 'critical' = 'safe';
+                      let reason = '';
+                      
+                      if (deviceCount >= 3 || ipCount >= 3) {
+                        status = 'critical';
+                        reason = `🚨 High Risk: Connected from ${deviceCount} devices across ${locationCount} distinct locations. Highly likely account sharing.`;
+                      } else if (deviceCount > 1 || ipCount > 1) {
+                        status = 'warning';
+                        reason = `⚠️ Moderate Risk: Connected from ${deviceCount} devices / ${ipCount} different IPs. Possible account sharing.`;
+                      } else {
+                        status = 'safe';
+                        reason = '✓ Low Risk: Normal single-device usage pattern.';
+                      }
+
+                      return {
+                        ...group,
+                        deviceCount,
+                        ipCount,
+                        locationCount,
+                        status,
+                        reason
+                      };
+                    });
+
+                    // Search filter
+                    if (sessionSearch.trim() !== '') {
+                      const s = sessionSearch.toLowerCase();
+                      auditData = auditData.filter(item => 
+                        item.email.toLowerCase().includes(s) || 
+                        Array.from(item.uniqueDevices).some(d => d.toLowerCase().includes(s)) ||
+                        Array.from(item.uniqueIPs).some(ip => ip.toLowerCase().includes(s)) ||
+                        Array.from(item.uniqueLocations).some(loc => loc.toLowerCase().includes(s))
+                      );
+                    }
+
+                    // Sort critical first, then warning, then safe
+                    auditData.sort((a, b) => {
+                      const score = { critical: 3, warning: 2, safe: 1 };
+                      return score[b.status] - score[a.status];
+                    });
+
+                    if (auditData.length === 0) {
+                      return (
+                        <div className="p-20 text-center text-neutral-500 font-mono text-xs uppercase tracking-wider">
+                          No audited users found matching filters.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="divide-y divide-[#1f1f1f]">
+                        {auditData.map((group) => (
+                          <div key={group.email} className={cn(
+                            "p-8 transition-all relative overflow-hidden",
+                            group.status === 'critical' ? 'bg-rose-500/[0.02] hover:bg-rose-500/[0.03]' :
+                            group.status === 'warning' ? 'bg-amber-500/[0.02] hover:bg-amber-500/[0.03]' :
+                            'hover:bg-[#1a1a1a]/10'
+                          )}>
+                            {/* Visual Indicator strip */}
+                            <div className={cn(
+                              "absolute top-0 bottom-0 left-0 w-1",
+                              group.status === 'critical' ? 'bg-rose-500' :
+                              group.status === 'warning' ? 'bg-amber-500' :
+                              'bg-emerald-500'
+                            )} />
+
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pl-2">
+                              {/* Left side: user email and threat level info */}
+                              <div className="space-y-3 max-w-3xl">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className="text-base font-black text-white">{group.email}</span>
+                                  
+                                  {group.status === 'critical' && (
+                                    <span className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                                      <ShieldAlert className="w-3 h-3" /> Critical Security Threat
+                                    </span>
+                                  )}
+                                  {group.status === 'warning' && (
+                                    <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-md text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" /> Suspected Sharing
+                                    </span>
+                                  )}
+                                  {group.status === 'safe' && (
+                                    <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md text-[9px] font-black uppercase tracking-widest">
+                                      Authorized Connection
+                                    </span>
+                                  )}
+                                </div>
+
+                                <p className="text-xs text-neutral-400 font-medium">
+                                  {group.reason}
+                                </p>
+
+                                {/* Mini specs metrics */}
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-neutral-500 font-mono text-[11px]">
+                                  <span className="flex items-center gap-1.5 font-bold">
+                                    <Smartphone className="w-3.5 h-3.5" />
+                                    Unique Devices: <strong className={group.deviceCount > 1 ? "text-amber-400" : "text-white"}>{group.deviceCount}</strong>
+                                  </span>
+                                  <span className="flex items-center gap-1.5 font-bold">
+                                    <Globe className="w-3.5 h-3.5" />
+                                    Distinct Locations: <strong className={group.locationCount > 1 ? "text-amber-400" : "text-white"}>{group.locationCount}</strong>
+                                  </span>
+                                  <span className="flex items-center gap-1.5 font-bold">
+                                    IP Footprints: <strong className={group.ipCount > 1 ? "text-amber-400" : "text-white"}>{group.ipCount}</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Right side: administrative action buttons */}
+                              <div className="flex items-center gap-3 shrink-0">
+                                <button
+                                  onClick={() => handleRevokeAllUserSessions(group.email)}
+                                  className={cn(
+                                    "px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border relative overflow-hidden",
+                                    group.status === 'critical' || group.status === 'warning'
+                                      ? "bg-rose-500/10 hover:bg-rose-500/25 border-rose-500/30 text-rose-400"
+                                      : "bg-[#222] hover:bg-[#2c2c2c] border-[#333] text-neutral-300"
+                                  )}
+                                >
+                                  <Ripple />
+                                  Terminate All ({group.sessionsList.length}) Devices
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Inner sessions list details */}
+                            <div className="mt-5 bg-[#0d0d0d]/40 rounded-2xl border border-[#222] p-4 divide-y divide-[#1c1c1c]/50 pl-2">
+                              <div className="pb-2 text-[10px] font-black uppercase tracking-widest text-neutral-500">Active Terminals Details</div>
+                              {group.sessionsList.map(sess => (
+                                <div key={sess.id} className="py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-neutral-400 border border-[#333]">
+                                      <Smartphone className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-neutral-300 font-mono">{sess.device}</span>
+                                      <div className="text-[10px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
+                                        <span>IP: {sess.ip_address}</span>
+                                        <span>•</span>
+                                        <span>Loc: {sess.location}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <span className="text-[10px] text-neutral-500 font-mono">
+                                      Active {new Date(sess.last_active).toLocaleTimeString()}
+                                    </span>
+                                    <button
+                                      onClick={() => handleRevokeSession(sess.id)}
+                                      className="p-1.5 text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                                      title="Revoke and logout this specific device"
+                                    >
+                                      <Power className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <span className="font-bold text-neutral-200">{sess.email}</span>
-                        </td>
-                        <td className="px-8 py-5 font-mono text-xs text-neutral-400">{sess.device}</td>
-                        <td className="px-8 py-5 font-mono text-xs text-neutral-400">{sess.ip_address}</td>
-                        <td className="px-8 py-5 text-neutral-300 font-bold flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-neutral-500" />
-                          {sess.location}
-                        </td>
-                        <td className="px-8 py-5 text-right font-mono text-xs text-neutral-500">
-                          {new Date(sess.last_active).toLocaleTimeString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                /* ALL SESSIONS MODE: Flat list of active sessions */
+                <div className="bg-[#141414] border border-[#262626] rounded-[32px] overflow-hidden">
+                  <div className="p-8 border-b border-[#262626] bg-[#1a1a1a]/40 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">All Logged-in Session Connections</h3>
+                      <p className="text-xs text-neutral-500 mt-1">Real-time terminal active connections currently synced.</p>
+                    </div>
+                    <div className="px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-[10px] font-mono text-sky-400">
+                      {sessions.length} ACTIVE CLUSTERS
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#262626] bg-[#1a1a1a]/20 text-[10px] font-black text-neutral-500 uppercase tracking-widest">
+                          <th className="px-8 py-5">User Account</th>
+                          <th className="px-8 py-5">Device</th>
+                          <th className="px-8 py-5">IP Address</th>
+                          <th className="px-8 py-5">Registered Location</th>
+                          <th className="px-8 py-5">Last Activity</th>
+                          <th className="px-8 py-5 text-right">System Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1f1f1f]">
+                        {(() => {
+                          let filteredSessions = [...sessions];
+                          if (sessionSearch.trim() !== '') {
+                            const s = sessionSearch.toLowerCase();
+                            filteredSessions = filteredSessions.filter(sess => 
+                              sess.email.toLowerCase().includes(s) ||
+                              sess.device.toLowerCase().includes(s) ||
+                              sess.ip_address.toLowerCase().includes(s) ||
+                              sess.location.toLowerCase().includes(s)
+                            );
+                          }
+
+                          if (filteredSessions.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="px-8 py-12 text-center text-neutral-500 font-mono text-xs uppercase tracking-wider">
+                                  No sessions found matching filters.
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filteredSessions.map((sess) => (
+                            <tr key={sess.id} className="hover:bg-[#1a1a1a]/30 transition-all text-sm group">
+                              <td className="px-8 py-5 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-sky-500/5 border border-sky-500/10 flex items-center justify-center text-sky-500">
+                                  <Smartphone className="w-4 h-4" />
+                                </div>
+                                <span className="font-bold text-neutral-200">{sess.email}</span>
+                              </td>
+                              <td className="px-8 py-5 font-mono text-xs text-neutral-400">{sess.device}</td>
+                              <td className="px-8 py-5 font-mono text-xs text-neutral-400">{sess.ip_address}</td>
+                              <td className="px-8 py-5 text-neutral-300 font-bold">
+                                <div className="flex items-center gap-1.5">
+                                  <Globe className="w-3.5 h-3.5 text-neutral-500" />
+                                  {sess.location}
+                                </div>
+                              </td>
+                              <td className="px-8 py-5 font-mono text-xs text-neutral-500">
+                                {new Date(sess.last_active).toLocaleString()}
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                <button
+                                  onClick={() => handleRevokeSession(sess.id)}
+                                  className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative overflow-hidden"
+                                >
+                                  <Ripple />
+                                  Terminate
+                                </button>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollReveal>
         )}

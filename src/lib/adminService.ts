@@ -121,7 +121,11 @@ export const adminService = {
     }
 
     const sessionData: UserSession = {
-      id: Math.random().toString(36).substring(2, 11),
+      id: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      }),
       user_id: userId,
       email,
       device,
@@ -152,20 +156,28 @@ export const adminService = {
 
   async getSessions(): Promise<UserSession[]> {
     if (isConfigured) {
+      // Clear legacy dummy storage to avoid rendering wrong fake sessions
+      localStorage.removeItem(STORAGE_KEYS.SESSIONS);
       try {
         const { data, error } = await supabase
           .from('user_sessions')
           .select('*')
           .order('last_active', { ascending: false });
         if (!error && data) return data;
-      } catch (e) {}
+        if (error) {
+          console.error("Supabase user_sessions table error:", error);
+        }
+      } catch (e) {
+        console.error("Exception fetching sessions:", e);
+      }
+      return []; // Return empty if Supabase query fails (no dummy fallback)
     }
 
     // LocalStorage fallback
     const local = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSIONS) || '[]');
     if (local.length > 0) return local;
 
-    // Return dummy data if empty
+    // Return dummy data if empty (only when not configured)
     const dummy: UserSession[] = [
       { id: 's1', user_id: 'c8f8dd02-eaa6-4427-a3f8-4c8f69ac4fb0', email: 'waiyanmyintaung37@gmail.com', device: 'Windows Desktop (Chrome)', location: 'Yangon, Myanmar', ip_address: '103.25.10.15', last_active: new Date().toISOString() },
       { id: 's2', user_id: 'test-user-2', email: 'student_pro@gmail.com', device: 'iPhone (Safari)', location: 'Mandalay, Myanmar', ip_address: '111.93.155.8', last_active: new Date(Date.now() - 600000).toISOString() },
@@ -175,16 +187,43 @@ export const adminService = {
     return dummy;
   },
 
+  async deleteSession(sessionId: string): Promise<boolean> {
+    if (isConfigured) {
+      try {
+        const { error } = await supabase
+          .from('user_sessions')
+          .delete()
+          .eq('id', sessionId);
+        if (!error) return true;
+      } catch (e) {
+        console.error('Error deleting session:', e);
+      }
+    }
+
+    const sessions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSIONS) || '[]');
+    const filtered = sessions.filter((s: UserSession) => s.id !== sessionId);
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(filtered));
+    return true;
+  },
+
   // 2. ACCOUNT MANAGEMENT (PROFILES)
   async getProfiles(): Promise<any[]> {
     if (isConfigured) {
+      // Clear legacy dummy storage for profiles
+      localStorage.removeItem(STORAGE_KEYS.PROFILES);
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .order('created_at', { ascending: false });
         if (!error && data) return data;
-      } catch (e) {}
+        if (error) {
+          console.error("Supabase profiles table error:", error);
+        }
+      } catch (e) {
+        console.error("Exception fetching profiles:", e);
+      }
+      return []; // Return empty if Supabase query fails
     }
     return getMockProfiles();
   },
