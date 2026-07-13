@@ -483,25 +483,38 @@ export default function Campus() {
   };
 
   const getActiveVideosList = () => {
-    let list: { id: string; title: string; url: string; description: string }[] = [];
+    let baseList: { id: string; title: string; url: string; description: string }[] = [];
     if (filter === '2026 Future Mentorship') {
-      list = FUTURE_MENTORSHIP_VIDEOS;
+      baseList = [...FUTURE_MENTORSHIP_VIDEOS];
     } else if (filter === 'VIP-1 Courses') {
-      list = VIP1_VIDEOS;
+      baseList = [...VIP1_VIDEOS];
     } else if (filter === 'VIP-2 Courses') {
-      list = VIP2_VIDEOS;
+      baseList = [...VIP2_VIDEOS];
     } else if (filter === 'Day Trading Strategy') {
-      list = DAY_TRADING_VIDEOS;
+      baseList = [...DAY_TRADING_VIDEOS];
     } else if (filter === 'Introduction about Crypto') {
-      list = CRYPTO_INTRO_VIDEOS;
+      baseList = [...CRYPTO_INTRO_VIDEOS];
     } else if (filter === 'Fundamental') {
-      list = FUNDAMENTAL_VIDEOS;
+      baseList = [...FUNDAMENTAL_VIDEOS];
     } else if (filter === 'Learn Thai') {
-      list = THAI_LANGUAGE_VIDEOS;
+      baseList = [...THAI_LANGUAGE_VIDEOS];
     } else if (filter === 'TTT') {
       const activeSections = tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM;
-      list = activeSections.flatMap(s => s.videos);
-    } else {
+      baseList = [...activeSections.flatMap(s => s.videos)];
+    }
+
+    const dynamicList = resources
+      .filter(r => r.category === filter)
+      .map(r => ({
+        id: r.id,
+        title: r.title,
+        url: r.url,
+        description: r.description
+      }));
+
+    let list = [...baseList, ...dynamicList];
+
+    if (baseList.length === 0 && dynamicList.length === 0) {
       list = resources.filter(r => r.category === filter).map(r => ({
         id: r.id,
         title: r.title,
@@ -539,19 +552,19 @@ export default function Campus() {
 
   // Calculators completion stats
   const currentCategoryCompletedCount = completedVideos.filter(vidId => {
-    if (filter === '2026 Future Mentorship') return FUTURE_MENTORSHIP_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'VIP-1 Courses') return VIP1_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'VIP-2 Courses') return VIP2_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'Day Trading Strategy') return DAY_TRADING_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'Introduction about Crypto') return CRYPTO_INTRO_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'Fundamental') return FUNDAMENTAL_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'Learn Thai') return THAI_LANGUAGE_VIDEOS.some(v => v.id === vidId);
-    if (filter === 'TTT') return [...TTT_BASIC.flatMap(s => s.videos), ...TTT_PREMIUM.flatMap(s => s.videos)].some(v => v.id === vidId);
-    return false;
+    if (filter === 'TTT') {
+      const allTTT = [
+        ...TTT_BASIC.flatMap(s => s.videos),
+        ...TTT_PREMIUM.flatMap(s => s.videos),
+        ...resources.filter(r => r.category === 'TTT').map(r => ({ id: r.id }))
+      ];
+      return allTTT.some(v => v.id === vidId);
+    }
+    return activeVideosList.some(v => v.id === vidId);
   }).length;
 
   const currentCategoryTotalCount = filter === 'TTT' 
-    ? TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0)
+    ? TTT_BASIC.reduce((acc, s) => acc + s.videos.length, 0) + TTT_PREMIUM.reduce((acc, s) => acc + s.videos.length, 0) + resources.filter(r => r.category === 'TTT').length
     : getCategoryCount(filter);
 
   return (
@@ -863,7 +876,26 @@ export default function Campus() {
 
                     {/* Grouped nested TTT layout */}
                     <div className="space-y-5">
-                      {(tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM).map((section, sIdx) => {
+                      {(() => {
+                        const baseSections = tttSubFilter === 'Basic' ? TTT_BASIC : TTT_PREMIUM;
+                        const dynamicTTTVideos = resources
+                          .filter(r => r.category === 'TTT')
+                          .map(r => ({
+                            id: r.id,
+                            title: r.title,
+                            url: r.url,
+                            description: r.description
+                          }));
+                        
+                        const sections = [...baseSections];
+                        if (dynamicTTTVideos.length > 0) {
+                          sections.push({
+                            title: "Admin Uploaded Lessons",
+                            videos: dynamicTTTVideos
+                          });
+                        }
+                        return sections;
+                      })().map((section, sIdx) => {
                         return (
                           <div key={section.title} className="space-y-2">
                             <div className="sticky top-0 bg-[#050505]/95 backdrop-blur-md z-10 py-1.5 flex items-center justify-between border-b border-[#121212]">
