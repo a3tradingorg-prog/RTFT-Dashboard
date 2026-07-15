@@ -19,6 +19,7 @@ import QA from './pages/QA';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
+import ResetPassword from './pages/ResetPassword';
 
 function ProtectedLayout() {
   const { user, loading } = useAuth();
@@ -131,6 +132,7 @@ export default function App() {
           <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Dashboard />} />

@@ -240,7 +240,7 @@ export const adminService = {
     if (isConfigured) {
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/profile`
+          redirectTo: `${window.location.origin}/reset-password`
         });
         if (!error) {
           return `A password reset link has been sent to ${email} via real Supabase Auth.`;
