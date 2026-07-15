@@ -23,7 +23,6 @@ import {
   X as CloseIcon,
   ArrowUp,
   Database,
-  ShieldCheck,
   Sun,
   Moon
 } from 'lucide-react';
@@ -198,10 +197,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const hideAccountSelector = ['/campus', '/qa', '/profile', '/admin'].includes(location.pathname);
-
-  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com'];
-  const isAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const hideAccountSelector = ['/campus', '/qa', '/profile'].includes(location.pathname);
 
   const navigation = [
     { name: 'DASHBOARD', href: '/', icon: LayoutDashboard },
@@ -212,7 +208,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { name: 'Campus', href: '/campus', icon: GraduationCap },
     { name: 'Q&A', href: '/qa', icon: HelpCircle },
     { name: 'Profile', href: '/profile', icon: User },
-    ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: ShieldCheck }] : []),
   ];
 
   const logoUrl = (import.meta as any).env.VITE_SUPABASE_URL 

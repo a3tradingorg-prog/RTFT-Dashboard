@@ -18,7 +18,6 @@ import Campus from './pages/Campus';
 import QA from './pages/QA';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
-import Admin from './pages/Admin';
 import ResetPassword from './pages/ResetPassword';
 
 function ProtectedLayout() {
@@ -144,7 +143,6 @@ export default function App() {
               <Route path="/qa" element={<QA />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<Admin />} />
             </Route>
 
             {/* Fallback */}
