@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Trash2, Calendar, FileText, Video, HelpCircle, MessageSquare, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { adminService, Notification } from '../lib/adminService';
 import { cn } from '../lib/utils';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { toast } from 'sonner';
 
 export default function NotificationCenter() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useClickOutside(() => setIsOpen(false));
@@ -164,8 +166,36 @@ export default function NotificationCenter() {
                       key={noti.id}
                       onClick={async () => {
                         if (!noti.is_read) {
-                          await adminService.markAsRead(noti.id);
+                          try {
+                            await adminService.markAsRead(noti.id);
+                          } catch (err) {
+                            console.error('Error marking notification as read on click:', err);
+                          }
                         }
+                        
+                        // Navigate based on notification type and content
+                        let targetPath = '/';
+                        if (noti.type === 'video') {
+                          const msg = noti.message.toLowerCase();
+                          if (msg.includes('vip-1')) {
+                            targetPath = '/campus?tab=VIP-1 Courses';
+                          } else if (msg.includes('vip-2')) {
+                            targetPath = '/campus?tab=VIP-2 Courses';
+                          } else if (msg.includes('ttt')) {
+                            targetPath = '/campus?tab=TTT';
+                          } else {
+                            targetPath = '/campus?tab=2026 Future Mentorship';
+                          }
+                        } else if (noti.type === 'pdf') {
+                          targetPath = '/campus?tab=PDF';
+                        } else if (noti.type === 'qa') {
+                          targetPath = '/qa';
+                        } else if (noti.type === 'trade') {
+                          targetPath = '/';
+                        }
+                        
+                        navigate(targetPath);
+                        setIsOpen(false);
                       }}
                       className={cn(
                         "p-4 flex gap-3 hover:bg-[#141414] transition-all cursor-pointer relative group",

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Resource } from '../types';
 import { 
@@ -399,6 +400,7 @@ const CATEGORY_META: Record<string, {
 };
 
 export default function Campus() {
+  const [searchParams] = useSearchParams();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('2026 Future Mentorship');
@@ -409,6 +411,16 @@ export default function Campus() {
   const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; url: string; description: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [completedVideos, setCompletedVideos] = useState<string[]>([]);
+
+  // Listen to searchParams changes to automatically set active tab/filter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      if (['2026 Future Mentorship', 'TTT', 'VIP-1 Courses', 'VIP-2 Courses', 'PDF'].includes(tabParam)) {
+        setFilter(tabParam);
+      }
+    }
+  }, [searchParams]);
 
   // Load persistence completed state
   useEffect(() => {

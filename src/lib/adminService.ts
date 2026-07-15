@@ -246,8 +246,7 @@ export const adminService = {
 
   // 3. RESOURCE UPLOAD (VIDEOS & PDFS)
   async addResource(resource: { title: string; description: string; category: string; url: string }) {
-    const newResource = {
-      id: Math.random().toString(36).substring(2, 11),
+    const payload = {
       title: resource.title,
       description: resource.description,
       category: resource.category,
@@ -260,24 +259,34 @@ export const adminService = {
 
     if (isConfigured) {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('resources')
-          .insert([newResource]);
-        if (!error) {
+          .insert([payload])
+          .select()
+          .single();
+        if (!error && data) {
           // Trigger Notification
           await this.createNotification(
             `New ${resource.category === 'PDF' ? 'PDF' : 'Video'} Uploaded`,
             `Admin added "${resource.title}" under category "${resource.category}"!`,
             resource.category === 'PDF' ? 'pdf' : 'video'
           );
-          return newResource;
+          return data;
+        } else if (error) {
+          console.error("Supabase resource insertion error details:", error);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Supabase resource insertion exception:", e);
+      }
     }
 
     // Local Storage Fallback
+    const fallbackResource = {
+      id: Math.random().toString(36).substring(2, 11),
+      ...payload
+    };
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESOURCES) || '[]');
-    list.unshift(newResource);
+    list.unshift(fallbackResource);
     localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(list));
 
     // Trigger Notification
@@ -287,7 +296,7 @@ export const adminService = {
       resource.category === 'PDF' ? 'pdf' : 'video'
     );
 
-    return newResource;
+    return fallbackResource;
   },
 
   async deleteResource(id: string) {
@@ -309,32 +318,41 @@ export const adminService = {
 
   // 4. Q&A POSTING
   async addQA(qa: { question_en: string; question_mm: string; answer_en: string; answer_mm: string; category_en: string; category_mm: string }) {
-    const newQA: AdminQA = {
-      id: Math.random().toString(36).substring(2, 11),
+    const payload = {
       ...qa,
       created_at: new Date().toISOString()
     };
 
     if (isConfigured) {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('qas')
-          .insert([newQA]);
-        if (!error) {
+          .insert([payload])
+          .select()
+          .single();
+        if (!error && data) {
           // Trigger Notification
           await this.createNotification(
             'New Q&A Post Added',
             `Admin published a new frequently asked question: "${qa.question_mm || qa.question_en}"`,
             'qa'
           );
-          return newQA;
+          return data;
+        } else if (error) {
+          console.error("Supabase QA insertion error:", error);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Supabase QA insertion exception:", e);
+      }
     }
 
     // Local Storage Fallback
+    const fallbackQA: AdminQA = {
+      id: Math.random().toString(36).substring(2, 11),
+      ...payload
+    };
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.QAS) || '[]');
-    list.unshift(newQA);
+    list.unshift(fallbackQA);
     localStorage.setItem(STORAGE_KEYS.QAS, JSON.stringify(list));
 
     // Trigger Notification
@@ -344,7 +362,7 @@ export const adminService = {
       'qa'
     );
 
-    return newQA;
+    return fallbackQA;
   },
 
   async getQAs(): Promise<AdminQA[]> {
@@ -394,8 +412,7 @@ export const adminService = {
   },
 
   async createNotification(title: string, message: string, type: 'video' | 'pdf' | 'qa' | 'info' | 'trade') {
-    const noti: Notification = {
-      id: Math.random().toString(36).substring(2, 11),
+    const payload = {
       user_id: null,
       title,
       message,
@@ -404,16 +421,34 @@ export const adminService = {
       created_at: new Date().toISOString()
     };
 
+    let savedNoti: Notification | null = null;
+
     if (isConfigured) {
       try {
-        await supabase
+        const { data, error } = await supabase
           .from('notifications')
-          .insert([noti]);
-      } catch (e) {}
+          .insert([payload])
+          .select()
+          .single();
+        if (!error && data) {
+          savedNoti = data;
+        } else if (error) {
+          console.error("Supabase notification insertion error:", error);
+        }
+      } catch (e) {
+        console.error("Supabase notification insertion exception:", e);
+      }
+    }
+
+    if (!savedNoti) {
+      savedNoti = {
+        id: Math.random().toString(36).substring(2, 11),
+        ...payload
+      };
     }
 
     const list = getInitialNotifications();
-    list.unshift(noti);
+    list.unshift(savedNoti);
     localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(list));
     
     // Dispatch a custom window event so reactive components update instantly
