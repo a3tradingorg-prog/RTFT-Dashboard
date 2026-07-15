@@ -97,7 +97,7 @@ export default function Admin() {
     }
   };
 
-  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com', 'example@gmail.com', 'a3tradingorg@gmail.com'];
+  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com'];
   const isAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   if (authLoading) {

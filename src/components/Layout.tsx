@@ -200,7 +200,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const hideAccountSelector = ['/campus', '/qa', '/profile', '/admin'].includes(location.pathname);
 
-  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com', 'example@gmail.com', 'a3tradingorg@gmail.com'];
+  const ADMIN_EMAILS = ['htetaungkyawhak2@gmail.com'];
   const isAdmin = user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   const navigation = [
