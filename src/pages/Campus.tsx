@@ -159,6 +159,7 @@ const FUTURE_MENTORSHIP_VIDEOS = [
   { id: 'fm21', title: '2 May 2026   Backtest Session', url: 'https://youtu.be/tvZwfriEjm8', description: 'Historical price action backtesting and layout analysis.' },
   { id: 'fm22', title: '25 May 2026 (Time window, Liquidity and Algorithmic price Delivery)', url: 'https://youtu.be/sQAW-9UO3mo', description: 'Lecture on time windows, liquidity pools, and algorithmic price delivery.' },
   { id: 'fm23', title: '29 June 2026 Weekly Recap and Suspension Block Liquidity', url: 'https://youtu.be/KKiHw3QPP-A', description: 'Weekly review of market action and deep dive into Suspension Block liquidity.' },
+  { id: 'fm24', title: '23. July 13, 2026 Future Mentorship Course', url: 'https://www.youtube.com/watch?v=sysNlELjEng&list=PLfgLupkJvwgw8W2AL0J4p19Di0O7fksQ2&index=24', description: '2026 Future Mentorship Course session recorded on July 13.' },
 ];
 
 const TTT_BASIC = [
