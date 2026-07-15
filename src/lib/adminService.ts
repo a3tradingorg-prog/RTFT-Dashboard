@@ -1,5 +1,13 @@
 import { supabase, isConfigured } from './supabase';
 
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export interface UserSession {
   id: string;
   user_id: string;
@@ -245,8 +253,32 @@ export const adminService = {
   },
 
   // 3. RESOURCE UPLOAD (VIDEOS & PDFS)
+  async getResources(): Promise<any[]> {
+    try {
+      const response = await fetch('/api/resources');
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.warn("Express get resources failed, trying Supabase...", e);
+    }
+
+    if (isConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('resources')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (e) {}
+    }
+
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.RESOURCES) || '[]');
+  },
+
   async addResource(resource: { title: string; description: string; category: string; url: string }) {
     const payload = {
+      id: generateUUID(),
       title: resource.title,
       description: resource.description,
       category: resource.category,
@@ -257,6 +289,25 @@ export const adminService = {
       created_at: new Date().toISOString()
     };
 
+    try {
+      const response = await fetch('/api/resources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        await this.createNotification(
+          `New ${resource.category === 'PDF' ? 'PDF' : 'Video'} Uploaded`,
+          `Admin added "${resource.title}" under category "${resource.category}"!`,
+          resource.category === 'PDF' ? 'pdf' : 'video'
+        );
+        return resData.resource;
+      }
+    } catch (e) {
+      console.warn("Express resources save failed, trying Supabase...", e);
+    }
+
     if (isConfigured) {
       try {
         const { data, error } = await supabase
@@ -265,7 +316,6 @@ export const adminService = {
           .select()
           .single();
         if (!error && data) {
-          // Trigger Notification
           await this.createNotification(
             `New ${resource.category === 'PDF' ? 'PDF' : 'Video'} Uploaded`,
             `Admin added "${resource.title}" under category "${resource.category}"!`,
@@ -280,33 +330,32 @@ export const adminService = {
       }
     }
 
-    // Local Storage Fallback
-    const fallbackResource = {
-      id: Math.random().toString(36).substring(2, 11),
-      ...payload
-    };
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESOURCES) || '[]');
-    list.unshift(fallbackResource);
+    list.unshift(payload);
     localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(list));
 
-    // Trigger Notification
     await this.createNotification(
       `New ${resource.category === 'PDF' ? 'PDF' : 'Video'} Uploaded`,
       `Admin added "${resource.title}" under category "${resource.category}"!`,
       resource.category === 'PDF' ? 'pdf' : 'video'
     );
 
-    return fallbackResource;
+    return payload;
   },
 
   async deleteResource(id: string) {
+    try {
+      await fetch(`/api/resources/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn("Express delete resource failed:", e);
+    }
+
     if (isConfigured) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('resources')
           .delete()
           .eq('id', id);
-        if (!error) return true;
       } catch (e) {}
     }
 
@@ -319,9 +368,29 @@ export const adminService = {
   // 4. Q&A POSTING
   async addQA(qa: { question_en: string; question_mm: string; answer_en: string; answer_mm: string; category_en: string; category_mm: string }) {
     const payload = {
+      id: generateUUID(),
       ...qa,
       created_at: new Date().toISOString()
     };
+
+    try {
+      const response = await fetch('/api/qas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        await this.createNotification(
+          'New Q&A Post Added',
+          `Admin published a new frequently asked question: "${qa.question_mm || qa.question_en}"`,
+          'qa'
+        );
+        return resData.qa;
+      }
+    } catch (e) {
+      console.warn("Express QA save failed, trying Supabase...", e);
+    }
 
     if (isConfigured) {
       try {
@@ -331,7 +400,6 @@ export const adminService = {
           .select()
           .single();
         if (!error && data) {
-          // Trigger Notification
           await this.createNotification(
             'New Q&A Post Added',
             `Admin published a new frequently asked question: "${qa.question_mm || qa.question_en}"`,
@@ -346,26 +414,29 @@ export const adminService = {
       }
     }
 
-    // Local Storage Fallback
-    const fallbackQA: AdminQA = {
-      id: Math.random().toString(36).substring(2, 11),
-      ...payload
-    };
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.QAS) || '[]');
-    list.unshift(fallbackQA);
+    list.unshift(payload);
     localStorage.setItem(STORAGE_KEYS.QAS, JSON.stringify(list));
 
-    // Trigger Notification
     await this.createNotification(
       'New Q&A Post Added',
       `Admin published a new frequently asked question: "${qa.question_mm || qa.question_en}"`,
       'qa'
     );
 
-    return fallbackQA;
+    return payload;
   },
 
   async getQAs(): Promise<AdminQA[]> {
+    try {
+      const response = await fetch('/api/qas');
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.warn("Express get QAs failed, trying Supabase...", e);
+    }
+
     if (isConfigured) {
       try {
         const { data, error } = await supabase
@@ -380,13 +451,18 @@ export const adminService = {
   },
 
   async deleteQA(id: string) {
+    try {
+      await fetch(`/api/qas/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn("Express delete QA failed:", e);
+    }
+
     if (isConfigured) {
       try {
-        const { error } = await supabase
+        await supabase
           .from('qas')
           .delete()
           .eq('id', id);
-        if (!error) return true;
       } catch (e) {}
     }
 
@@ -398,6 +474,15 @@ export const adminService = {
 
   // 5. NOTIFICATION CENTER SYSTEM
   async getNotifications(): Promise<Notification[]> {
+    try {
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.warn("Express get notifications failed, trying Supabase...", e);
+    }
+
     if (isConfigured) {
       try {
         const { data, error } = await supabase
@@ -413,6 +498,7 @@ export const adminService = {
 
   async createNotification(title: string, message: string, type: 'video' | 'pdf' | 'qa' | 'info' | 'trade') {
     const payload = {
+      id: generateUUID(),
       user_id: null,
       title,
       message,
@@ -423,7 +509,21 @@ export const adminService = {
 
     let savedNoti: Notification | null = null;
 
-    if (isConfigured) {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        savedNoti = resData.notification;
+      }
+    } catch (e) {
+      console.warn("Express create notification failed, trying Supabase...", e);
+    }
+
+    if (!savedNoti && isConfigured) {
       try {
         const { data, error } = await supabase
           .from('notifications')
@@ -441,21 +541,30 @@ export const adminService = {
     }
 
     if (!savedNoti) {
-      savedNoti = {
-        id: Math.random().toString(36).substring(2, 11),
-        ...payload
-      };
+      savedNoti = payload;
     }
 
     const list = getInitialNotifications();
-    list.unshift(savedNoti);
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(list));
+    if (!list.some(n => n.id === savedNoti!.id)) {
+      list.unshift(savedNoti);
+      localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(list));
+    }
     
     // Dispatch a custom window event so reactive components update instantly
     window.dispatchEvent(new Event('rtft_notification_update'));
   },
 
   async markAsRead(id: string) {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+    } catch (e) {
+      console.warn("Express mark notification read failed:", e);
+    }
+
     if (isConfigured) {
       try {
         await supabase
@@ -472,6 +581,12 @@ export const adminService = {
   },
 
   async readAllNotifications() {
+    try {
+      await fetch('/api/notifications/read-all', { method: 'POST' });
+    } catch (e) {
+      console.warn("Express read-all notifications failed:", e);
+    }
+
     if (isConfigured) {
       try {
         await supabase
@@ -488,6 +603,12 @@ export const adminService = {
   },
 
   async deleteAllNotifications() {
+    try {
+      await fetch('/api/notifications', { method: 'DELETE' });
+    } catch (e) {
+      console.warn("Express delete all notifications failed:", e);
+    }
+
     if (isConfigured) {
       try {
         await supabase

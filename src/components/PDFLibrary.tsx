@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isConfigured } from '../lib/supabase';
+import { adminService } from '../lib/adminService';
 import { useAuth } from '../lib/AuthContext';
 import { 
   FileText, 
@@ -223,8 +224,8 @@ export default function PDFLibrary() {
   useEffect(() => {
     const fetchDynamicPDFs = async () => {
       try {
-        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
-        const localPDFs = localResources
+        const resources = await adminService.getResources();
+        const pdfResources = resources
           .filter((r: any) => r.category === 'PDF')
           .map((r: any) => ({
             name: r.title,
@@ -232,33 +233,7 @@ export default function PDFLibrary() {
             category: 'PDF Uploads',
             thumbnail: r.thumbnail_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'
           }));
-
-        let supabasePDFs: PDFFile[] = [];
-        if (isConfigured) {
-          const { data, error } = await supabase
-            .from('resources')
-            .select('*')
-            .eq('category', 'PDF');
-
-          if (!error && data) {
-            supabasePDFs = data.map((r: any) => ({
-              name: r.title,
-              path: r.url,
-              category: 'PDF Uploads',
-              thumbnail: r.thumbnail_url || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400'
-            }));
-          }
-        }
-
-        // Merge, avoiding duplicates by name or path
-        const merged: PDFFile[] = [...supabasePDFs];
-        localPDFs.forEach((lp: PDFFile) => {
-          if (!merged.some(m => m.name === lp.name || m.path === lp.path)) {
-            merged.push(lp);
-          }
-        });
-
-        setDynamicPDFs(merged);
+        setDynamicPDFs(pdfResources);
       } catch (err) {
         console.warn('Failed to load dynamic PDFs:', err);
       }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { adminService } from '../lib/adminService';
 import { Resource } from '../types';
 import { 
   BookOpen, 
@@ -445,26 +446,10 @@ export default function Campus() {
   useEffect(() => {
     const fetchResources = async () => {
       try {
-        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
-        const { data, error } = await supabase
-          .from('resources')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        if (data) {
-          const merged = [...data];
-          localResources.forEach((lr: any) => {
-            if (!merged.some(m => m.id === lr.id)) {
-              merged.push(lr);
-            }
-          });
-          setResources(merged);
-        } else {
-          setResources(localResources);
-        }
+        const data = await adminService.getResources();
+        setResources(data);
       } catch (err) {
-        console.warn('Optional resources table not found or query failed. Using offline default categories.', err);
+        console.warn('Failed to load resources:', err);
         const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
         setResources(localResources);
       } finally {

@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -127,6 +128,9 @@ CREATE POLICY "Allow insert/update/delete notifications" ON notifications FOR AL
       await client.query(sqlScript);
       await client.end();
       
+      // Save DB config on server so it persists for subsequent requests
+      saveDbConfig(dbUrl);
+
       console.log("[Setup DB] SQL Schema executed successfully.");
       res.json({ success: true, message: "All tables, columns, and security policies have been deployed and initialized successfully!" });
     } catch (error: any) {
@@ -353,6 +357,406 @@ CREATE POLICY "Allow insert/update/delete notifications" ON notifications FOR AL
     } catch (error: any) {
       console.error("Crawler trigger error:", error);
       res.status(500).json({ status: "error", message: error.message });
+    }
+  });
+
+  // Helpers for persistent connection string & shared file fallback storage
+  function saveDbConfig(connectionString: string) {
+    try {
+      const configPath = path.join(process.cwd(), 'db_config.json');
+      fs.writeFileSync(configPath, JSON.stringify({ connectionString }), 'utf-8');
+    } catch (err) {
+      console.error("Failed to write db_config.json:", err);
+    }
+  }
+
+  function isUrlValidPostgres(urlStr: string): boolean {
+    if (!urlStr) return false;
+    if (!urlStr.startsWith('postgres://') && !urlStr.startsWith('postgresql://')) return false;
+    if (
+      urlStr.includes('placeholder') || 
+      urlStr.includes('your-') || 
+      urlStr.includes('example.com') || 
+      urlStr === 'postgres://base' || 
+      urlStr === 'postgresql://base' || 
+      urlStr.includes('//base')
+    ) {
+      return false;
+    }
+    try {
+      const parsed = new URL(urlStr);
+      if (!parsed.hostname || parsed.hostname === 'base' || parsed.hostname === 'placeholder') {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getDbConnectionString(): string | null {
+    try {
+      const configPath = path.join(process.cwd(), 'db_config.json');
+      if (fs.existsSync(configPath)) {
+        const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        if (data.connectionString && isUrlValidPostgres(data.connectionString)) {
+          return data.connectionString;
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+    const envUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || null;
+    if (envUrl && isUrlValidPostgres(envUrl)) {
+      return envUrl;
+    }
+    return null;
+  }
+
+  async function queryDb(sql: string, params: any[] = []): Promise<any[]> {
+    const dbUrl = getDbConnectionString();
+    if (!dbUrl) {
+      throw new Error("No database connection string configured");
+    }
+    const client = new pg.Client({
+      connectionString: dbUrl,
+      ssl: dbUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined
+    });
+    await client.connect();
+    try {
+      const res = await client.query(sql, params);
+      return res.rows;
+    } finally {
+      await client.end();
+    }
+  }
+
+  const DATA_DIR = path.join(process.cwd(), 'data');
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+
+  function getLocalData<T>(filename: string, defaultValue: T): T {
+    try {
+      const filePath = path.join(DATA_DIR, filename);
+      if (fs.existsSync(filePath)) {
+        return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      }
+    } catch (err) {
+      console.error(`Failed to read local data ${filename}:`, err);
+    }
+    return defaultValue;
+  }
+
+  function saveLocalData<T>(filename: string, data: T) {
+    try {
+      const filePath = path.join(DATA_DIR, filename);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error(`Failed to write local data ${filename}:`, err);
+    }
+  }
+
+  // --- Shared Resources APIs ---
+  app.get("/api/resources", async (req, res) => {
+    try {
+      if (getDbConnectionString()) {
+        try {
+          const rows = await queryDb("SELECT * FROM resources ORDER BY created_at DESC");
+          return res.json(rows);
+        } catch (dbErr) {
+          console.warn("Database fetch resources failed, falling back to JSON storage:", dbErr);
+        }
+      }
+      const localResources = getLocalData<any[]>("resources.json", []);
+      res.json(localResources);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/resources", async (req, res) => {
+    try {
+      const resource = req.body;
+      const newId = resource.id || Math.random().toString(36).substring(2, 11);
+      const payload = {
+        id: newId,
+        title: resource.title,
+        description: resource.description || "",
+        category: resource.category,
+        url: resource.url,
+        thumbnail_url: resource.thumbnail_url || (resource.category === 'PDF' 
+          ? 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400' 
+          : 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400'),
+        created_at: resource.created_at || new Date().toISOString()
+      };
+
+      let savedToDb = false;
+      if (getDbConnectionString()) {
+        try {
+          await queryDb(
+            `INSERT INTO resources (id, title, description, category, url, thumbnail_url, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+             ON CONFLICT (id) DO UPDATE SET 
+               title = EXCLUDED.title, 
+               description = EXCLUDED.description, 
+               category = EXCLUDED.category, 
+               url = EXCLUDED.url, 
+               thumbnail_url = EXCLUDED.thumbnail_url`,
+            [payload.id, payload.title, payload.description, payload.category, payload.url, payload.thumbnail_url, payload.created_at]
+          );
+          savedToDb = true;
+        } catch (dbErr) {
+          console.error("Database insert resource failed, falling back to JSON storage:", dbErr);
+        }
+      }
+
+      const localResources = getLocalData<any[]>("resources.json", []);
+      const index = localResources.findIndex(r => r.id === payload.id);
+      if (index > -1) {
+        localResources[index] = payload;
+      } else {
+        localResources.unshift(payload);
+      }
+      saveLocalData("resources.json", localResources);
+
+      res.json({ success: true, resource: payload, savedToDb });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/resources/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+
+      if (getDbConnectionString()) {
+        try {
+          await queryDb("DELETE FROM resources WHERE id = $1", [id]);
+        } catch (dbErr) {
+          console.error("Database delete resource failed:", dbErr);
+        }
+      }
+
+      const localResources = getLocalData<any[]>("resources.json", []);
+      const filtered = localResources.filter(r => r.id !== id);
+      saveLocalData("resources.json", filtered);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- Shared Q&As APIs ---
+  app.get("/api/qas", async (req, res) => {
+    try {
+      if (getDbConnectionString()) {
+        try {
+          const rows = await queryDb("SELECT * FROM qas ORDER BY created_at DESC");
+          return res.json(rows);
+        } catch (dbErr) {
+          console.warn("Database fetch QAs failed, falling back to JSON storage:", dbErr);
+        }
+      }
+      const localQAs = getLocalData<any[]>("qas.json", []);
+      res.json(localQAs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/qas", async (req, res) => {
+    try {
+      const qa = req.body;
+      const newId = qa.id || Math.random().toString(36).substring(2, 11);
+      const payload = {
+        id: newId,
+        question_en: qa.question_en,
+        question_mm: qa.question_mm || "",
+        answer_en: qa.answer_en,
+        answer_mm: qa.answer_mm || "",
+        category_en: qa.category_en || "General",
+        category_mm: qa.category_mm || "အထွေထွေ",
+        created_at: qa.created_at || new Date().toISOString()
+      };
+
+      if (getDbConnectionString()) {
+        try {
+          await queryDb(
+            `INSERT INTO qas (id, question_en, question_mm, answer_en, answer_mm, category_en, category_mm, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+             ON CONFLICT (id) DO UPDATE SET 
+               question_en = EXCLUDED.question_en, 
+               question_mm = EXCLUDED.question_mm, 
+               answer_en = EXCLUDED.answer_en, 
+               answer_mm = EXCLUDED.answer_mm, 
+               category_en = EXCLUDED.category_en, 
+               category_mm = EXCLUDED.category_mm`,
+            [payload.id, payload.question_en, payload.question_mm, payload.answer_en, payload.answer_mm, payload.category_en, payload.category_mm, payload.created_at]
+          );
+        } catch (dbErr) {
+          console.error("Database insert QA failed:", dbErr);
+        }
+      }
+
+      const localQAs = getLocalData<any[]>("qas.json", []);
+      const index = localQAs.findIndex(q => q.id === payload.id);
+      if (index > -1) {
+        localQAs[index] = payload;
+      } else {
+        localQAs.unshift(payload);
+      }
+      saveLocalData("qas.json", localQAs);
+
+      res.json({ success: true, qa: payload });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/qas/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+
+      if (getDbConnectionString()) {
+        try {
+          await queryDb("DELETE FROM qas WHERE id = $1", [id]);
+        } catch (dbErr) {
+          console.error("Database delete QA failed:", dbErr);
+        }
+      }
+
+      const localQAs = getLocalData<any[]>("qas.json", []);
+      const filtered = localQAs.filter(q => q.id !== id);
+      saveLocalData("qas.json", filtered);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- Shared Notifications APIs ---
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      if (getDbConnectionString()) {
+        try {
+          const rows = await queryDb("SELECT * FROM notifications ORDER BY created_at DESC");
+          return res.json(rows);
+        } catch (dbErr) {
+          console.warn("Database fetch notifications failed, falling back to JSON storage:", dbErr);
+        }
+      }
+      const localNotifications = getLocalData<any[]>("notifications.json", []);
+      res.json(localNotifications);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/notifications", async (req, res) => {
+    try {
+      const noti = req.body;
+      const newId = noti.id || Math.random().toString(36).substring(2, 11);
+      const payload = {
+        id: newId,
+        user_id: noti.user_id || null,
+        title: noti.title,
+        message: noti.message,
+        type: noti.type || "info",
+        is_read: noti.is_read || false,
+        created_at: noti.created_at || new Date().toISOString()
+      };
+
+      if (getDbConnectionString()) {
+        try {
+          await queryDb(
+            `INSERT INTO notifications (id, user_id, title, message, type, is_read, created_at) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+             ON CONFLICT (id) DO UPDATE SET 
+               title = EXCLUDED.title, 
+               message = EXCLUDED.message, 
+               type = EXCLUDED.type, 
+               is_read = EXCLUDED.is_read`,
+            [payload.id, payload.user_id, payload.title, payload.message, payload.type, payload.is_read, payload.created_at]
+          );
+        } catch (dbErr) {
+          console.error("Database insert notification failed:", dbErr);
+        }
+      }
+
+      const localNotifications = getLocalData<any[]>("notifications.json", []);
+      const index = localNotifications.findIndex(n => n.id === payload.id);
+      if (index > -1) {
+        localNotifications[index] = payload;
+      } else {
+        localNotifications.unshift(payload);
+      }
+      saveLocalData("notifications.json", localNotifications);
+
+      res.json({ success: true, notification: payload });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/notifications/mark-read", async (req, res) => {
+    try {
+      const { id } = req.body;
+
+      if (getDbConnectionString()) {
+        try {
+          await queryDb("UPDATE notifications SET is_read = true WHERE id = $1", [id]);
+        } catch (dbErr) {
+          console.error("Database mark notification read failed:", dbErr);
+        }
+      }
+
+      const localNotifications = getLocalData<any[]>("notifications.json", []);
+      const updated = localNotifications.map(n => n.id === id ? { ...n, is_read: true } : n);
+      saveLocalData("notifications.json", updated);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/notifications/read-all", async (req, res) => {
+    try {
+      if (getDbConnectionString()) {
+        try {
+          await queryDb("UPDATE notifications SET is_read = true");
+        } catch (dbErr) {
+          console.error("Database read-all notifications failed:", dbErr);
+        }
+      }
+
+      const localNotifications = getLocalData<any[]>("notifications.json", []);
+      const updated = localNotifications.map(n => ({ ...n, is_read: true }));
+      saveLocalData("notifications.json", updated);
+
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/notifications", async (req, res) => {
+    try {
+      if (getDbConnectionString()) {
+        try {
+          await queryDb("DELETE FROM notifications");
+        } catch (dbErr) {
+          console.error("Database delete all notifications failed:", dbErr);
+        }
+      }
+
+      saveLocalData("notifications.json", []);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

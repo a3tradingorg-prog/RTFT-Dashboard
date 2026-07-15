@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isConfigured } from '../lib/supabase';
+import { adminService } from '../lib/adminService';
 import { 
   Zap, 
   Clock, 
@@ -206,27 +207,9 @@ export default function ICTNotes() {
   useEffect(() => {
     const fetchICTResources = async () => {
       try {
-        const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
-        const filteredLocal = localResources.filter((r: any) => r.category === 'ICT Notes');
-
-        let dbResources: any[] = [];
-        if (isConfigured) {
-          const { data, error } = await supabase
-            .from('resources')
-            .select('*')
-            .eq('category', 'ICT Notes');
-          if (!error && data) {
-            dbResources = data;
-          }
-        }
-
-        const merged = [...dbResources];
-        filteredLocal.forEach((lr: any) => {
-          if (!merged.some(m => m.id === lr.id)) {
-            merged.push(lr);
-          }
-        });
-        setCustomICTResources(merged);
+        const resources = await adminService.getResources();
+        const filtered = resources.filter((r: any) => r.category === 'ICT Notes');
+        setCustomICTResources(filtered);
       } catch (err) {
         console.warn('Failed to fetch ICT resources:', err);
       }
