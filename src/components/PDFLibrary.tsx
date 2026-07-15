@@ -240,6 +240,11 @@ export default function PDFLibrary() {
     };
 
     fetchDynamicPDFs();
+
+    window.addEventListener('rtft_notification_update', fetchDynamicPDFs);
+    return () => {
+      window.removeEventListener('rtft_notification_update', fetchDynamicPDFs);
+    };
   }, []);
 
   const allFiles = [...PDF_FILES, ...dynamicPDFs];

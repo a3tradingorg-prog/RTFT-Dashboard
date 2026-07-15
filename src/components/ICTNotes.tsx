@@ -216,6 +216,11 @@ export default function ICTNotes() {
     };
 
     fetchICTResources();
+
+    window.addEventListener('rtft_notification_update', fetchICTResources);
+    return () => {
+      window.removeEventListener('rtft_notification_update', fetchICTResources);
+    };
   }, []);
 
   // Dynamically fetch both indicator scripts from user's Supabase bucket

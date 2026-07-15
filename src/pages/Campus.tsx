@@ -458,6 +458,11 @@ export default function Campus() {
     };
 
     fetchResources().catch(() => {});
+
+    window.addEventListener('rtft_notification_update', fetchResources);
+    return () => {
+      window.removeEventListener('rtft_notification_update', fetchResources);
+    };
   }, []);
 
   const categories = [

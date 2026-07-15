@@ -160,7 +160,7 @@ export default function Admin() {
       setQas(fetchedQas);
 
       // Load resources for delete listings
-      const localResources = JSON.parse(localStorage.getItem('rtft_admin_resources') || '[]');
+      const localResources = await adminService.getResources();
       setActiveTabResources(localResources);
     } catch (e) {
       console.error('Error loading admin data:', e);
